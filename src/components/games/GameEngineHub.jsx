@@ -21,7 +21,20 @@ const FaskaCrazyTaxi = lazy(() => import('./engines/FaskaCrazyTaxi/FaskaCrazyTax
 const FaskaPinball = lazy(() => import('./engines/FaskaPinball/FaskaPinball').catch(() => ({ default: () => <div className="text-white p-8">FaskaPinball wird gerade entwickelt...</div> })));
 const FaskaMicroMachines = lazy(() => import('./engines/FaskaMicroMachines/FaskaMicroMachines').catch(() => ({ default: () => <div className="text-white p-8">FaskaMicroMachines wird gerade entwickelt...</div> })));
 
+// Phase 4 Games (The 64-Bit Era)
+const FaskaMario64 = lazy(() => import('./engines/FaskaMario64/FaskaMario64').catch(() => ({ default: () => <div className="text-white p-8">FaskaMario64 wird gerade entwickelt...</div> })));
+const FaskaMarbleMadness = lazy(() => import('./engines/FaskaMarbleMadness/FaskaMarbleMadness').catch(() => ({ default: () => <div className="text-white p-8">FaskaMarbleMadness wird gerade entwickelt...</div> })));
+const FaskaTekken = lazy(() => import('./engines/FaskaTekken/FaskaTekken').catch(() => ({ default: () => <div className="text-white p-8">FaskaTekken wird gerade entwickelt...</div> })));
+const FaskaContra = lazy(() => import('./engines/FaskaContra/FaskaContra').catch(() => ({ default: () => <div className="text-white p-8">FaskaContra wird gerade entwickelt...</div> })));
+const FaskaSpaceInvaders = lazy(() => import('./engines/FaskaSpaceInvaders/FaskaSpaceInvaders').catch(() => ({ default: () => <div className="text-white p-8">FaskaSpaceInvaders wird gerade entwickelt...</div> })));
+
 const GAMES = [
+  // Phase 4
+  { id: 'faskamario64', title: 'Faska-64', desc: '3D Collectathon Platformer', icon: '⭐', component: FaskaMario64, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
+  { id: 'faskamarble', title: 'Marble Madness', desc: '3D Rolling Physics', icon: '🔮', component: FaskaMarbleMadness, color: 'bg-blue-400', shadow: 'shadow-blue-400/50' },
+  { id: 'faskatekken', title: 'Faska-Fighter 3D', desc: '3D Arena Brawler', icon: '🥋', component: FaskaTekken, color: 'bg-zinc-800', shadow: 'shadow-zinc-800/50' },
+  { id: 'faskacontra', title: 'Faska-Contra', desc: '2D Run and Gun', icon: '💥', component: FaskaContra, color: 'bg-green-800', shadow: 'shadow-green-800/50' },
+  { id: 'faskainvaders', title: 'Space Invaders', desc: 'Classic Arcade Shooter', icon: '👾', component: FaskaSpaceInvaders, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },
   // Phase 3
   { id: 'faskazelda', title: 'Faska-Zelda', desc: 'Dungeon Puzzle Adventure', icon: '🗡️', component: FaskaZelda, color: 'bg-emerald-700', shadow: 'shadow-emerald-700/50' },
   { id: 'faskasonic', title: 'Faska-Sonic', desc: 'High-Speed Platformer', icon: '🦔', component: FaskaSonic, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },

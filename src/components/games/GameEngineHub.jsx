@@ -8,7 +8,15 @@ const FaskaBlocks = lazy(() => import('./engines/FaskaBlocks/FaskaBlocks').catch
 const FaskaJump = lazy(() => import('./engines/FaskaJump/FaskaJump').catch(() => ({ default: () => <div className="text-white p-8">FaskaJump wird gerade entwickelt...</div> })));
 const FaskaCross = lazy(() => import('./engines/FaskaCross/FaskaCross').catch(() => ({ default: () => <div className="text-white p-8">FaskaCross wird gerade entwickelt...</div> })));
 
+// Phase 2 Games (3D & Fighters)
+const FaskaDoom = lazy(() => import('./engines/FaskaDoom/FaskaDoom').catch(() => ({ default: () => <div className="text-white p-8">FaskaDoom 3D wird gerade entwickelt...</div> })));
+const FaskaKart = lazy(() => import('./engines/FaskaKart/FaskaKart').catch(() => ({ default: () => <div className="text-white p-8">FaskaKart 3D wird gerade entwickelt...</div> })));
+const FaskaFighter = lazy(() => import('./engines/FaskaFighter/FaskaFighter').catch(() => ({ default: () => <div className="text-white p-8">FaskaFighter wird gerade entwickelt...</div> })));
+
 const GAMES = [
+  { id: 'faskadoom', title: 'Faska-Doom 3D', desc: 'First Person Mathe-Shooter!', icon: '🔫', component: FaskaDoom, color: 'bg-red-800', shadow: 'shadow-red-900/50' },
+  { id: 'faskakart', title: 'Faska-Kart 3D', desc: 'Highspeed Mode-7 Racing!', icon: '🏎️', component: FaskaKart, color: 'bg-indigo-600', shadow: 'shadow-indigo-600/50' },
+  { id: 'faskafighter', title: 'Faska-Fighter', desc: 'Tipp-Combos und Hadouken!', icon: '🥊', component: FaskaFighter, color: 'bg-orange-600', shadow: 'shadow-orange-600/50' },
   { id: 'faskaman', title: 'Faska-Man', desc: 'Sammle Wörter im Labyrinth!', icon: '🟡', component: FaskaMan, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
   { id: 'faskablocks', title: 'Faska-Blocks', desc: 'Staple Blöcke und rechne mit!', icon: '🧱', component: FaskaBlocks, color: 'bg-blue-500', shadow: 'shadow-blue-500/50' },
   { id: 'faskajump', title: 'Faska-Jump', desc: 'Springe zur richtigen Antwort!', icon: '🍄', component: FaskaJump, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
@@ -58,7 +66,7 @@ export default function GameEngineHub({ onExit }) {
           <div className="w-[100px]"></div> {/* Spacer for flex balance */}
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {GAMES.map((game) => (
             <motion.button
               key={game.id}

@@ -7,6 +7,7 @@ import { playJingle, playPop } from "./utils/sounds";
 import { loadProgress, saveProgress } from "./utils/storage";
 import DailyJourney from "./components/DailyJourney";
 import AdventureHud, { AchievementToast, BADGES } from "./components/AdventureHud";
+import GameEngineHub from "./components/games/GameEngineHub";
 
 const Motion = motion;
 
@@ -110,6 +111,7 @@ export default function App() {
   const [floatingStars, setFloatingStars] = useState([]);
   const [mascotMood, setMascotMood] = useState("idle");
   const [unlockedBadge, setUnlockedBadge] = useState(null);
+  const [showGameHub, setShowGameHub] = useState(false);
   const badgeTimeoutRef = useRef(null);
 
   // Sync with storage on changes
@@ -163,6 +165,13 @@ export default function App() {
       />
 
       <AchievementToast badge={unlockedBadge} />
+
+      {/* Retro Arcade Hub Overlay */}
+      <AnimatePresence>
+        {showGameHub && (
+          <GameEngineHub onExit={() => setShowGameHub(false)} />
+        )}
+      </AnimatePresence>
 
       {/* Floating star feedback */}
       <AnimatePresence>
@@ -235,9 +244,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Daily Journey Card */}
-          <div className="w-full md:w-auto">
+          {/* Daily Journey Card & Arcade Button */}
+          <div className="w-full md:w-auto flex flex-col gap-4">
             <DailyJourney onTaskClick={(subj) => { playPop(); setActiveSubject(subj); }} />
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { playPop(); setShowGameHub(true); }}
+              className="w-full bg-slate-900 text-white rounded-3xl p-4 flex items-center justify-between shadow-xl border-2 border-slate-700 hover:border-slate-500 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🕹️</span>
+                <div className="text-left">
+                  <p className="font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-pink-500 uppercase text-sm">Pro Level</p>
+                  <p className="font-bold text-lg leading-none mt-1">Retro Arcade</p>
+                </div>
+              </div>
+              <span className="text-slate-400 text-2xl">➔</span>
+            </motion.button>
           </div>
         </motion.header>
 

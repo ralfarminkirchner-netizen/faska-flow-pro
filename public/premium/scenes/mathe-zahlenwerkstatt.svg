@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">Zahlenwerkstatt</title>
+  <desc id="desc">Montessori-Zahlenlandschaft mit Perlenmaterial, Zahlenkarten und Fluss.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f2fbff"/><stop offset=".52" stop-color="#cbeeff"/><stop offset="1" stop-color="#9fd2f0"/></linearGradient>
+    <linearGradient id="river" x1="0" x2="1"><stop stop-color="#85d7ee"/><stop offset="1" stop-color="#3d9fcf"/></linearGradient>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".02" numOctaves="3" seed="22"/><feColorMatrix type="saturate" values=".2"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#23465f" flood-opacity=".16"/></filter>
+    <style>.bob{animation:bob 5s ease-in-out infinite}.bob2{animation:bob 6s ease-in-out infinite reverse}.roll{animation:roll 7s ease-in-out infinite}@keyframes bob{50%{transform:translateY(-14px)}}@keyframes roll{50%{transform:translateX(18px) rotate(3deg)}}</style>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/><rect width="1200" height="750" filter="url(#paper)" opacity=".72"/>
+  <path d="M0 598 C155 538 288 590 428 536 C600 468 714 558 878 508 C1012 466 1110 490 1200 444 L1200 750 L0 750 Z" fill="#b9d88f"/>
+  <path d="M-20 682 C190 610 372 710 568 622 C742 544 918 656 1220 565 L1220 750 L-20 750 Z" fill="#7db979"/>
+  <path d="M-30 455 C170 505 290 408 460 460 C650 518 762 420 930 462 C1060 496 1128 458 1230 410" fill="none" stroke="url(#river)" stroke-width="86" stroke-linecap="round" opacity=".88"/>
+  <path d="M-25 450 C174 500 288 404 458 456 C652 516 762 418 930 458 C1058 490 1128 456 1226 408" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".45" stroke-dasharray="28 34"/>
+  <g transform="translate(420 210)" filter="url(#shadow)">
+    <rect x="-5" y="-5" width="370" height="260" rx="34" fill="#fff9ed" stroke="#ffffff" stroke-width="8"/>
+    <g transform="translate(42 42)">
+      <rect width="74" height="74" rx="18" fill="#fff4c7" stroke="#c08324" stroke-width="5"/><text x="37" y="54" font-family="Georgia, serif" font-size="50" font-weight="700" text-anchor="middle" fill="#8a5b18">1</text>
+      <rect x="106" width="74" height="74" rx="18" fill="#e8f5ff" stroke="#2f80b7" stroke-width="5"/><text x="143" y="54" font-family="Georgia, serif" font-size="50" font-weight="700" text-anchor="middle" fill="#23465f">5</text>
+      <rect x="212" width="92" height="74" rx="18" fill="#fce7f0" stroke="#ba5d7b" stroke-width="5"/><text x="258" y="54" font-family="Georgia, serif" font-size="50" font-weight="700" text-anchor="middle" fill="#66364c">10</text>
+      <path d="M22 140 L304 140" stroke="#d9c6a6" stroke-width="7" stroke-linecap="round"/>
+      <g class="roll" transform="translate(20 170)">
+        <circle cx="0" cy="0" r="16" fill="#f5c351" stroke="#a96b22" stroke-width="4"/><circle cx="42" cy="0" r="16" fill="#f5c351" stroke="#a96b22" stroke-width="4"/><circle cx="84" cy="0" r="16" fill="#f5c351" stroke="#a96b22" stroke-width="4"/><circle cx="126" cy="0" r="16" fill="#f5c351" stroke="#a96b22" stroke-width="4"/><circle cx="168" cy="0" r="16" fill="#f5c351" stroke="#a96b22" stroke-width="4"/>
+      </g>
+    </g>
+  </g>
+  <g class="bob" font-family="Georgia, serif" font-weight="700" fill="#2f80b7"><text x="190" y="238" font-size="112">+</text><text x="955" y="255" font-size="96">=</text></g>
+  <g class="bob2" transform="translate(165 515)"><circle cx="0" cy="0" r="28" fill="#fff4c7" stroke="#a96b22" stroke-width="6"/><circle cx="58" cy="0" r="28" fill="#fff4c7" stroke="#a96b22" stroke-width="6"/><circle cx="116" cy="0" r="28" fill="#fff4c7" stroke="#a96b22" stroke-width="6"/></g>
+  <g stroke="#527a45" stroke-width="8" stroke-linecap="round"><path d="M980 650 C990 585 990 535 1018 480"/><path d="M1015 528 C960 494 980 438 1038 442 C1070 482 1058 516 1015 528Z" fill="#9bd58c"/></g>
+</svg>

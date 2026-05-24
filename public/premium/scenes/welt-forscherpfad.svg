@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">Wunderwelt Forscherpfad</title>
+  <desc id="desc">Natur- und Welt-Szene mit Globus, Bergen, Lupe, Blättern und Sternen.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f1fff7"/><stop offset=".48" stop-color="#c8f1d8"/><stop offset="1" stop-color="#9ed3bc"/></linearGradient>
+    <radialGradient id="globe" cx=".35" cy=".28" r=".72"><stop stop-color="#d9fbff"/><stop offset=".58" stop-color="#81d8e7"/><stop offset="1" stop-color="#4fa7c3"/></radialGradient>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="4" seed="31"/><feComponentTransfer><feFuncA type="table" tableValues="0 .15"/></feComponentTransfer></filter>
+    <style>.drift{animation:drift 7s ease-in-out infinite}.spin{animation:spin 10s linear infinite;transform-origin:600px 390px}@keyframes drift{50%{transform:translateY(-16px) translateX(8px)}}@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/><rect width="1200" height="750" filter="url(#paper)" opacity=".7"/>
+  <path d="M0 525 L160 370 L268 488 L398 320 L570 526 Z" fill="#8fbf8c"/><path d="M278 525 L475 280 L662 525 Z" fill="#79ad84"/><path d="M566 525 L780 335 L1030 525 Z" fill="#6fa77e"/><path d="M846 525 L1035 320 L1200 505 L1200 750 L0 750 L0 525 Z" fill="#5f9d72"/>
+  <path d="M0 620 C155 558 324 642 492 590 C686 530 842 638 1200 548 L1200 750 L0 750 Z" fill="#72b978"/>
+  <g transform="translate(450 170)">
+    <circle cx="150" cy="170" r="142" fill="url(#globe)" stroke="#285946" stroke-width="8"/>
+    <path d="M58 118 C105 68 166 82 182 128 C146 132 128 162 143 198 C98 212 56 188 48 150 Z" fill="#8fd17e" stroke="#2f7b54" stroke-width="6"/>
+    <path d="M205 82 C282 118 300 215 238 264 C202 250 188 214 207 182 C242 170 244 124 205 82 Z" fill="#74c98b" stroke="#2f7b54" stroke-width="6"/>
+    <g class="spin" fill="none" stroke="#fff" stroke-width="4" opacity=".55"><ellipse cx="150" cy="170" rx="140" ry="48"/><ellipse cx="150" cy="170" rx="55" ry="140"/></g>
+    <path d="M70 340 C135 370 210 370 282 340" fill="none" stroke="#285946" stroke-width="8" stroke-linecap="round"/><path d="M150 312 L150 358" stroke="#285946" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <g class="drift" stroke-linecap="round" stroke-linejoin="round"><path d="M250 250 C215 208 235 160 285 165 C330 200 310 242 250 250Z" fill="#a9dc7c" stroke="#2f7b54" stroke-width="6"/><path d="M900 230 C950 185 1010 205 1005 262 C958 292 918 280 900 230Z" fill="#96d4a0" stroke="#2f7b54" stroke-width="6"/></g>
+  <g transform="translate(820 465) rotate(-18)"><circle cx="0" cy="0" r="66" fill="#fffaf0" fill-opacity=".62" stroke="#6c8d60" stroke-width="9"/><path d="M48 48 L128 128" stroke="#6c8d60" stroke-width="16" stroke-linecap="round"/><path d="M-24 -8 C-3 -26 25 -18 34 5" fill="none" stroke="#fff" stroke-width="7" opacity=".6" stroke-linecap="round"/></g>
+  <g fill="#fff8d6" stroke="#d59335" stroke-width="4"><path d="M170 150 L182 178 L212 180 L188 198 L196 228 L170 212 L144 228 L152 198 L128 180 L158 178 Z"/><path d="M1042 132 L1052 154 L1076 156 L1058 172 L1064 195 L1042 182 L1020 195 L1026 172 L1008 156 L1032 154 Z"/></g>
+</svg>

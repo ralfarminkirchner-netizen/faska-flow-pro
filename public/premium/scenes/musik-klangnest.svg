@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">Klangnest</title>
+  <desc id="desc">Musikalische Kinderbuchszene mit Instrumenten, Noten und warmem Bühnenlicht.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#fff8ed"/><stop offset=".45" stop-color="#f8d6e5"/><stop offset="1" stop-color="#d8c5f2"/></linearGradient>
+    <radialGradient id="light" cx=".5" cy=".22" r=".5"><stop stop-color="#fffbe8"/><stop offset=".62" stop-color="#ffd98f" stop-opacity=".55"/><stop offset="1" stop-color="#ffd98f" stop-opacity="0"/></radialGradient>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="4" seed="51"/><feComponentTransfer><feFuncA type="table" tableValues="0 .15"/></feComponentTransfer></filter>
+    <style>.note{animation:note 4.8s ease-in-out infinite}.note2{animation:note 5.8s ease-in-out infinite reverse}.tap{animation:tap 1.6s ease-in-out infinite;transform-origin:650px 470px}@keyframes note{50%{transform:translateY(-22px) rotate(5deg)}}@keyframes tap{50%{transform:rotate(-8deg)}}</style>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/><rect width="1200" height="750" filter="url(#paper)" opacity=".72"/><circle cx="600" cy="165" r="355" fill="url(#light)"/>
+  <path d="M0 598 C188 545 350 612 520 562 C704 508 885 600 1200 510 L1200 750 L0 750 Z" fill="#d49abc"/>
+  <path d="M0 665 C216 610 405 690 618 630 C800 580 966 655 1200 595 L1200 750 L0 750 Z" fill="#bd86b2"/>
+  <g transform="translate(430 338)">
+    <ellipse cx="172" cy="160" rx="190" ry="122" fill="#fff4df" stroke="#8d69bd" stroke-width="9"/>
+    <ellipse cx="172" cy="160" rx="128" ry="76" fill="#f7c4db" stroke="#8d69bd" stroke-width="7"/>
+    <circle cx="172" cy="160" r="36" fill="#fffaf0" stroke="#8d69bd" stroke-width="6"/>
+    <path d="M34 82 C-28 45 -40 -8 24 -28 C86 -18 100 34 62 84 Z" fill="#d59335" stroke="#805a28" stroke-width="8"/>
+    <path d="M302 76 C360 28 358 -30 292 -38 C232 -18 234 40 280 82 Z" fill="#a9dc7c" stroke="#527a45" stroke-width="8"/>
+  </g>
+  <g class="tap" stroke-linecap="round"><path d="M650 445 L780 322" stroke="#805a28" stroke-width="16"/><circle cx="795" cy="308" r="24" fill="#fff4c7" stroke="#805a28" stroke-width="7"/></g>
+  <g class="tap" style="animation-delay:.4s" stroke-linecap="round"><path d="M555 450 L425 330" stroke="#805a28" stroke-width="16"/><circle cx="410" cy="316" r="24" fill="#fff4c7" stroke="#805a28" stroke-width="7"/></g>
+  <g font-family="Georgia, serif" font-weight="700" fill="#4f3d68">
+    <text class="note" x="210" y="238" font-size="118">♪</text><text class="note2" x="905" y="255" font-size="110">♫</text><text class="note" x="770" y="160" font-size="76" fill="#ba5d7b">♬</text><text class="note2" x="340" y="155" font-size="80" fill="#8d69bd">𝄞</text>
+  </g>
+  <g transform="translate(150 500)" stroke-linecap="round" stroke-linejoin="round"><path d="M0 95 C64 26 146 28 210 95" fill="#fffaf0" stroke="#8d69bd" stroke-width="8"/><path d="M50 82 L50 140 M105 62 L105 140 M160 82 L160 140" stroke="#8d69bd" stroke-width="7"/><circle cx="50" cy="145" r="20" fill="#fff4c7" stroke="#805a28" stroke-width="6"/><circle cx="105" cy="145" r="20" fill="#fff4c7" stroke="#805a28" stroke-width="6"/><circle cx="160" cy="145" r="20" fill="#fff4c7" stroke="#805a28" stroke-width="6"/></g>
+</svg>

@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+set timeout 30
+spawn railway init -n faskar-flow-pro
+expect {
+    "Select a workspace" {
+        send "\r"
+        exp_continue
+    }
+    "already exists" {
+        exit 0
+    }
+    eof
+}

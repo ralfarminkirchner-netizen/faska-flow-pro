@@ -13,7 +13,23 @@ const FaskaDoom = lazy(() => import('./engines/FaskaDoom/FaskaDoom').catch(() =>
 const FaskaKart = lazy(() => import('./engines/FaskaKart/FaskaKart').catch(() => ({ default: () => <div className="text-white p-8">FaskaKart 3D wird gerade entwickelt...</div> })));
 const FaskaFighter = lazy(() => import('./engines/FaskaFighter/FaskaFighter').catch(() => ({ default: () => <div className="text-white p-8">FaskaFighter wird gerade entwickelt...</div> })));
 
+// Phase 3 Games (The Ultimate Arcade)
+const FaskaZelda = lazy(() => import('./engines/FaskaZelda/FaskaZelda').catch(() => ({ default: () => <div className="text-white p-8">FaskaZelda wird gerade entwickelt...</div> })));
+const FaskaSonic = lazy(() => import('./engines/FaskaSonic/FaskaSonic').catch(() => ({ default: () => <div className="text-white p-8">FaskaSonic wird gerade entwickelt...</div> })));
+const FaskaRType = lazy(() => import('./engines/FaskaRType/FaskaRType').catch(() => ({ default: () => <div className="text-white p-8">FaskaRType wird gerade entwickelt...</div> })));
+const FaskaCrazyTaxi = lazy(() => import('./engines/FaskaCrazyTaxi/FaskaCrazyTaxi').catch(() => ({ default: () => <div className="text-white p-8">FaskaCrazyTaxi 3D wird gerade entwickelt...</div> })));
+const FaskaPinball = lazy(() => import('./engines/FaskaPinball/FaskaPinball').catch(() => ({ default: () => <div className="text-white p-8">FaskaPinball wird gerade entwickelt...</div> })));
+const FaskaMicroMachines = lazy(() => import('./engines/FaskaMicroMachines/FaskaMicroMachines').catch(() => ({ default: () => <div className="text-white p-8">FaskaMicroMachines wird gerade entwickelt...</div> })));
+
 const GAMES = [
+  // Phase 3
+  { id: 'faskazelda', title: 'Faska-Zelda', desc: 'Dungeon Puzzle Adventure', icon: '🗡️', component: FaskaZelda, color: 'bg-emerald-700', shadow: 'shadow-emerald-700/50' },
+  { id: 'faskasonic', title: 'Faska-Sonic', desc: 'High-Speed Platformer', icon: '🦔', component: FaskaSonic, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },
+  { id: 'faskartype', title: 'Faska-RType', desc: 'Galaktischer Space-Shooter', icon: '🚀', component: FaskaRType, color: 'bg-purple-800', shadow: 'shadow-purple-800/50' },
+  { id: 'faskacrazytaxi', title: 'Faska-CrazyTaxi', desc: '3D City Driving', icon: '🚕', component: FaskaCrazyTaxi, color: 'bg-yellow-400', shadow: 'shadow-yellow-500/50' },
+  { id: 'faskapinball', title: 'Faska-Pinball', desc: 'Physics-based Flipper', icon: '🕹️', component: FaskaPinball, color: 'bg-cyan-700', shadow: 'shadow-cyan-700/50' },
+  { id: 'faskamicromachines', title: 'Micro-Machines', desc: 'Top-Down Drifting Racer', icon: '🏎️', component: FaskaMicroMachines, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
+  // Phase 2
   { id: 'faskadoom', title: 'Faska-Doom 3D', desc: 'First Person Mathe-Shooter!', icon: '🔫', component: FaskaDoom, color: 'bg-red-800', shadow: 'shadow-red-900/50' },
   { id: 'faskakart', title: 'Faska-Kart 3D', desc: 'Highspeed Mode-7 Racing!', icon: '🏎️', component: FaskaKart, color: 'bg-indigo-600', shadow: 'shadow-indigo-600/50' },
   { id: 'faskafighter', title: 'Faska-Fighter', desc: 'Tipp-Combos und Hadouken!', icon: '🥊', component: FaskaFighter, color: 'bg-orange-600', shadow: 'shadow-orange-600/50' },

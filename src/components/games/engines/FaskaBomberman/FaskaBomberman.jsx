@@ -1,491 +1,226 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
-const FaskaBomberman = ({ onExit }) => {
-  const gameContainerRef = useRef(null);
+export default function FaskaBomberman({ onExit }) {
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    // ---------------------------------------------------------
-    // Phaser Scene
-    // ---------------------------------------------------------
-    class MainScene extends Phaser.Scene {
-      constructor() {
-        super('MainScene');
-        this.tileSize = 48;
-        this.gridWidth = 15;
-        this.gridHeight = 11;
-        this.offsetX = (800 - this.gridWidth * this.tileSize) / 2;
-        this.offsetY = (600 - this.gridHeight * this.tileSize) / 2 + 20;
-
-        this.questions = [
-          { country: 'Italien', capital: 'Rom' },
-          { country: 'Frankreich', capital: 'Paris' },
-          { country: 'Deutschland', capital: 'Berlin' },
-          { country: 'Spanien', capital: 'Madrid' },
-          { country: 'Österreich', capital: 'Wien' },
-          { country: 'Schweiz', capital: 'Bern' },
-          { country: 'Japan', capital: 'Tokio' },
-          { country: 'Großbritannien', capital: 'London' }
-        ];
-
-        this.currentQuestion = null;
-        this.health = 3;
-        this.score = 0;
-        this.isMoving = false;
-        
-        // Data structures
-        this.grid = []; // 0 = empty, 1 = hard, 2 = soft
-        this.softBlocks = {}; // key: "x,y", value: { sprite, text, isCorrect }
-        this.bombs = {};
-        this.explosions = [];
+    const config = {
+      type: Phaser.AUTO,
+      width: 600,
+      height: 520,
+      parent: containerRef.current,
+      physics: {
+        default: 'arcade',
+        arcade: {
+          debug: false
+        }
+      },
+      scene: {
+        preload,
+        create,
+        update
       }
+    };
 
-      preload() {
-        // Hard Block
-        const gHard = this.make.graphics({ x: 0, y: 0, add: false });
-        gHard.fillStyle(0x333333);
-        gHard.fillRect(0, 0, this.tileSize, this.tileSize);
-        gHard.lineStyle(2, 0x111111);
-        gHard.strokeRect(0, 0, this.tileSize, this.tileSize);
-        gHard.generateTexture('hardBlock', this.tileSize, this.tileSize);
+    let p1, p2;
+    let solidWalls, destructibleBlocks, bombs, explosions;
+    let cursors, wasd;
+    let gameInst;
 
-        // Soft Block
-        const gSoft = this.make.graphics({ x: 0, y: 0, add: false });
-        gSoft.fillStyle(0x8B4513);
-        gSoft.fillRect(0, 0, this.tileSize, this.tileSize);
-        gSoft.lineStyle(2, 0x5C2E0B);
-        gSoft.strokeRect(0, 0, this.tileSize, this.tileSize);
-        gSoft.generateTexture('softBlock', this.tileSize, this.tileSize);
+    const tileSize = 40;
 
-        // Player
-        const gPlayer = this.make.graphics({ x: 0, y: 0, add: false });
-        gPlayer.fillStyle(0x00FFFF);
-        gPlayer.fillCircle(this.tileSize/2, this.tileSize/2, this.tileSize/2 - 4);
-        gPlayer.lineStyle(2, 0xFFFFFF);
-        gPlayer.strokeCircle(this.tileSize/2, this.tileSize/2, this.tileSize/2 - 4);
-        gPlayer.generateTexture('player', this.tileSize, this.tileSize);
+    function preload() {
+      const g = this.add.graphics();
+      
+      g.fillStyle(0x888888, 1);
+      g.fillRect(0, 0, tileSize, tileSize);
+      g.generateTexture('wall', tileSize, tileSize);
+      g.clear();
 
-        // Bomb
-        const gBomb = this.make.graphics({ x: 0, y: 0, add: false });
-        gBomb.fillStyle(0x111111);
-        gBomb.fillCircle(this.tileSize/2, this.tileSize/2, this.tileSize/2 - 6);
-        gBomb.fillStyle(0xFF0000); // fuse
-        gBomb.fillRect(this.tileSize/2 - 2, 4, 4, 8);
-        gBomb.generateTexture('bomb', this.tileSize, this.tileSize);
+      g.fillStyle(0x8b4513, 1);
+      g.fillRect(0, 0, tileSize, tileSize);
+      g.fillStyle(0xa0522d, 1);
+      g.fillRect(5, 5, 30, 10);
+      g.fillRect(5, 20, 10, 15);
+      g.fillRect(20, 20, 15, 15);
+      g.generateTexture('block', tileSize, tileSize);
+      g.clear();
 
-        // Explosion center
-        const gExplosion = this.make.graphics({ x: 0, y: 0, add: false });
-        gExplosion.fillStyle(0xFFFF00);
-        gExplosion.fillRect(0, 0, this.tileSize, this.tileSize);
-        gExplosion.fillStyle(0xFF0000);
-        gExplosion.fillRect(8, 8, this.tileSize - 16, this.tileSize - 16);
-        gExplosion.generateTexture('explosion', this.tileSize, this.tileSize);
+      g.fillStyle(0x000000, 1);
+      g.fillCircle(tileSize/2, tileSize/2, 16);
+      g.fillStyle(0xff0000, 1);
+      g.fillCircle(tileSize/2, 8, 4);
+      g.generateTexture('bomb', tileSize, tileSize);
+      g.clear();
 
-        // Particle
-        const gParticle = this.make.graphics({ x: 0, y: 0, add: false });
-        gParticle.fillStyle(0xFFA500);
-        gParticle.fillCircle(4, 4, 4);
-        gParticle.generateTexture('particle', 8, 8);
-      }
+      g.fillStyle(0xffaa00, 0.8);
+      g.fillRect(0, 0, tileSize, tileSize);
+      g.fillStyle(0xff0000, 1);
+      g.fillCircle(tileSize/2, tileSize/2, 10);
+      g.generateTexture('explosion', tileSize, tileSize);
+      g.clear();
 
-      create() {
-        this.createLevel();
+      g.fillStyle(0x0000ff, 1);
+      g.fillCircle(tileSize/2, tileSize/2, 14);
+      g.generateTexture('p1', tileSize, tileSize);
+      g.clear();
 
-        // Particles setup (supports both Phaser 3 older and newer APIs safely)
-        try {
-            // Newer phaser API
-            this.emitter = this.add.particles(0, 0, 'particle', {
-                speed: { min: -100, max: 100 },
-                angle: { min: 0, max: 360 },
-                scale: { start: 1, end: 0 },
-                blendMode: 'ADD',
-                lifespan: 600,
-                gravityY: 200,
-                emitting: false
-            });
-        } catch(e) {
-            // Fallback for older Phaser versions
-            const particles = this.add.particles('particle');
-            this.emitter = particles.createEmitter({
-                speed: { min: -100, max: 100 },
-                angle: { min: 0, max: 360 },
-                scale: { start: 1, end: 0 },
-                blendMode: 'ADD',
-                lifespan: 600,
-                gravityY: 200,
-                on: false
-            });
-        }
+      g.fillStyle(0xff00ff, 1);
+      g.fillCircle(tileSize/2, tileSize/2, 14);
+      g.generateTexture('p2', tileSize, tileSize);
+      g.destroy();
+    }
 
-        // Player setup
-        this.playerGridX = 1;
-        this.playerGridY = 1;
-        const px = this.offsetX + this.playerGridX * this.tileSize + this.tileSize/2;
-        const py = this.offsetY + this.playerGridY * this.tileSize + this.tileSize/2;
-        this.playerSprite = this.add.sprite(px, py, 'player');
-        this.playerSprite.setDepth(10);
+    function create() {
+      this.add.rectangle(0, 0, 600, 520, 0x228B22).setOrigin(0, 0);
 
-        // Inputs
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+      solidWalls = this.physics.add.staticGroup();
+      destructibleBlocks = this.physics.add.staticGroup();
+      bombs = this.physics.add.group();
+      explosions = this.physics.add.group();
 
-        // UI
-        this.hudQuestion = this.add.text(400, 30, '', { font: '26px Arial', fill: '#FFFFFF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5, 0.5);
-        this.hudStats = this.add.text(20, 20, '', { font: '22px Arial', fill: '#00FF00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 });
-        
-        this.setNewQuestion();
-        this.updateHUD();
-
-        this.input.keyboard.on('keydown-SPACE', this.placeBomb, this);
-      }
-
-      createLevel() {
-        for (let y = 0; y < this.gridHeight; y++) {
-          this.grid[y] = [];
-          for (let x = 0; x < this.gridWidth; x++) {
-            if (x === 0 || x === this.gridWidth - 1 || y === 0 || y === this.gridHeight - 1 || (x % 2 === 0 && y % 2 === 0)) {
-              // Hard Wall
-              this.grid[y][x] = 1;
-              const wx = this.offsetX + x * this.tileSize + this.tileSize/2;
-              const wy = this.offsetY + y * this.tileSize + this.tileSize/2;
-              this.add.sprite(wx, wy, 'hardBlock');
-            } else {
-              this.grid[y][x] = 0;
-            }
-          }
-        }
-
-        // Spawn soft blocks initially
-        this.spawnSoftBlocks();
-      }
-
-      spawnSoftBlocks() {
-        // Clear existing
-        for (let key in this.softBlocks) {
-          this.softBlocks[key].sprite.destroy();
-          if (this.softBlocks[key].textObj) this.softBlocks[key].textObj.destroy();
-          this.grid[this.softBlocks[key].y][this.softBlocks[key].x] = 0;
-        }
-        this.softBlocks = {};
-
-        for (let y = 1; y < this.gridHeight - 1; y++) {
-          for (let x = 1; x < this.gridWidth - 1; x++) {
-            if (this.grid[y][x] === 0) {
-              // Safe zone top-left
-              if ((x === 1 && y === 1) || (x === 1 && y === 2) || (x === 2 && y === 1)) {
-                continue;
-              }
-              if (Math.random() < 0.6) {
-                this.addSoftBlock(x, y);
-              }
-            }
-          }
-        }
-      }
-
-      addSoftBlock(x, y) {
-        this.grid[y][x] = 2;
-        const wx = this.offsetX + x * this.tileSize + this.tileSize/2;
-        const wy = this.offsetY + y * this.tileSize + this.tileSize/2;
-        const sprite = this.add.sprite(wx, wy, 'softBlock');
-        sprite.setDepth(5);
-        this.softBlocks[`${x},${y}`] = { sprite, text: null, textObj: null, isCorrect: false, x, y };
-      }
-
-      setNewQuestion() {
-        this.currentQuestion = Phaser.Utils.Array.GetRandom(this.questions);
-        this.hudQuestion.setText(`Spreng die Hauptstadt von ${this.currentQuestion.country}!`);
-
-        let blocks = Object.keys(this.softBlocks);
-        if (blocks.length < 5) {
-          this.spawnSoftBlocks();
-          blocks = Object.keys(this.softBlocks);
-        }
-
-        for (let key in this.softBlocks) {
-          const b = this.softBlocks[key];
-          if (b.textObj) {
-            b.textObj.destroy();
-            b.textObj = null;
-          }
-          b.text = null;
-          b.isCorrect = false;
-        }
-
-        Phaser.Utils.Array.Shuffle(blocks);
-
-        if (blocks.length > 0) {
-          this.assignTextToBlock(blocks[0], this.currentQuestion.capital, true);
-        }
-
-        let wrongAnswers = this.questions.filter(q => q.capital !== this.currentQuestion.capital).map(q => q.capital);
-        
-        for (let i = 1; i < Math.min(8, blocks.length); i++) {
-           const wrongAns = Phaser.Utils.Array.GetRandom(wrongAnswers);
-           this.assignTextToBlock(blocks[i], wrongAns, false);
-        }
-      }
-
-      assignTextToBlock(key, text, isCorrect) {
-        const b = this.softBlocks[key];
-        b.text = text;
-        b.isCorrect = isCorrect;
-        
-        b.textObj = this.add.text(b.sprite.x, b.sprite.y, text, {
-          font: '14px Arial',
-          fill: '#FFFF00',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 3
-        }).setOrigin(0.5, 0.5);
-        b.textObj.setDepth(6);
-      }
-
-      updateHUD() {
-        let heartStr = '';
-        for(let i=0; i<this.health; i++) heartStr += '❤';
-        this.hudStats.setText(`Leben: ${heartStr} | Punkte: ${this.score}`);
-        if (this.health <= 0) {
-          this.scene.pause();
-          this.add.text(400, 300, 'GAME OVER', { font: '64px Arial', fill: '#FF0000', fontStyle: 'bold', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 0.5);
-        }
-      }
-
-      update() {
-        if (this.health <= 0) return;
-        this.handleMovement();
-      }
-
-      handleMovement() {
-        if (this.isMoving) return;
-
-        let dx = 0;
-        let dy = 0;
-
-        if (this.cursors.left.isDown) dx = -1;
-        else if (this.cursors.right.isDown) dx = 1;
-        else if (this.cursors.up.isDown) dy = -1;
-        else if (this.cursors.down.isDown) dy = 1;
-
-        if (dx !== 0 || dy !== 0) {
-          const nextX = this.playerGridX + dx;
-          const nextY = this.playerGridY + dy;
-
-          if (this.grid[nextY][nextX] === 0) {
-            const bombKey = `${nextX},${nextY}`;
-            if (this.bombs[bombKey]) return; // block moving into bomb
-
-            this.isMoving = true;
-            this.playerGridX = nextX;
-            this.playerGridY = nextY;
-
-            const targetX = this.offsetX + this.playerGridX * this.tileSize + this.tileSize/2;
-            const targetY = this.offsetY + this.playerGridY * this.tileSize + this.tileSize/2;
-
-            this.tweens.add({
-              targets: this.playerSprite,
-              x: targetX,
-              y: targetY,
-              duration: 150,
-              onComplete: () => {
-                this.isMoving = false;
-              }
-            });
-          }
-        }
-      }
-
-      placeBomb() {
-        if (this.health <= 0) return;
-        const key = `${this.playerGridX},${this.playerGridY}`;
-        if (this.bombs[key]) return;
-
-        const bx = this.offsetX + this.playerGridX * this.tileSize + this.tileSize/2;
-        const by = this.offsetY + this.playerGridY * this.tileSize + this.tileSize/2;
-
-        const bombSprite = this.add.sprite(bx, by, 'bomb');
-        bombSprite.setDepth(4);
-
-        this.tweens.add({
-          targets: bombSprite,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          yoyo: true,
-          repeat: -1,
-          duration: 300
-        });
-
-        this.bombs[key] = { sprite: bombSprite, x: this.playerGridX, y: this.playerGridY };
-
-        this.time.delayedCall(3000, () => {
-          this.explodeBomb(key);
-        });
-      }
-
-      explodeBomb(key) {
-        if (!this.bombs[key]) return;
-        const bomb = this.bombs[key];
-        bomb.sprite.destroy();
-        delete this.bombs[key];
-
-        const reach = 2;
-        const cells = [{x: bomb.x, y: bomb.y}];
-
-        const dirs = [
-          {dx: 1, dy: 0},
-          {dx: -1, dy: 0},
-          {dx: 0, dy: 1},
-          {dx: 0, dy: -1}
-        ];
-
-        for (let d of dirs) {
-          for (let i = 1; i <= reach; i++) {
-            const nx = bomb.x + d.dx * i;
-            const ny = bomb.y + d.dy * i;
-            
-            if (this.grid[ny][nx] === 1) break; // hard wall stops explosion
-            
-            cells.push({x: nx, y: ny});
-            
-            if (this.grid[ny][nx] === 2) {
-              this.destroySoftBlock(nx, ny);
-              break; // soft wall absorbs
-            }
-          }
-        }
-
-        this.cameras.main.shake(150, 0.015);
-        
-        let playerHit = false;
-
-        cells.forEach(c => {
-          const ex = this.offsetX + c.x * this.tileSize + this.tileSize/2;
-          const ey = this.offsetY + c.y * this.tileSize + this.tileSize/2;
-          
-          const expSprite = this.add.sprite(ex, ey, 'explosion');
-          expSprite.setDepth(15);
-          
-          this.tweens.add({
-            targets: expSprite,
-            alpha: 0,
-            duration: 500,
-            onComplete: () => expSprite.destroy()
-          });
-
-          if (c.x === this.playerGridX && c.y === this.playerGridY) {
-            playerHit = true;
-          }
-        });
-
-        if (playerHit) {
-          this.takeDamage();
-        }
-      }
-
-      destroySoftBlock(x, y) {
-        const key = `${x},${y}`;
-        const block = this.softBlocks[key];
-        if (!block) return;
-
-        if (this.emitter.explode) {
-            this.emitter.explode(20, block.sprite.x, block.sprite.y);
-        }
-
-        this.grid[y][x] = 0;
-        block.sprite.destroy();
-        if (block.textObj) {
-            block.textObj.destroy();
-        }
-
-        if (block.text) {
-          if (block.isCorrect) {
-            this.score += 100;
-            this.cameras.main.flash(300, 0, 255, 0); // Green
-            this.setNewQuestion();
+      const cols = 15;
+      const rows = 13;
+      
+      for(let y=0; y<rows; y++){
+        for(let x=0; x<cols; x++){
+          if(x === 0 || x === cols-1 || y === 0 || y === rows-1 || (x%2===0 && y%2===0)){
+            solidWalls.create(x*tileSize + tileSize/2, y*tileSize + tileSize/2, 'wall');
           } else {
-            this.takeDamage();
-            this.cameras.main.shake(300, 0.04);
-            this.cameras.main.flash(300, 255, 0, 0); // Red
+            // safe zones for players
+            if((x<=2 && y<=2) || (x>=cols-3 && y>=rows-3)) continue;
+            if(Math.random() > 0.3) {
+              destructibleBlocks.create(x*tileSize + tileSize/2, y*tileSize + tileSize/2, 'block');
+            }
           }
         }
-
-        delete this.softBlocks[key];
-        this.updateHUD();
       }
 
-      takeDamage() {
-        this.health -= 1;
-        this.updateHUD();
-        
-        this.playerSprite.setTint(0xFF0000);
-        this.tweens.add({
-          targets: this.playerSprite,
-          alpha: 0.2,
-          yoyo: true,
-          repeat: 3,
-          duration: 100,
-          onComplete: () => {
-            this.playerSprite.clearTint();
-            this.playerSprite.alpha = 1;
-          }
-        });
+      p1 = this.physics.add.sprite(tileSize*1.5, tileSize*1.5, 'p1');
+      p1.setCollideWorldBounds(true);
+      p1.bombCount = 1;
+      p1.bombPower = 2;
+
+      p2 = this.physics.add.sprite(600 - tileSize*1.5, 520 - tileSize*1.5, 'p2');
+      p2.setCollideWorldBounds(true);
+      p2.bombCount = 1;
+      p2.bombPower = 2;
+
+      this.physics.add.collider(p1, solidWalls);
+      this.physics.add.collider(p1, destructibleBlocks);
+      this.physics.add.collider(p1, bombs);
+      
+      this.physics.add.collider(p2, solidWalls);
+      this.physics.add.collider(p2, destructibleBlocks);
+      this.physics.add.collider(p2, bombs);
+
+      this.physics.add.overlap(p1, explosions, () => killPlayer(1), null, this);
+      this.physics.add.overlap(p2, explosions, () => killPlayer(2), null, this);
+      this.physics.add.overlap(destructibleBlocks, explosions, (block) => block.destroy(), null, this);
+
+      cursors = this.input.keyboard.createCursorKeys();
+      wasd = {
+        up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+        down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+        right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+        space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+      };
+
+      const exitBtn = this.add.text(10, 5, 'EXIT', { font: 'bold 16px Arial', fill: '#ffffff', backgroundColor: '#ff0000' }).setInteractive().setDepth(100);
+      exitBtn.on('pointerdown', () => {
+         if (onExit) onExit();
+      });
+    }
+    
+    function killPlayer(playerNum) {
+      if (onExit) {
+        alert(`Player ${playerNum === 1 ? '2' : '1'} Wins!`);
+        onExit();
       }
     }
 
-    const config = {
-      type: Phaser.AUTO,
-      width: 800,
-      height: 600,
-      parent: gameContainerRef.current,
-      backgroundColor: '#2E8B57',
-      scene: [MainScene],
-    };
+    function placeBomb(scene, player) {
+      if(player.bombCount <= 0) return;
+      
+      const bx = Math.floor(player.x / tileSize) * tileSize + tileSize/2;
+      const by = Math.floor(player.y / tileSize) * tileSize + tileSize/2;
+      
+      const bomb = bombs.create(bx, by, 'bomb');
+      bomb.setImmovable(true);
+      bomb.body.moves = false;
+      player.bombCount--;
 
-    const game = new Phaser.Game(config);
+      setTimeout(() => {
+        bomb.destroy();
+        player.bombCount++;
+        explode(scene, bx, by, player.bombPower);
+      }, 2000);
+    }
 
+    function explode(scene, bx, by, power) {
+      createExplosion(scene, bx, by);
+      
+      const dirs = [[1,0], [-1,0], [0,1], [0,-1]];
+      dirs.forEach(d => {
+        for(let i=1; i<=power; i++){
+          const ex = bx + d[0]*tileSize*i;
+          const ey = by + d[1]*tileSize*i;
+          
+          let stopped = false;
+          solidWalls.children.iterate(w => {
+            if(w && Math.abs(w.x - ex) < 5 && Math.abs(w.y - ey) < 5) stopped = true;
+          });
+          if(stopped) break;
+          
+          let hitBlock = false;
+          destructibleBlocks.children.iterate(b => {
+            if(b && Math.abs(b.x - ex) < 5 && Math.abs(b.y - ey) < 5) {
+              hitBlock = true;
+              b.destroy();
+            }
+          });
+          
+          createExplosion(scene, ex, ey);
+          if(hitBlock) break;
+        }
+      });
+    }
+    
+    function createExplosion(scene, x, y) {
+      const exp = explosions.create(x, y, 'explosion');
+      setTimeout(() => exp.destroy(), 500);
+    }
+
+    function update() {
+      const speed = 150;
+      
+      // P1 (WASD)
+      p1.setVelocity(0);
+      if (wasd.left.isDown) p1.setVelocityX(-speed);
+      else if (wasd.right.isDown) p1.setVelocityX(speed);
+      else if (wasd.up.isDown) p1.setVelocityY(-speed);
+      else if (wasd.down.isDown) p1.setVelocityY(speed);
+      
+      if (Phaser.Input.Keyboard.JustDown(wasd.space)) placeBomb(this, p1);
+
+      // P2 (Arrows)
+      p2.setVelocity(0);
+      if (cursors.left.isDown) p2.setVelocityX(-speed);
+      else if (cursors.right.isDown) p2.setVelocityX(speed);
+      else if (cursors.up.isDown) p2.setVelocityY(-speed);
+      else if (cursors.down.isDown) p2.setVelocityY(speed);
+
+      if (Phaser.Input.Keyboard.JustDown(wasd.enter)) placeBomb(this, p2);
+    }
+
+    gameInst = new Phaser.Game(config);
     return () => {
-      game.destroy(true);
+      gameInst.destroy(true);
     };
-  }, []);
+  }, [onExit]);
 
-  return (
-    <div style={{ position: 'relative', width: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
-      <button
-        onClick={onExit}
-        style={{
-          position: 'absolute',
-          top: '15px',
-          right: '15px',
-          zIndex: 100,
-          padding: '10px 20px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          backgroundColor: '#ff4444',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-          transition: 'transform 0.1s'
-        }}
-        onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-        onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-      >
-        Beenden
-      </button>
-      <div 
-        ref={gameContainerRef} 
-        style={{ 
-          width: '800px', 
-          height: '600px', 
-          borderRadius: '12px', 
-          overflow: 'hidden', 
-          boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
-          border: '4px solid #111'
-        }} 
-      />
-    </div>
-  );
-};
-
-export default FaskaBomberman;
+  return <div ref={containerRef} className="w-full h-full flex justify-center items-center bg-black" />;
+}

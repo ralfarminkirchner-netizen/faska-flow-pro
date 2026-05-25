@@ -1,46 +1,66 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Lazy loading the games once they are built by the subagents.
-// We use a fallback if the file doesn't exist yet (for development flow).
-const FaskaMan = lazy(() => import('./engines/FaskaMan/FaskaMan').catch(() => ({ default: () => <div className="text-white p-8">FaskaMan wird gerade entwickelt...</div> })));
-const FaskaBlocks = lazy(() => import('./engines/FaskaBlocks/FaskaBlocks').catch(() => ({ default: () => <div className="text-white p-8">FaskaBlocks wird gerade entwickelt...</div> })));
-const FaskaJump = lazy(() => import('./engines/FaskaJump/FaskaJump').catch(() => ({ default: () => <div className="text-white p-8">FaskaJump wird gerade entwickelt...</div> })));
-const FaskaCross = lazy(() => import('./engines/FaskaCross/FaskaCross').catch(() => ({ default: () => <div className="text-white p-8">FaskaCross wird gerade entwickelt...</div> })));
+// --- NEW TITLES (The Swarm Phase) ---
+const FaskaRaider = lazy(() => import('./engines/FaskaRaider/FaskaRaider').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider wird von Agent 2 entwickelt...</div> })));
+const FaskaKazooie = lazy(() => import('./engines/FaskaKazooie/FaskaKazooie').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kazooie wird von Agent 2 entwickelt...</div> })));
+const FaskaAstro = lazy(() => import('./engines/FaskaAstro/FaskaAstro').catch(() => ({ default: () => <div className="text-white p-8">FASKA Astro wird von Agent 2 entwickelt...</div> })));
+const FaskaRidge = lazy(() => import('./engines/FaskaRidge/FaskaRidge').catch(() => ({ default: () => <div className="text-white p-8">FASKA Ridge wird von Agent 1 entwickelt...</div> })));
+const FaskaRally = lazy(() => import('./engines/FaskaRally/FaskaRally').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rally wird von Agent 1 entwickelt...</div> })));
+const FaskaRockRacing = lazy(() => import('./engines/FaskaRockRacing/FaskaRockRacing').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rock Racing wird von Agent 1 entwickelt...</div> })));
+const FaskaRC = lazy(() => import('./engines/FaskaRC/FaskaRC').catch(() => ({ default: () => <div className="text-white p-8">FASKA RC wird von Agent 1 entwickelt...</div> })));
+const FaskaBike = lazy(() => import('./engines/FaskaBike/FaskaBike').catch(() => ({ default: () => <div className="text-white p-8">FASKA Bike wird von Agent 3 entwickelt...</div> })));
+const FaskaMotocross = lazy(() => import('./engines/FaskaMotocross/FaskaMotocross').catch(() => ({ default: () => <div className="text-white p-8">FASKA Motocross wird von Agent 3 entwickelt...</div> })));
+const FaskaKirby = lazy(() => import('./engines/FaskaKirby/FaskaKirby').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kirby wird von Agent 3 entwickelt...</div> })));
+const FaskaWolf = lazy(() => import('./engines/FaskaWolf/FaskaWolf').catch(() => ({ default: () => <div className="text-white p-8">FASKA Wolf wird von Agent 4 entwickelt...</div> })));
+const FaskaRPG = lazy(() => import('./engines/FaskaRPG/FaskaRPG').catch(() => ({ default: () => <div className="text-white p-8">FASKA RPG wird von Agent 4 entwickelt...</div> })));
+const FaskaAlleyway = lazy(() => import('./engines/FaskaAlleyway/FaskaAlleyway').catch(() => ({ default: () => <div className="text-white p-8">FASKA Alleyway wird von Agent 3 entwickelt...</div> })));
 
-// Phase 2 Games (3D & Fighters)
-const FaskaDoom = lazy(() => import('./engines/FaskaDoom/FaskaDoom').catch(() => ({ default: () => <div className="text-white p-8">FaskaDoom 3D wird gerade entwickelt...</div> })));
-const FaskaKart = lazy(() => import('./engines/FaskaKart/FaskaKart').catch(() => ({ default: () => <div className="text-white p-8">FaskaKart 3D wird gerade entwickelt...</div> })));
-const FaskaFighter = lazy(() => import('./engines/FaskaFighter/FaskaFighter').catch(() => ({ default: () => <div className="text-white p-8">FaskaFighter wird gerade entwickelt...</div> })));
-
-// Phase 3 Games (The Ultimate Arcade)
-const FaskaZelda = lazy(() => import('./engines/FaskaZelda/FaskaZelda').catch(() => ({ default: () => <div className="text-white p-8">FaskaZelda wird gerade entwickelt...</div> })));
-const FaskaSonic = lazy(() => import('./engines/FaskaSonic/FaskaSonic').catch(() => ({ default: () => <div className="text-white p-8">FaskaSonic wird gerade entwickelt...</div> })));
-const FaskaRType = lazy(() => import('./engines/FaskaRType/FaskaRType').catch(() => ({ default: () => <div className="text-white p-8">FaskaRType wird gerade entwickelt...</div> })));
-const FaskaCrazyTaxi = lazy(() => import('./engines/FaskaCrazyTaxi/FaskaCrazyTaxi').catch(() => ({ default: () => <div className="text-white p-8">FaskaCrazyTaxi 3D wird gerade entwickelt...</div> })));
-const FaskaPinball = lazy(() => import('./engines/FaskaPinball/FaskaPinball').catch(() => ({ default: () => <div className="text-white p-8">FaskaPinball wird gerade entwickelt...</div> })));
-const FaskaMicroMachines = lazy(() => import('./engines/FaskaMicroMachines/FaskaMicroMachines').catch(() => ({ default: () => <div className="text-white p-8">FaskaMicroMachines wird gerade entwickelt...</div> })));
-
-// Phase 4 Games (The 64-Bit Era)
-const FaskaMario64 = lazy(() => import('./engines/FaskaMario64/FaskaMario64').catch(() => ({ default: () => <div className="text-white p-8">FaskaMario64 wird gerade entwickelt...</div> })));
-const FaskaMarbleMadness = lazy(() => import('./engines/FaskaMarbleMadness/FaskaMarbleMadness').catch(() => ({ default: () => <div className="text-white p-8">FaskaMarbleMadness wird gerade entwickelt...</div> })));
-const FaskaTekken = lazy(() => import('./engines/FaskaTekken/FaskaTekken').catch(() => ({ default: () => <div className="text-white p-8">FaskaTekken wird gerade entwickelt...</div> })));
-const FaskaContra = lazy(() => import('./engines/FaskaContra/FaskaContra').catch(() => ({ default: () => <div className="text-white p-8">FaskaContra wird gerade entwickelt...</div> })));
-const FaskaSpaceInvaders = lazy(() => import('./engines/FaskaSpaceInvaders/FaskaSpaceInvaders').catch(() => ({ default: () => <div className="text-white p-8">FaskaSpaceInvaders wird gerade entwickelt...</div> })));
-
-// Phase 5 Games (The Ultimate Collection)
-const FaskaFZero = lazy(() => import('./engines/FaskaFZero/FaskaFZero').catch(() => ({ default: () => <div className="text-white p-8">FaskaFZero wird gebaut...</div> })));
-const FaskaTonyHawk = lazy(() => import('./engines/FaskaTonyHawk/FaskaTonyHawk').catch(() => ({ default: () => <div className="text-white p-8">FaskaTonyHawk wird gebaut...</div> })));
-const FaskaFinalFantasy = lazy(() => import('./engines/FaskaFinalFantasy/FaskaFinalFantasy').catch(() => ({ default: () => <div className="text-white p-8">FaskaFinalFantasy wird gebaut...</div> })));
-const FaskaBomberman = lazy(() => import('./engines/FaskaBomberman/FaskaBomberman').catch(() => ({ default: () => <div className="text-white p-8">FaskaBomberman wird gebaut...</div> })));
-const FaskaMoorhuhn = lazy(() => import('./engines/FaskaMoorhuhn/FaskaMoorhuhn').catch(() => ({ default: () => <div className="text-white p-8">FaskaMoorhuhn wird gebaut...</div> })));
-const FaskaGolf = lazy(() => import('./engines/FaskaGolf/FaskaGolf').catch(() => ({ default: () => <div className="text-white p-8">FaskaGolf wird gebaut...</div> })));
-const FaskaSnake = lazy(() => import('./engines/FaskaSnake/FaskaSnake').catch(() => ({ default: () => <div className="text-white p-8">FaskaSnake wird gebaut...</div> })));
-const FaskaBreakout = lazy(() => import('./engines/FaskaBreakout/FaskaBreakout').catch(() => ({ default: () => <div className="text-white p-8">FaskaBreakout wird gebaut...</div> })));
-const FaskaDigDug = lazy(() => import('./engines/FaskaDigDug/FaskaDigDug').catch(() => ({ default: () => <div className="text-white p-8">FaskaDigDug wird gebaut...</div> })));
-const FaskaUno = lazy(() => import('./engines/FaskaUno/FaskaUno').catch(() => ({ default: () => <div className="text-white p-8">FaskaUno wird gebaut...</div> })));
+// --- EXISTING TITLES ---
+const FaskaMan = lazy(() => import('./engines/FaskaMan/FaskaMan').catch(() => ({ default: () => <div className="text-white p-8">FASKA Man wird entwickelt...</div> })));
+const FaskaBlocks = lazy(() => import('./engines/FaskaBlocks/FaskaBlocks').catch(() => ({ default: () => <div className="text-white p-8">FASKA Blocks wird entwickelt...</div> })));
+const FaskaJump = lazy(() => import('./engines/FaskaJump/FaskaJump').catch(() => ({ default: () => <div className="text-white p-8">FASKA Jump wird entwickelt...</div> })));
+const FaskaCross = lazy(() => import('./engines/FaskaCross/FaskaCross').catch(() => ({ default: () => <div className="text-white p-8">FASKA Cross wird entwickelt...</div> })));
+const FaskaDoom = lazy(() => import('./engines/FaskaDoom/FaskaDoom').catch(() => ({ default: () => <div className="text-white p-8">FASKA Doom 3D wird von Agent 4 entwickelt...</div> })));
+const FaskaKart = lazy(() => import('./engines/FaskaKart/FaskaKart').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kart 3D wird entwickelt...</div> })));
+const FaskaFighter = lazy(() => import('./engines/FaskaFighter/FaskaFighter').catch(() => ({ default: () => <div className="text-white p-8">FASKA Fighter wird von Agent 4 entwickelt...</div> })));
+const FaskaZelda = lazy(() => import('./engines/FaskaZelda/FaskaZelda').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zelda wird entwickelt...</div> })));
+const FaskaSonic = lazy(() => import('./engines/FaskaSonic/FaskaSonic').catch(() => ({ default: () => <div className="text-white p-8">FASKA Sonic wird entwickelt...</div> })));
+const FaskaRType = lazy(() => import('./engines/FaskaRType/FaskaRType').catch(() => ({ default: () => <div className="text-white p-8">FASKA RType wird entwickelt...</div> })));
+const FaskaCrazyTaxi = lazy(() => import('./engines/FaskaCrazyTaxi/FaskaCrazyTaxi').catch(() => ({ default: () => <div className="text-white p-8">FASKA Taxi wird von Agent 1 entwickelt...</div> })));
+const FaskaPinball = lazy(() => import('./engines/FaskaPinball/FaskaPinball').catch(() => ({ default: () => <div className="text-white p-8">FASKA Pinball wird entwickelt...</div> })));
+const FaskaMicroMachines = lazy(() => import('./engines/FaskaMicroMachines/FaskaMicroMachines').catch(() => ({ default: () => <div className="text-white p-8">FASKA Micro wird entwickelt...</div> })));
+const FaskaMario64 = lazy(() => import('./engines/FaskaMario64/FaskaMario64').catch(() => ({ default: () => <div className="text-white p-8">FASKA 64 wird von Agent 2 entwickelt...</div> })));
+const FaskaMarbleMadness = lazy(() => import('./engines/FaskaMarbleMadness/FaskaMarbleMadness').catch(() => ({ default: () => <div className="text-white p-8">FASKA Marble wird entwickelt...</div> })));
+const FaskaTekken = lazy(() => import('./engines/FaskaTekken/FaskaTekken').catch(() => ({ default: () => <div className="text-white p-8">FASKA Tekken wird von Agent 4 entwickelt...</div> })));
+const FaskaContra = lazy(() => import('./engines/FaskaContra/FaskaContra').catch(() => ({ default: () => <div className="text-white p-8">FASKA Contra wird entwickelt...</div> })));
+const FaskaSpaceInvaders = lazy(() => import('./engines/FaskaSpaceInvaders/FaskaSpaceInvaders').catch(() => ({ default: () => <div className="text-white p-8">FASKA Invaders wird entwickelt...</div> })));
+const FaskaFZero = lazy(() => import('./engines/FaskaFZero/FaskaFZero').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero wird von Agent 1 entwickelt...</div> })));
+const FaskaTonyHawk = lazy(() => import('./engines/FaskaTonyHawk/FaskaTonyHawk').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater wird von Agent 3 entwickelt...</div> })));
+const FaskaFinalFantasy = lazy(() => import('./engines/FaskaFinalFantasy/FaskaFinalFantasy').catch(() => ({ default: () => <div className="text-white p-8">FASKA Fantasy wird von Agent 4 entwickelt...</div> })));
+const FaskaBomberman = lazy(() => import('./engines/FaskaBomberman/FaskaBomberman').catch(() => ({ default: () => <div className="text-white p-8">FASKA Bomber wird von Agent 3 entwickelt...</div> })));
+const FaskaMoorhuhn = lazy(() => import('./engines/FaskaMoorhuhn/FaskaMoorhuhn').catch(() => ({ default: () => <div className="text-white p-8">FASKA Huhn wird entwickelt...</div> })));
+const FaskaGolf = lazy(() => import('./engines/FaskaGolf/FaskaGolf').catch(() => ({ default: () => <div className="text-white p-8">FASKA Golf wird entwickelt...</div> })));
+const FaskaSnake = lazy(() => import('./engines/FaskaSnake/FaskaSnake').catch(() => ({ default: () => <div className="text-white p-8">FASKA Snake wird entwickelt...</div> })));
+const FaskaDigDug = lazy(() => import('./engines/FaskaDigDug/FaskaDigDug').catch(() => ({ default: () => <div className="text-white p-8">FASKA DigDug wird entwickelt...</div> })));
+const FaskaUno = lazy(() => import('./engines/FaskaUno/FaskaUno').catch(() => ({ default: () => <div className="text-white p-8">FASKA Cards wird entwickelt...</div> })));
 
 const GAMES = [
+  // THE NEW SWARM WAVE
+  { id: 'faskaraider', title: 'FASKA Raider', desc: '3D Action Adventure', icon: '🧗', component: FaskaRaider, color: 'bg-emerald-900', shadow: 'shadow-emerald-900/50' },
+  { id: 'faskakazooie', title: 'FASKA Kazooie', desc: '3D Platformer Duo', icon: '🐻', component: FaskaKazooie, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
+  { id: 'faskaastro', title: 'FASKA Astro', desc: 'Physics Robot Platformer', icon: '🤖', component: FaskaAstro, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },
+  { id: 'faskaridge', title: 'FASKA Ridge', desc: 'Arcade Drift Racing', icon: '🏎️', component: FaskaRidge, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
+  { id: 'faskarally', title: 'FASKA Rally', desc: 'Offroad 3D Rally', icon: '🏜️', component: FaskaRally, color: 'bg-orange-800', shadow: 'shadow-orange-800/50' },
+  { id: 'faskarockracing', title: 'FASKA Rock Racing', desc: 'Isometric Combat Racing', icon: '🎸', component: FaskaRockRacing, color: 'bg-zinc-800', shadow: 'shadow-zinc-800/50' },
+  { id: 'faskarc', title: 'FASKA RC', desc: 'Top-Down Micro Racing', icon: '📻', component: FaskaRC, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },
+  { id: 'faskabike', title: 'FASKA Bike', desc: '2D Motocross Track', icon: '🏍️', component: FaskaBike, color: 'bg-red-700', shadow: 'shadow-red-700/50' },
+  { id: 'faskamotocross', title: 'FASKA Motocross', desc: 'Trick Motocross', icon: '🚵', component: FaskaMotocross, color: 'bg-purple-600', shadow: 'shadow-purple-600/50' },
+  { id: 'faskakirby', title: 'FASKA Kirby', desc: 'Floaty Dream Platformer', icon: '⭐', component: FaskaKirby, color: 'bg-pink-400', shadow: 'shadow-pink-400/50' },
+  { id: 'faskawolf', title: 'FASKA Wolf', desc: 'Raycast FPS Maze', icon: '🏰', component: FaskaWolf, color: 'bg-gray-800', shadow: 'shadow-gray-800/50' },
+  { id: 'faskarpg', title: 'FASKA RPG', desc: 'Turn-based Strategy', icon: '🔮', component: FaskaRPG, color: 'bg-teal-700', shadow: 'shadow-teal-700/50' },
+  { id: 'faskaalleyway', title: 'FASKA Alleyway', desc: 'Paddle & Ball', icon: '🧱', component: FaskaAlleyway, color: 'bg-sky-500', shadow: 'shadow-sky-500/50' },
+
   // Phase 5
   { id: 'faskafzero', title: 'FASKA Zero', desc: '3D Anti-Gravity Racing', icon: '🚀', component: FaskaFZero, color: 'bg-cyan-600', shadow: 'shadow-cyan-600/50' },
   { id: 'faskatonyhawk', title: 'FASKA Skater', desc: '3D Halfpipe Tricks', icon: '🛹', component: FaskaTonyHawk, color: 'bg-orange-500', shadow: 'shadow-orange-500/50' },
@@ -49,7 +69,6 @@ const GAMES = [
   { id: 'faskamoorhuhn', title: 'FASKA Huhn', desc: 'Shooting Gallery', icon: '🎯', component: FaskaMoorhuhn, color: 'bg-green-700', shadow: 'shadow-green-700/50' },
   { id: 'faskagolf', title: 'FASKA Golf', desc: '3D Physics Golf', icon: '⛳', component: FaskaGolf, color: 'bg-emerald-500', shadow: 'shadow-emerald-500/50' },
   { id: 'faskasnake', title: 'FASKA Snake', desc: 'Classic Growth', icon: '🐍', component: FaskaSnake, color: 'bg-lime-600', shadow: 'shadow-lime-600/50' },
-  { id: 'faskabreakout', title: 'FASKA Breakout', desc: 'Paddle Physics', icon: '🧱', component: FaskaBreakout, color: 'bg-blue-500', shadow: 'shadow-blue-500/50' },
   { id: 'faskadigdug', title: 'FASKA DigDug', desc: 'Underground Tunneling', icon: '⛏️', component: FaskaDigDug, color: 'bg-amber-700', shadow: 'shadow-amber-700/50' },
   { id: 'faskauno', title: 'FASKA Cards', desc: 'Logic Card Matching', icon: '🃏', component: FaskaUno, color: 'bg-rose-600', shadow: 'shadow-rose-600/50' },
   // Phase 4
@@ -96,7 +115,6 @@ export default function GameEngineHub({ onExit }) {
       exit={{ opacity: 0, scale: 0.9 }}
       className="min-h-screen bg-slate-900 text-white p-8 flex flex-col items-center relative overflow-hidden"
     >
-      {/* Background glow effects */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob"></div>
       <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-cyan-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob animation-delay-2000"></div>
       <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob animation-delay-4000"></div>
@@ -111,14 +129,14 @@ export default function GameEngineHub({ onExit }) {
           </button>
           <div className="text-center">
             <h1 className="text-5xl md:text-6xl font-black tracking-tighter bg-gradient-to-r from-amber-300 via-pink-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-sm">
-              RETRO ARCADE
+              RETRO ARCADE (ULTIMATE)
             </h1>
-            <p className="text-slate-300 mt-2 font-medium">Wähle ein Minispiel und trainiere deine Skills!</p>
+            <p className="text-slate-300 mt-2 font-medium">Alle {GAMES.length} Engines der FASKA Collection!</p>
           </div>
-          <div className="w-[100px]"></div> {/* Spacer for flex balance */}
+          <div className="w-[100px]"></div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32">
           {GAMES.map((game) => (
             <motion.button
               key={game.id}
@@ -135,9 +153,6 @@ export default function GameEngineHub({ onExit }) {
               <div className="relative z-10">
                 <h2 className="text-3xl font-black text-white drop-shadow-md mb-1">{game.title}</h2>
                 <p className="text-white/90 font-medium text-lg drop-shadow-sm">{game.desc}</p>
-                <div className="mt-4 px-4 py-1 bg-black/30 rounded-full inline-block text-sm font-bold uppercase tracking-wider border border-white/20 group-hover:bg-black/50 transition-colors">
-                  Spielen ▶
-                </div>
               </div>
             </motion.button>
           ))}

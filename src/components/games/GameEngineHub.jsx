@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- NEW TITLES (The Swarm Phase) ---
 const FaskaRaider = lazy(() => import('./engines/FaskaRaider/FaskaRaider').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider wird von Agent 2 entwickelt...</div> })));
+
+// --- PART 2: NEXT GENERATION TITLES ---
+const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
+const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
+const Faska64Part2 = lazy(() => import('./engines/Faska64Part2/Faska64Part2').catch(() => ({ default: () => <div className="text-white p-8">FASKA 64 Part 2 wird von Elite Agent entwickelt...</div> })));
+const FaskaFighter3 = lazy(() => import('./engines/FaskaFighter3/FaskaFighter3').catch(() => ({ default: () => <div className="text-white p-8">FASKA Fighter 3 wird von Elite Agent entwickelt...</div> })));
+const FaskaRaider2 = lazy(() => import('./engines/FaskaRaider2/FaskaRaider2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaKazooie = lazy(() => import('./engines/FaskaKazooie/FaskaKazooie').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kazooie wird von Agent 2 entwickelt...</div> })));
 const FaskaAstro = lazy(() => import('./engines/FaskaAstro/FaskaAstro').catch(() => ({ default: () => <div className="text-white p-8">FASKA Astro wird von Agent 2 entwickelt...</div> })));
 const FaskaRidge = lazy(() => import('./engines/FaskaRidge/FaskaRidge').catch(() => ({ default: () => <div className="text-white p-8">FASKA Ridge wird von Agent 1 entwickelt...</div> })));
@@ -46,7 +53,14 @@ const FaskaDigDug = lazy(() => import('./engines/FaskaDigDug/FaskaDigDug').catch
 const FaskaUno = lazy(() => import('./engines/FaskaUno/FaskaUno').catch(() => ({ default: () => <div className="text-white p-8">FASKA Cards wird entwickelt...</div> })));
 
 const GAMES = [
-  // THE NEW SWARM WAVE
+  // PART 2: THE NEXT GENERATION (APP-STORE QUALITY)
+  { id: 'faskazero2', title: 'FASKA Zero 2', desc: 'Flawless Hover Physics', icon: '🚀', component: FaskaZero2, color: 'bg-emerald-600', shadow: 'shadow-emerald-600/50' },
+  { id: 'faskaskater2', title: 'FASKA Skater 2', desc: 'Smooth Physics Halfpipe', icon: '🛹', component: FaskaSkater2, color: 'bg-orange-500', shadow: 'shadow-orange-500/50' },
+  { id: 'faska64part2', title: 'FASKA 64 Part 2', desc: 'AAA 3D Platforming', icon: '⭐', component: Faska64Part2, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
+  { id: 'faskafighter3', title: 'FASKA Fighter 3', desc: 'Ultimate 2D Brawler', icon: '🥊', component: FaskaFighter3, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
+  { id: 'faskaraider2', title: 'FASKA Raider 2', desc: 'Pro Character Controller', icon: '🧗', component: FaskaRaider2, color: 'bg-indigo-600', shadow: 'shadow-indigo-600/50' },
+
+  // THE NEW SWARM WAVE (Phase 6)
   { id: 'faskaraider', title: 'FASKA Raider', desc: '3D Action Adventure', icon: '🧗', component: FaskaRaider, color: 'bg-emerald-900', shadow: 'shadow-emerald-900/50' },
   { id: 'faskakazooie', title: 'FASKA Kazooie', desc: '3D Platformer Duo', icon: '🐻', component: FaskaKazooie, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
   { id: 'faskaastro', title: 'FASKA Astro', desc: 'Physics Robot Platformer', icon: '🤖', component: FaskaAstro, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },

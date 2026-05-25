@@ -1,21 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, RigidBody } from '@react-three/rapier';
-import { KeyboardControls, useKeyboardControls, Text, Sky } from '@react-three/drei';
+import { Text, Sky, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 
-const keyboardMap = [
-  { name: 'forward', keys: ['ArrowUp', 'KeyW'] },
-  { name: 'backward', keys: ['ArrowDown', 'KeyS'] },
-  { name: 'left', keys: ['ArrowLeft', 'KeyA'] },
-  { name: 'right', keys: ['ArrowRight', 'KeyD'] },
-  { name: 'jump', keys: ['Space'] },
-];
+const useKeys = () => {
+  const keys = useRef({ forward: false, backward: false, left: false, right: false, jump: false });
+  useEffect(() => {
+    const down = (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.current.forward = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.current.backward = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.current.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.current.right = true;
+      if (e.code === 'Space') keys.current.jump = true;
+    };
+    const up = (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.current.forward = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.current.backward = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.current.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.current.right = false;
+      if (e.code === 'Space') keys.current.jump = false;
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
+  return keys;
+};
 
-function Player() {
+function Player({ keys }) {
   const rigidBody = useRef();
   const meshGroup = useRef();
-  const [, get] = useKeyboardControls();
   const jumpPressed = useRef(false);
   const [shakeIntensity, setShakeIntensity] = useState(0);
 
@@ -28,12 +43,12 @@ function Player() {
   useFrame((state, delta) => {
     if (!rigidBody.current) return;
 
-    const { forward, backward, left, right, jump } = get();
+    const { forward, backward, left, right, jump } = keys.current;
     const velocity = rigidBody.current.linvel();
     const position = rigidBody.current.translation();
 
     // Movement
-    const moveSpeed = 8;
+    const moveSpeed = 10;
     const direction = new THREE.Vector3();
     const frontVector = new THREE.Vector3(0, 0, (backward ? 1 : 0) - (forward ? 1 : 0));
     const sideVector = new THREE.Vector3((left ? 1 : 0) - (right ? 1 : 0), 0, 0);
@@ -43,16 +58,29 @@ function Player() {
     // Apply movement (keep current y velocity)
     rigidBody.current.setLinvel({ x: -direction.x, y: velocity.y, z: -direction.z }, true);
 
-    // Visual tilting
+    // Visual tilting & rotation
     if (meshGroup.current) {
-      meshGroup.current.rotation.z = THREE.MathUtils.lerp(meshGroup.current.rotation.z, -direction.x * 0.04, 0.15);
-      meshGroup.current.rotation.x = THREE.MathUtils.lerp(meshGroup.current.rotation.x, direction.z * 0.04, 0.15);
+      if (direction.lengthSq() > 0.1) {
+        const targetAngle = Math.atan2(-direction.x, -direction.z);
+        // Smooth rotation
+        let currentAngle = meshGroup.current.rotation.y;
+        // Handle wraparound
+        while (targetAngle - currentAngle > Math.PI) currentAngle += Math.PI * 2;
+        while (targetAngle - currentAngle < -Math.PI) currentAngle -= Math.PI * 2;
+        
+        meshGroup.current.rotation.y = THREE.MathUtils.lerp(currentAngle, targetAngle, 10 * delta);
+        
+        // Tilt while running
+        meshGroup.current.rotation.x = THREE.MathUtils.lerp(meshGroup.current.rotation.x, 0.2, 5 * delta);
+      } else {
+        meshGroup.current.rotation.x = THREE.MathUtils.lerp(meshGroup.current.rotation.x, 0, 5 * delta);
+      }
     }
 
     // Jumping
     const isGrounded = Math.abs(velocity.y) < 0.1;
     if (jump && isGrounded && !jumpPressed.current) {
-      rigidBody.current.setLinvel({ x: velocity.x, y: 14, z: velocity.z }, true);
+      rigidBody.current.setLinvel({ x: velocity.x, y: 18, z: velocity.z }, true);
       jumpPressed.current = true;
     }
     if (!jump && isGrounded) {
@@ -60,7 +88,7 @@ function Player() {
     }
 
     // Camera Follow
-    const targetCameraPos = new THREE.Vector3(position.x, position.y + 4, position.z + 12);
+    const targetCameraPos = new THREE.Vector3(position.x, position.y + 6, position.z + 16);
     
     if (shakeIntensity > 0) {
       targetCameraPos.x += (Math.random() - 0.5) * shakeIntensity;
@@ -69,12 +97,12 @@ function Player() {
       setShakeIntensity(prev => Math.max(0, prev - delta * 3));
     }
 
-    state.camera.position.lerp(targetCameraPos, 0.1);
-    state.camera.lookAt(position.x, position.y + 1, position.z);
+    state.camera.position.lerp(targetCameraPos, 5 * delta);
+    state.camera.lookAt(position.x, position.y + 2, position.z);
 
     // Fall out of bounds reset
-    if (position.y < -15) {
-      rigidBody.current.setTranslation({ x: 0, y: 5, z: 0 }, true);
+    if (position.y < -20) {
+      rigidBody.current.setTranslation({ x: 0, y: 10, z: 0 }, true);
       rigidBody.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
       window.dispatchEvent(new Event('faska-shake'));
     }
@@ -86,23 +114,29 @@ function Player() {
       colliders="capsule" 
       mass={1} 
       type="dynamic" 
-      position={[0, 5, 0]} 
+      position={[0, 10, 0]} 
       enabledRotations={[false, false, false]}
       name="player"
     >
-      <group ref={meshGroup}>
-        <mesh castShadow>
-          <capsuleGeometry args={[0.5, 1, 4, 16]} />
-          <meshStandardMaterial color="#ef4444" roughness={0.4} /> {/* Mario Red! */}
+      <group ref={meshGroup} position={[0, -0.5, 0]}>
+        {/* Character Body */}
+        <mesh position={[0, 0.8, 0]} castShadow>
+          <sphereGeometry args={[0.6, 16, 16]} />
+          <meshStandardMaterial color="#ff0000" />
         </mesh>
-        {/* Simple face / eyes for character */}
-        <mesh position={[-0.2, 0.3, -0.45]}>
-          <sphereGeometry args={[0.1, 8, 8]} />
-          <meshBasicMaterial color="white" />
+        {/* Head */}
+        <mesh position={[0, 1.6, 0]} castShadow>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial color="#ffccaa" />
         </mesh>
-        <mesh position={[0.2, 0.3, -0.45]}>
-          <sphereGeometry args={[0.1, 8, 8]} />
-          <meshBasicMaterial color="white" />
+        {/* Cap */}
+        <mesh position={[0, 2, 0]} castShadow>
+          <cylinderGeometry args={[0.5, 0.5, 0.2, 16]} />
+          <meshStandardMaterial color="#ff0000" />
+        </mesh>
+        <mesh position={[0, 1.9, 0.3]} castShadow>
+          <boxGeometry args={[0.6, 0.1, 0.4]} />
+          <meshStandardMaterial color="#ff0000" />
         </mesh>
       </group>
     </RigidBody>
@@ -110,46 +144,52 @@ function Player() {
 }
 
 function Level() {
+  const [grassTex, wallTex] = useTexture(['/textures/grass_platform.png', '/textures/castle_wall.png']);
+  grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+  grassTex.repeat.set(4, 4);
+  wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+  wallTex.repeat.set(2, 2);
+
   return (
-    <>
+    <group>
       {/* Ground */}
       <RigidBody type="fixed" position={[0, -0.5, 0]}>
         <mesh receiveShadow>
-          <boxGeometry args={[30, 1, 30]} />
-          <meshStandardMaterial color="#4ade80" />
+          <boxGeometry args={[40, 1, 40]} />
+          <meshStandardMaterial map={grassTex} color="#4ade80" />
         </mesh>
       </RigidBody>
 
-      {/* Center pedestal */}
-      <RigidBody type="fixed" position={[0, 1, 0]}>
+      {/* Center pedestal / Castle base */}
+      <RigidBody type="fixed" position={[0, 2, 0]}>
         <mesh receiveShadow castShadow>
-          <cylinderGeometry args={[3, 3, 2, 16]} />
-          <meshStandardMaterial color="#94a3b8" />
+          <cylinderGeometry args={[5, 6, 4, 32]} />
+          <meshStandardMaterial map={wallTex} />
         </mesh>
       </RigidBody>
 
       {/* Platforms */}
-      <RigidBody type="fixed" position={[-8, 3, -6]}>
+      <RigidBody type="fixed" position={[-12, 5, -8]}>
         <mesh receiveShadow castShadow>
-          <boxGeometry args={[4, 1, 4]} />
-          <meshStandardMaterial color="#fb923c" />
+          <boxGeometry args={[6, 1, 6]} />
+          <meshStandardMaterial map={grassTex} color="#fb923c" />
         </mesh>
       </RigidBody>
 
-      <RigidBody type="fixed" position={[0, 5, -12]}>
+      <RigidBody type="fixed" position={[0, 8, -16]}>
         <mesh receiveShadow castShadow>
-          <boxGeometry args={[4, 1, 4]} />
-          <meshStandardMaterial color="#fb923c" />
+          <boxGeometry args={[6, 1, 6]} />
+          <meshStandardMaterial map={grassTex} color="#fb923c" />
         </mesh>
       </RigidBody>
 
-      <RigidBody type="fixed" position={[8, 3, -6]}>
+      <RigidBody type="fixed" position={[12, 5, -8]}>
         <mesh receiveShadow castShadow>
-          <boxGeometry args={[4, 1, 4]} />
-          <meshStandardMaterial color="#fb923c" />
+          <boxGeometry args={[6, 1, 6]} />
+          <meshStandardMaterial map={grassTex} color="#fb923c" />
         </mesh>
       </RigidBody>
-    </>
+    </group>
   );
 }
 
@@ -176,31 +216,16 @@ function Star({ position, text, isCorrect, onHit }) {
         if (payload.other.rigidBodyObject?.name === 'player') {
           setCollected(true);
           onHit(isCorrect, position);
-          // Respawn star after a while so user can try again or see it again
           setTimeout(() => setCollected(false), 5000);
         }
       }}
     >
       <group ref={ref}>
         <mesh castShadow>
-          <octahedronGeometry args={[0.6, 0]} />
-          <meshStandardMaterial 
-            color={isCorrect ? "#fef08a" : "#e2e8f0"} 
-            emissive={isCorrect ? "#ca8a04" : "#64748b"} 
-            emissiveIntensity={0.6} 
-            metalness={0.8}
-            roughness={0.2}
-          />
+          <octahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial color={isCorrect ? "#fef08a" : "#e2e8f0"} emissive={isCorrect ? "#ca8a04" : "#64748b"} emissiveIntensity={0.6} metalness={0.8} roughness={0.2} />
         </mesh>
-        <Text 
-          position={[0, 1.2, 0]} 
-          fontSize={0.6} 
-          color="white" 
-          outlineWidth={0.06} 
-          outlineColor="black"
-          anchorX="center"
-          anchorY="middle"
-        >
+        <Text position={[0, 1.8, 0]} fontSize={1} color="white" outlineWidth={0.1} outlineColor="black" anchorX="center" anchorY="middle" fontWeight="bold">
           {text}
         </Text>
       </group>
@@ -210,27 +235,18 @@ function Star({ position, text, isCorrect, onHit }) {
 
 function ParticleBurst({ position, color }) {
   const groupRef = useRef();
-  
-  const [particleData] = useState(() => {
-    return Array.from({ length: 40 }).map(() => ({
-      velocity: new THREE.Vector3(
-        (Math.random() - 0.5) * 20,
-        (Math.random() - 0.2) * 20,
-        (Math.random() - 0.5) * 20
-      ),
-      scale: Math.random() * 0.6 + 0.2
-    }));
-  });
+  const [particleData] = useState(() => Array.from({ length: 40 }).map(() => ({
+    velocity: new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.2) * 20, (Math.random() - 0.5) * 20),
+    scale: Math.random() * 0.6 + 0.2
+  })));
 
   useFrame((state, delta) => {
     if (groupRef.current) {
       groupRef.current.children.forEach((mesh, i) => {
         const pd = particleData[i];
-        mesh.position.add(pd.velocity.clone().multiplyScalar(delta));
+        mesh.position.addScaledVector(pd.velocity, delta);
         mesh.material.opacity = Math.max(0, mesh.material.opacity - delta * 1.5);
-        if (mesh.scale.x > 0.01) {
-          mesh.scale.setScalar(mesh.scale.x * 0.92);
-        }
+        if (mesh.scale.x > 0.01) mesh.scale.setScalar(mesh.scale.x * 0.92);
       });
     }
   });
@@ -247,108 +263,46 @@ function ParticleBurst({ position, color }) {
   );
 }
 
-function HUD({ question, message, onExit }) {
-  return (
-    <div style={{
-      position: 'absolute',
-      top: 0, left: 0, width: '100%', height: '100%',
-      pointerEvents: 'none',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      padding: '30px',
-      boxSizing: 'border-box',
-      zIndex: 10
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ pointerEvents: 'auto', flex: 1, textAlign: 'center' }}>
-          <h1 style={{ 
-            color: 'white', 
-            textShadow: '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
-            fontFamily: 'system-ui, sans-serif',
-            margin: '0 0 10px 0',
-            fontSize: '2.5rem'
-          }}>
-            {question}
-          </h1>
-          {message && (
-            <h2 style={{
-              color: message.includes('Richtig') ? '#4ade80' : '#f87171',
-              textShadow: '2px 2px 0 #000',
-              fontFamily: 'system-ui, sans-serif',
-              margin: 0,
-              fontSize: '1.8rem',
-              animation: 'popIn 0.3s ease-out'
-            }}>
-              {message}
-            </h2>
-          )}
+const HUD = ({ question, message, onExit }) => (
+  <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '30px', boxSizing: 'border-box', zIndex: 10 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ pointerEvents: 'auto', flex: 1, textAlign: 'center' }}>
+        <div style={{ background: 'rgba(255,255,255,0.9)', padding: '20px', borderRadius: '20px', border: '5px solid #3498db', display: 'inline-block', boxShadow: '0 10px 20px rgba(0,0,0,0.3)' }}>
+          <h1 style={{ color: '#2c3e50', fontFamily: 'Impact, sans-serif', margin: '0', fontSize: '3rem' }}>{question}</h1>
         </div>
-        <button 
-          onClick={onExit}
-          style={{
-            pointerEvents: 'auto',
-            padding: '12px 24px',
-            fontSize: '1.2rem',
-            fontWeight: 'bold',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: '3px solid #7f1d1d',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            boxShadow: '0 6px 0 #7f1d1d, 0 10px 10px rgba(0,0,0,0.3)',
-            transition: 'transform 0.1s, box-shadow 0.1s',
-            fontFamily: 'system-ui, sans-serif'
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = 'translateY(6px)';
-            e.currentTarget.style.boxShadow = '0 0px 0 #7f1d1d, 0 4px 4px rgba(0,0,0,0.3)';
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 6px 0 #7f1d1d, 0 10px 10px rgba(0,0,0,0.3)';
-          }}
-        >
-          Beenden
-        </button>
+        {message && (
+          <h2 style={{ color: message.includes('Richtig') ? '#2ecc71' : '#e74c3c', textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000', fontFamily: 'Impact, sans-serif', margin: '20px 0 0 0', fontSize: '4rem', animation: 'popIn 0.3s ease-out' }}>
+            {message}
+          </h2>
+        )}
       </div>
-      
-      <div style={{
-        color: 'white',
-        fontFamily: 'system-ui, sans-serif',
-        textShadow: '2px 2px 0 #000',
-        fontSize: '1.2rem',
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        padding: '15px',
-        borderRadius: '10px',
-        alignSelf: 'flex-start'
-      }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>Steuerung</h3>
-        <p style={{ margin: '5px 0' }}>🏃 <b>WASD / Pfeile</b> - Bewegen</p>
-        <p style={{ margin: '5px 0' }}>⬆️ <b>Leertaste</b> - Springen</p>
-      </div>
-
-      <style>{`
-        @keyframes popIn {
-          0% { transform: scale(0.8); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
+      <button 
+        onClick={onExit}
+        style={{ pointerEvents: 'auto', padding: '15px 30px', fontSize: '1.5rem', fontWeight: 'bold', backgroundColor: '#e74c3c', color: 'white', border: '4px solid #c0392b', borderRadius: '15px', cursor: 'pointer', boxShadow: '0 8px 0 #c0392b', transition: 'transform 0.1s', fontFamily: 'Impact, sans-serif' }}
+        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(8px)'; e.currentTarget.style.boxShadow = '0 0px 0 #c0392b'; }}
+        onMouseUp={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 0 #c0392b'; }}
+      >BEENDEN</button>
     </div>
-  );
-}
+    <div style={{ color: 'white', fontFamily: 'Impact, sans-serif', textShadow: '2px 2px 0 #000', fontSize: '1.5rem', alignSelf: 'flex-start' }}>
+      <p style={{ margin: '5px 0' }}>🏃 <b>WASD</b> - Bewegen</p>
+      <p style={{ margin: '5px 0' }}>⬆️ <b>Leertaste</b> - Springen</p>
+    </div>
+    <style>{`@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }`}</style>
+  </div>
+);
 
 export default function FaskaMario64({ onExit }) {
   const [message, setMessage] = useState('');
   const [particles, setParticles] = useState([]);
+  const keys = useKeys();
 
   const handleHit = (isCorrect, position) => {
     if (isCorrect) {
       setMessage('Richtig! Paris ist die Hauptstadt von Frankreich.');
-      addParticles(position, '#fbbf24'); // gold
+      addParticles(position, '#fbbf24');
     } else {
       setMessage('Falsch! Versuche es nochmal.');
-      addParticles(position, '#ef4444'); // red
+      addParticles(position, '#ef4444');
       window.dispatchEvent(new Event('faska-shake'));
     }
     setTimeout(() => setMessage(''), 4000);
@@ -361,45 +315,28 @@ export default function FaskaMario64({ onExit }) {
   };
 
   return (
-    <div style={{ width: '100%', height: '100vh', position: 'relative', backgroundColor: '#87CEEB', overflow: 'hidden' }}>
-      <HUD 
-        question="Was ist die Hauptstadt von Frankreich?" 
-        message={message} 
-        onExit={onExit} 
-      />
+    <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, backgroundColor: '#87CEEB', overflow: 'hidden' }}>
+      <HUD question="Was ist die Hauptstadt von Frankreich?" message={message} onExit={onExit} />
       
-      <KeyboardControls map={keyboardMap}>
-        <Canvas shadows camera={{ fov: 60, position: [0, 5, 10] }}>
-          <color attach="background" args={['#87CEEB']} />
-          <Sky sunPosition={[100, 20, 100]} turbidity={0.1} rayleigh={0.5} />
-          <ambientLight intensity={0.6} />
-          <directionalLight 
-            castShadow 
-            position={[10, 20, 15]} 
-            intensity={1.5} 
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-20}
-            shadow-camera-right={20}
-            shadow-camera-top={20}
-            shadow-camera-bottom={-20}
-            shadow-bias={-0.0001}
-          />
+      <Canvas shadows camera={{ fov: 60, position: [0, 10, 15] }}>
+        <color attach="background" args={['#87CEEB']} />
+        <Sky sunPosition={[100, 20, 100]} turbidity={0.1} />
+        <ambientLight intensity={0.6} />
+        <directionalLight castShadow position={[10, 30, 15]} intensity={1.5} shadow-mapSize={[2048, 2048]} shadow-camera-left={-25} shadow-camera-right={25} shadow-camera-top={25} shadow-camera-bottom={-25} />
 
-          <Physics gravity={[0, -25, 0]}>
+        <Suspense fallback={null}>
+          <Physics gravity={[0, -35, 0]}>
             <Level />
-            <Player />
+            <Player keys={keys} />
             
-            {/* Stars on platforms */}
-            <Star position={[-8, 4.5, -6]} text="A: Berlin" isCorrect={false} onHit={handleHit} />
-            <Star position={[0, 6.5, -12]} text="B: Paris" isCorrect={true} onHit={handleHit} />
-            <Star position={[8, 4.5, -6]} text="C: London" isCorrect={false} onHit={handleHit} />
+            <Star position={[-12, 7, -8]} text="A: Berlin" isCorrect={false} onHit={handleHit} />
+            <Star position={[0, 10, -16]} text="B: Paris" isCorrect={true} onHit={handleHit} />
+            <Star position={[12, 7, -8]} text="C: London" isCorrect={false} onHit={handleHit} />
           </Physics>
+        </Suspense>
 
-          {particles.map(p => (
-            <ParticleBurst key={p.id} position={p.position} color={p.color} />
-          ))}
-        </Canvas>
-      </KeyboardControls>
+        {particles.map(p => <ParticleBurst key={p.id} position={p.position} color={p.color} />)}
+      </Canvas>
     </div>
   );
 }

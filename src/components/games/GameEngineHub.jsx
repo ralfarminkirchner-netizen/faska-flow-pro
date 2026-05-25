@@ -2,6 +2,7 @@ import React, { useState, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- NEW TITLES (The Swarm Phase) ---
+const FaskaAdventure = lazy(() => import('./AAA_Engines/FaskaAdventure/FaskaAdventure').catch(() => ({ default: () => <div className="text-white p-8">FASKA Adventure Error</div> })));
 const FaskaRaider = lazy(() => import('./engines/FaskaRaider/FaskaRaider').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider wird von Agent 2 entwickelt...</div> })));
 
 // --- PART 2: NEXT GENERATION TITLES ---
@@ -61,6 +62,7 @@ const GAMES = [
   { id: 'faskaraider2', title: 'FASKA Raider 2', desc: 'Pro Character Controller', icon: '🧗', component: FaskaRaider2, color: 'bg-indigo-600', shadow: 'shadow-indigo-600/50' },
 
   // THE NEW SWARM WAVE (Phase 6)
+  { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },
   { id: 'faskaraider', title: 'FASKA Raider', desc: '3D Action Adventure', icon: '🧗', component: FaskaRaider, color: 'bg-emerald-900', shadow: 'shadow-emerald-900/50' },
   { id: 'faskakazooie', title: 'FASKA Kazooie', desc: '3D Platformer Duo', icon: '🐻', component: FaskaKazooie, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
   { id: 'faskaastro', title: 'FASKA Astro', desc: 'Physics Robot Platformer', icon: '🤖', component: FaskaAstro, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },

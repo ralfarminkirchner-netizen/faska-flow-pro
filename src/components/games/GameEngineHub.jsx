@@ -9,7 +9,7 @@ const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(()
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
 const Faska64Part2 = lazy(() => import('./engines/Faska64Part2/Faska64Part2').catch(() => ({ default: () => <div className="text-white p-8">FASKA 64 Part 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaFighter3 = lazy(() => import('./engines/FaskaFighter3/FaskaFighter3').catch(() => ({ default: () => <div className="text-white p-8">FASKA Fighter 3 wird von Elite Agent entwickelt...</div> })));
-const FaskaRaider2 = lazy(() => import('./engines/FaskaRaider2/FaskaRaider2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider 2 wird von Elite Agent entwickelt...</div> })));
+const FaskaRaider2 = lazy(() => import('./AAA_Engines/FaskaRaider/FaskaRaider').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaKazooie = lazy(() => import('./engines/FaskaKazooie/FaskaKazooie').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kazooie wird von Agent 2 entwickelt...</div> })));
 const FaskaAstro = lazy(() => import('./engines/FaskaAstro/FaskaAstro').catch(() => ({ default: () => <div className="text-white p-8">FASKA Astro wird von Agent 2 entwickelt...</div> })));
 const FaskaRidge = lazy(() => import('./engines/FaskaRidge/FaskaRidge').catch(() => ({ default: () => <div className="text-white p-8">FASKA Ridge wird von Agent 1 entwickelt...</div> })));

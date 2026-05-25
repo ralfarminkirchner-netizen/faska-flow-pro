@@ -28,7 +28,30 @@ const FaskaTekken = lazy(() => import('./engines/FaskaTekken/FaskaTekken').catch
 const FaskaContra = lazy(() => import('./engines/FaskaContra/FaskaContra').catch(() => ({ default: () => <div className="text-white p-8">FaskaContra wird gerade entwickelt...</div> })));
 const FaskaSpaceInvaders = lazy(() => import('./engines/FaskaSpaceInvaders/FaskaSpaceInvaders').catch(() => ({ default: () => <div className="text-white p-8">FaskaSpaceInvaders wird gerade entwickelt...</div> })));
 
+// Phase 5 Games (The Ultimate Collection)
+const FaskaFZero = lazy(() => import('./engines/FaskaFZero/FaskaFZero').catch(() => ({ default: () => <div className="text-white p-8">FaskaFZero wird gebaut...</div> })));
+const FaskaTonyHawk = lazy(() => import('./engines/FaskaTonyHawk/FaskaTonyHawk').catch(() => ({ default: () => <div className="text-white p-8">FaskaTonyHawk wird gebaut...</div> })));
+const FaskaFinalFantasy = lazy(() => import('./engines/FaskaFinalFantasy/FaskaFinalFantasy').catch(() => ({ default: () => <div className="text-white p-8">FaskaFinalFantasy wird gebaut...</div> })));
+const FaskaBomberman = lazy(() => import('./engines/FaskaBomberman/FaskaBomberman').catch(() => ({ default: () => <div className="text-white p-8">FaskaBomberman wird gebaut...</div> })));
+const FaskaMoorhuhn = lazy(() => import('./engines/FaskaMoorhuhn/FaskaMoorhuhn').catch(() => ({ default: () => <div className="text-white p-8">FaskaMoorhuhn wird gebaut...</div> })));
+const FaskaGolf = lazy(() => import('./engines/FaskaGolf/FaskaGolf').catch(() => ({ default: () => <div className="text-white p-8">FaskaGolf wird gebaut...</div> })));
+const FaskaSnake = lazy(() => import('./engines/FaskaSnake/FaskaSnake').catch(() => ({ default: () => <div className="text-white p-8">FaskaSnake wird gebaut...</div> })));
+const FaskaBreakout = lazy(() => import('./engines/FaskaBreakout/FaskaBreakout').catch(() => ({ default: () => <div className="text-white p-8">FaskaBreakout wird gebaut...</div> })));
+const FaskaDigDug = lazy(() => import('./engines/FaskaDigDug/FaskaDigDug').catch(() => ({ default: () => <div className="text-white p-8">FaskaDigDug wird gebaut...</div> })));
+const FaskaUno = lazy(() => import('./engines/FaskaUno/FaskaUno').catch(() => ({ default: () => <div className="text-white p-8">FaskaUno wird gebaut...</div> })));
+
 const GAMES = [
+  // Phase 5
+  { id: 'faskafzero', title: 'Faska-Zero', desc: '3D Anti-Gravity Racing', icon: '🚀', component: FaskaFZero, color: 'bg-cyan-600', shadow: 'shadow-cyan-600/50' },
+  { id: 'faskatonyhawk', title: 'Faska-Skater', desc: '3D Halfpipe Tricks', icon: '🛹', component: FaskaTonyHawk, color: 'bg-orange-500', shadow: 'shadow-orange-500/50' },
+  { id: 'faskaff', title: 'Faska-Fantasy', desc: 'Turn-Based RPG', icon: '🗡️', component: FaskaFinalFantasy, color: 'bg-indigo-700', shadow: 'shadow-indigo-700/50' },
+  { id: 'faskabomber', title: 'Faska-Bomber', desc: 'Grid Explosions', icon: '💣', component: FaskaBomberman, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
+  { id: 'faskamoorhuhn', title: 'Faska-Huhn', desc: 'Shooting Gallery', icon: '🎯', component: FaskaMoorhuhn, color: 'bg-green-700', shadow: 'shadow-green-700/50' },
+  { id: 'faskagolf', title: 'Faska-Golf', desc: '3D Physics Golf', icon: '⛳', component: FaskaGolf, color: 'bg-emerald-500', shadow: 'shadow-emerald-500/50' },
+  { id: 'faskasnake', title: 'Faska-Snake', desc: 'Classic Growth', icon: '🐍', component: FaskaSnake, color: 'bg-lime-600', shadow: 'shadow-lime-600/50' },
+  { id: 'faskabreakout', title: 'Faska-Breakout', desc: 'Paddle Physics', icon: '🧱', component: FaskaBreakout, color: 'bg-blue-500', shadow: 'shadow-blue-500/50' },
+  { id: 'faskadigdug', title: 'Faska-Dig', desc: 'Underground Tunneling', icon: '⛏️', component: FaskaDigDug, color: 'bg-amber-700', shadow: 'shadow-amber-700/50' },
+  { id: 'faskauno', title: 'Faska-Cards', desc: 'Logic Card Matching', icon: '🃏', component: FaskaUno, color: 'bg-rose-600', shadow: 'shadow-rose-600/50' },
   // Phase 4
   { id: 'faskamario64', title: 'Faska-64', desc: '3D Collectathon Platformer', icon: '⭐', component: FaskaMario64, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
   { id: 'faskamarble', title: 'Marble Madness', desc: '3D Rolling Physics', icon: '🔮', component: FaskaMarbleMadness, color: 'bg-blue-400', shadow: 'shadow-blue-400/50' },

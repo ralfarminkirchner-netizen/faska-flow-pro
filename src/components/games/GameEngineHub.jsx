@@ -1,9 +1,17 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ErrorBoundary from './ErrorBoundary';
 
 // --- NEW TITLES (The Swarm Phase) ---
 const FaskaAdventure = lazy(() => import('./AAA_Engines/FaskaAdventure/FaskaAdventure').catch(() => ({ default: () => <div className="text-white p-8">FASKA Adventure Error</div> })));
 const FaskaRaider = lazy(() => import('./engines/FaskaRaider/FaskaRaider').catch(() => ({ default: () => <div className="text-white p-8">FASKA Raider wird von Agent 2 entwickelt...</div> })));
+
+// --- WAVE 1: 16-BIT & RETRO SWARM ---
+const FaskaLand = lazy(() => import('./engines/FaskaLand/FaskaLand').catch(() => ({ default: () => <div className="text-white p-8">FASKA Land wird von Swarm entwickelt...</div> })));
+const FaskaWorld = lazy(() => import('./engines/FaskaWorld/FaskaWorld').catch(() => ({ default: () => <div className="text-white p-8">FASKA World wird von Swarm entwickelt...</div> })));
+const FaskaRage = lazy(() => import('./engines/FaskaRage/FaskaRage').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rage wird von Swarm entwickelt...</div> })));
+const FaskaTurtles = lazy(() => import('./engines/FaskaTurtles/FaskaTurtles').catch(() => ({ default: () => <div className="text-white p-8">FASKA Turtles wird von Swarm entwickelt...</div> })));
+const FaskaWario = lazy(() => import('./engines/FaskaWario/FaskaWario').catch(() => ({ default: () => <div className="text-white p-8">FASKA Wario wird von Swarm entwickelt...</div> })));
 
 // --- PART 2: NEXT GENERATION TITLES ---
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
@@ -61,6 +69,13 @@ const GAMES = [
   { id: 'faskafighter3', title: 'FASKA Fighter 3', desc: 'Ultimate 2D Brawler', icon: '🥊', component: FaskaFighter3, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
   { id: 'faskaraider2', title: 'FASKA Raider 2', desc: 'Pro Character Controller', icon: '🧗', component: FaskaRaider2, color: 'bg-indigo-600', shadow: 'shadow-indigo-600/50' },
 
+  // WAVE 1: 16-BIT & RETRO SWARM
+  { id: 'faskaland', title: 'FASKA Land', desc: 'Gameboy Platformer', icon: '🍄', component: FaskaLand, color: 'bg-green-800', shadow: 'shadow-green-800/50' },
+  { id: 'faskaworld', title: 'FASKA World', desc: '16-Bit Platforming', icon: '🦕', component: FaskaWorld, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
+  { id: 'faskarage', title: 'FASKA Rage', desc: 'Street Brawler', icon: '👊', component: FaskaRage, color: 'bg-red-700', shadow: 'shadow-red-700/50' },
+  { id: 'faskaturtles', title: 'FASKA Turtles', desc: '4-Player Co-Op Arcade', icon: '🐢', component: FaskaTurtles, color: 'bg-emerald-600', shadow: 'shadow-emerald-600/50' },
+  { id: 'faskawario', title: 'FASKA Wario', desc: '5-Second Microgames', icon: '⏱️', component: FaskaWario, color: 'bg-purple-600', shadow: 'shadow-purple-600/50' },
+
   // THE NEW SWARM WAVE (Phase 6)
   { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },
   { id: 'faskaraider', title: 'FASKA Raider', desc: '3D Action Adventure', icon: '🧗', component: FaskaRaider, color: 'bg-emerald-900', shadow: 'shadow-emerald-900/50' },
@@ -117,9 +132,11 @@ export default function GameEngineHub({ onExit }) {
     const GameComponent = activeGame.component;
     return (
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden">
-        <Suspense fallback={<div className="text-white text-2xl font-bold animate-pulse">Lade Spiel...</div>}>
-          <GameComponent onExit={() => setActiveGame(null)} />
-        </Suspense>
+        <ErrorBoundary onExit={() => setActiveGame(null)}>
+          <Suspense fallback={<div className="text-white text-2xl font-bold animate-pulse">Lade Spiel...</div>}>
+            <GameComponent onExit={() => setActiveGame(null)} />
+          </Suspense>
+        </ErrorBoundary>
       </div>
     );
   }

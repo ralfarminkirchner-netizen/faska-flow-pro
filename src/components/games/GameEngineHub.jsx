@@ -48,6 +48,18 @@ const FaskaWolfSwarm = lazy(() => import('./engines/FaskaWolfSwarm/FaskaWolfSwar
 const FaskaDoomSwarm = lazy(() => import('./engines/FaskaDoomSwarm/FaskaDoomSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Doom Error</div> })));
 const FaskaTekkenSwarm = lazy(() => import('./engines/FaskaTekkenSwarm/FaskaTekkenSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Tekken Error</div> })));
 
+// --- WAVE 7: CLASSICS REBORN SWARM ---
+const FaskaZeldaSwarm = lazy(() => import('./engines/FaskaZeldaSwarm/FaskaZeldaSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zelda Swarm coming soon...</div> })));
+const FaskaSonicSwarm = lazy(() => import('./engines/FaskaSonicSwarm/FaskaSonicSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Sonic Swarm coming soon...</div> })));
+const FaskaContraSwarm = lazy(() => import('./engines/FaskaContraSwarm/FaskaContraSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Contra Swarm coming soon...</div> })));
+const FaskaPacSwarm = lazy(() => import('./engines/FaskaPacSwarm/FaskaPacSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Pac Swarm coming soon...</div> })));
+const FaskaKartSwarm = lazy(() => import('./engines/FaskaKartSwarm/FaskaKartSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kart Swarm coming soon...</div> })));
+const FaskaBreakoutSwarm = lazy(() => import('./engines/FaskaBreakoutSwarm/FaskaBreakoutSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Breakout Swarm coming soon...</div> })));
+const FaskaPinballSwarm = lazy(() => import('./engines/FaskaPinballSwarm/FaskaPinballSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Pinball Swarm coming soon...</div> })));
+const FaskaTombSwarm = lazy(() => import('./engines/FaskaTombSwarm/FaskaTombSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Tomb Swarm coming soon...</div> })));
+const FaskaMarbleSwarm = lazy(() => import('./engines/FaskaMarbleSwarm/FaskaMarbleSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Marble Swarm coming soon...</div> })));
+const FaskaKazooieSwarm = lazy(() => import('./engines/FaskaKazooieSwarm/FaskaKazooieSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kazooie Swarm coming soon...</div> })));
+
 // --- PART 2: NEXT GENERATION TITLES ---
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
@@ -117,6 +129,7 @@ const GAMES = [
   { id: 'faskasolid', title: 'FASKA Solid', desc: 'Tactical Stealth Action', icon: '📦', component: FaskaSolid, color: 'bg-slate-700', shadow: 'shadow-slate-700/50' },
   { id: 'faskagolfswarm', title: 'FASKA Golf (Pro)', desc: 'Advanced Physics Golf', icon: '⛳', component: FaskaGolfSwarm, color: 'bg-lime-700', shadow: 'shadow-lime-700/50' },
   { id: 'faskabillard', title: 'FASKA Billard', desc: '3D Pool Physics', icon: '🎱', component: FaskaBillard, color: 'bg-blue-800', shadow: 'shadow-blue-800/50' },
+  { id: 'faskamarbleswarm', title: 'FASKA Marble Swarm', desc: 'Neon Fraction Marble Rush', icon: '🔮', component: FaskaMarbleSwarm, color: 'bg-violet-700', shadow: 'shadow-violet-700/50' },
 
   // WAVE 3: SPORT & ARCADE SWARM
   { id: 'faskasoccerswarm', title: 'FASKA Soccer', desc: 'Top-Down Football', icon: '⚽', component: FaskaSoccerSwarm, color: 'bg-green-600', shadow: 'shadow-green-600/50' },
@@ -138,6 +151,7 @@ const GAMES = [
   { id: 'faskaexciteswarm', title: 'FASKA Excite', desc: '2D Motocross Jumps', icon: '🏍️', component: FaskaExciteSwarm, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
   { id: 'faskakirbyswarm', title: 'FASKA Kirby', desc: 'Floaty Platformer', icon: '⭐', component: FaskaKirbySwarm, color: 'bg-pink-400', shadow: 'shadow-pink-400/50' },
   { id: 'faskaastroswarm', title: 'FASKA Astro', desc: '3D Bot Platformer', icon: '🤖', component: FaskaAstroSwarm, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },
+  { id: 'faskakazooieswarm', title: 'FASKA Kazooie', desc: 'Collect-a-Thon Science', icon: '🧩', component: FaskaKazooieSwarm, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
 
   // WAVE 6: RPG, STRATEGY & SHOOTER SWARM
   { id: 'faskabombermanswarm', title: 'FASKA Bomberman', desc: 'Grid Explosions', icon: '💣', component: FaskaBombermanSwarm, color: 'bg-red-700', shadow: 'shadow-red-700/50' },
@@ -146,7 +160,19 @@ const GAMES = [
   { id: 'faskadoomswarm', title: 'FASKA Doom', desc: 'First Person Shooter', icon: '🔫', component: FaskaDoomSwarm, color: 'bg-red-900', shadow: 'shadow-red-900/50' },
   { id: 'faskatekkenswarm', title: 'FASKA Tekken', desc: '3D Fighting Game', icon: '🥋', component: FaskaTekkenSwarm, color: 'bg-zinc-800', shadow: 'shadow-zinc-800/50' },
 
-  // THE NEW SWARM WAVE (Phase 6)
+  // WAVE 7: CLASSICS REBORN SWARM
+  { id: 'faskazeldaSwarm', title: 'FASKA Zelda', desc: 'Dungeon Action RPG', icon: '🗡️', component: FaskaZeldaSwarm, color: 'bg-emerald-700', shadow: 'shadow-emerald-700/50' },
+  { id: 'faskasonicswarm', title: 'FASKA Sonic', desc: 'Highspeed Platformer', icon: '🦔', component: FaskaSonicSwarm, color: 'bg-blue-500', shadow: 'shadow-blue-500/50' },
+  { id: 'faskacontraswarm', title: 'FASKA Contra', desc: 'Run & Gun Action', icon: '💥', component: FaskaContraSwarm, color: 'bg-green-700', shadow: 'shadow-green-700/50' },
+  { id: 'faskapacswarm', title: 'FASKA Pac', desc: 'Maze Chase + Ghost KI', icon: '🟡', component: FaskaPacSwarm, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
+  { id: 'faskakartswarm', title: 'FASKA Kart', desc: '3D Racing mit Items', icon: '🏎️', component: FaskaKartSwarm, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
+  { id: 'faskabreakoutswarm', title: 'FASKA Breakout', desc: 'Arkanoid Powerups', icon: '🧱', component: FaskaBreakoutSwarm, color: 'bg-sky-500', shadow: 'shadow-sky-500/50' },
+  { id: 'faskapinballswarm', title: 'FASKA Pinball', desc: 'Echte Flipper-Physik', icon: '🕹️', component: FaskaPinballSwarm, color: 'bg-cyan-600', shadow: 'shadow-cyan-600/50' },
+  { id: 'faskakazooieswarm', title: 'FASKA Kazooie', desc: '3D Collect-a-Thon', icon: '🐻', component: FaskaKazooieSwarm, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
+  { id: 'faskatombswarm', title: 'FASKA Tomb', desc: 'Klettern & Fallen-Rätsel', icon: '🏛️', component: FaskaTombSwarm, color: 'bg-amber-700', shadow: 'shadow-amber-700/50' },
+  { id: 'faskamarbleswarm', title: 'FASKA Marble', desc: 'Neon Kugel-Rolling', icon: '🔮', component: FaskaMarbleSwarm, color: 'bg-violet-600', shadow: 'shadow-violet-600/50' },
+
+  // THE EARLIER SWARM WAVE (Phase 6)
   { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },
   { id: 'faskaraider', title: 'FASKA Raider', desc: '3D Action Adventure', icon: '🧗', component: FaskaRaider, color: 'bg-emerald-900', shadow: 'shadow-emerald-900/50' },
   { id: 'faskakazooie', title: 'FASKA Kazooie', desc: '3D Platformer Duo', icon: '🐻', component: FaskaKazooie, color: 'bg-yellow-600', shadow: 'shadow-yellow-600/50' },
@@ -180,6 +206,7 @@ const GAMES = [
   { id: 'faskainvaders', title: 'FASKA Invaders', desc: 'Classic Arcade Shooter', icon: '👾', component: FaskaSpaceInvaders, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },
   // Phase 3
   { id: 'faskazelda', title: 'FASKA Zelda', desc: 'Dungeon Puzzle Adventure', icon: '🗡️', component: FaskaZelda, color: 'bg-emerald-700', shadow: 'shadow-emerald-700/50' },
+  { id: 'faskasonicswarm', title: 'FASKA Sonic Swarm', desc: 'Zahlen-Ringe & Boost-Runner', icon: '⚡', component: FaskaSonicSwarm, color: 'bg-sky-500', shadow: 'shadow-sky-500/50' },
   { id: 'faskasonic', title: 'FASKA Sonic', desc: 'High-Speed Platformer', icon: '🦔', component: FaskaSonic, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },
   { id: 'faskartype', title: 'FASKA RType', desc: 'Galaktischer Space-Shooter', icon: '🚀', component: FaskaRType, color: 'bg-purple-800', shadow: 'shadow-purple-800/50' },
   { id: 'faskacrazytaxi', title: 'FASKA Taxi', desc: '3D City Driving', icon: '🚕', component: FaskaCrazyTaxi, color: 'bg-yellow-400', shadow: 'shadow-yellow-500/50' },

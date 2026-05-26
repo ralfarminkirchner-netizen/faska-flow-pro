@@ -20,6 +20,13 @@ const FaskaSolid = lazy(() => import('./engines/FaskaSolid/FaskaSolid').catch(()
 const FaskaGolfSwarm = lazy(() => import('./engines/FaskaGolfSwarm/FaskaGolfSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Golf Error</div> })));
 const FaskaBillard = lazy(() => import('./engines/FaskaBillard/FaskaBillard').catch(() => ({ default: () => <div className="text-white p-8">FASKA Billard Error</div> })));
 
+// --- WAVE 3: SPORT & ARCADE SWARM ---
+const FaskaSoccerSwarm = lazy(() => import('./engines/FaskaSoccerSwarm/FaskaSoccerSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Soccer Error</div> })));
+const FaskaTennisSwarm = lazy(() => import('./engines/FaskaTennisSwarm/FaskaTennisSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Tennis Error</div> })));
+const FaskaFrisbeeSwarm = lazy(() => import('./engines/FaskaFrisbeeSwarm/FaskaFrisbeeSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Frisbee Error</div> })));
+const FaskaInvadersSwarm = lazy(() => import('./engines/FaskaInvadersSwarm/FaskaInvadersSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Invaders Error</div> })));
+const FaskaRTypeSwarm = lazy(() => import('./engines/FaskaRTypeSwarm/FaskaRTypeSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA R-Type Error</div> })));
+
 // --- PART 2: NEXT GENERATION TITLES ---
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
@@ -89,6 +96,13 @@ const GAMES = [
   { id: 'faskasolid', title: 'FASKA Solid', desc: 'Tactical Stealth Action', icon: '📦', component: FaskaSolid, color: 'bg-slate-700', shadow: 'shadow-slate-700/50' },
   { id: 'faskagolfswarm', title: 'FASKA Golf (Pro)', desc: 'Advanced Physics Golf', icon: '⛳', component: FaskaGolfSwarm, color: 'bg-lime-700', shadow: 'shadow-lime-700/50' },
   { id: 'faskabillard', title: 'FASKA Billard', desc: '3D Pool Physics', icon: '🎱', component: FaskaBillard, color: 'bg-blue-800', shadow: 'shadow-blue-800/50' },
+
+  // WAVE 3: SPORT & ARCADE SWARM
+  { id: 'faskasoccerswarm', title: 'FASKA Soccer', desc: 'Top-Down Football', icon: '⚽', component: FaskaSoccerSwarm, color: 'bg-green-600', shadow: 'shadow-green-600/50' },
+  { id: 'faskatennisswarm', title: 'FASKA Tennis', desc: 'Arcade Tennis', icon: '🎾', component: FaskaTennisSwarm, color: 'bg-yellow-400', shadow: 'shadow-yellow-400/50' },
+  { id: 'faskafrisbeeswarm', title: 'FASKA Frisbee', desc: 'Wind Physics Frisbee', icon: '🥏', component: FaskaFrisbeeSwarm, color: 'bg-cyan-500', shadow: 'shadow-cyan-500/50' },
+  { id: 'faskainvadersswarm', title: 'FASKA Space', desc: 'Retro Space Invaders', icon: '👾', component: FaskaInvadersSwarm, color: 'bg-indigo-800', shadow: 'shadow-indigo-800/50' },
+  { id: 'faskartypeswarm', title: 'FASKA R-Type', desc: 'Side-Scroller Shooter', icon: '🚀', component: FaskaRTypeSwarm, color: 'bg-red-900', shadow: 'shadow-red-900/50' },
 
   // THE NEW SWARM WAVE (Phase 6)
   { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },

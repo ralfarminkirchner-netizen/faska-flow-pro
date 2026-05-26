@@ -10,7 +10,7 @@ const ENEMY_SPEED = 6;
 
 const AMMO_TYPES = {
     NOUN: { name: 'Noun', color: '#ff0044', type: 'noun' },
-    VERB: { name: 'Verb', color: '#00aa44', type: 'verb' }
+    VERB: { name: 'Verb', color: '#0044ff', type: 'verb' }
 };
 
 const WORDS = [

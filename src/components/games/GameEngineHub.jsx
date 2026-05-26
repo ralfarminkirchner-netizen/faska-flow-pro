@@ -27,6 +27,13 @@ const FaskaFrisbeeSwarm = lazy(() => import('./engines/FaskaFrisbeeSwarm/FaskaFr
 const FaskaInvadersSwarm = lazy(() => import('./engines/FaskaInvadersSwarm/FaskaInvadersSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Invaders Error</div> })));
 const FaskaRTypeSwarm = lazy(() => import('./engines/FaskaRTypeSwarm/FaskaRTypeSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA R-Type Error</div> })));
 
+// --- WAVE 4: 3D RACING & VEHICLES SWARM ---
+const FaskaFZeroSwarm = lazy(() => import('./engines/FaskaFZeroSwarm/FaskaFZeroSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero Error</div> })));
+const FaskaRallySwarm = lazy(() => import('./engines/FaskaRallySwarm/FaskaRallySwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rally Error</div> })));
+const FaskaRidgeSwarm = lazy(() => import('./engines/FaskaRidgeSwarm/FaskaRidgeSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Ridge Error</div> })));
+const FaskaRockRacingSwarm = lazy(() => import('./engines/FaskaRockRacingSwarm/FaskaRockRacingSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rock Racing Error</div> })));
+const FaskaRCSwarm = lazy(() => import('./engines/FaskaRCSwarm/FaskaRCSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA RC Error</div> })));
+
 // --- PART 2: NEXT GENERATION TITLES ---
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
@@ -103,6 +110,13 @@ const GAMES = [
   { id: 'faskafrisbeeswarm', title: 'FASKA Frisbee', desc: 'Wind Physics Frisbee', icon: '🥏', component: FaskaFrisbeeSwarm, color: 'bg-cyan-500', shadow: 'shadow-cyan-500/50' },
   { id: 'faskainvadersswarm', title: 'FASKA Space', desc: 'Retro Space Invaders', icon: '👾', component: FaskaInvadersSwarm, color: 'bg-indigo-800', shadow: 'shadow-indigo-800/50' },
   { id: 'faskartypeswarm', title: 'FASKA R-Type', desc: 'Side-Scroller Shooter', icon: '🚀', component: FaskaRTypeSwarm, color: 'bg-red-900', shadow: 'shadow-red-900/50' },
+
+  // WAVE 4: 3D RACING & VEHICLES SWARM
+  { id: 'faskafzeroswarm', title: 'FASKA F-Zero', desc: '3D Anti-Gravity Racing', icon: '🛸', component: FaskaFZeroSwarm, color: 'bg-cyan-600', shadow: 'shadow-cyan-600/50' },
+  { id: 'faskarallyswarm', title: 'FASKA Rally', desc: '3D Offroad Drift', icon: '🏜️', component: FaskaRallySwarm, color: 'bg-orange-600', shadow: 'shadow-orange-600/50' },
+  { id: 'faskaridgeswarm', title: 'FASKA Ridge', desc: '3D Arcade Drift Racing', icon: '🏎️', component: FaskaRidgeSwarm, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
+  { id: 'faskarockracingswarm', title: 'FASKA Rock Racing', desc: 'Iso-Combat Racing', icon: '🎸', component: FaskaRockRacingSwarm, color: 'bg-zinc-700', shadow: 'shadow-zinc-700/50' },
+  { id: 'faskarcswarm', title: 'FASKA RC', desc: 'Top-Down Micro Racing', icon: '📻', component: FaskaRCSwarm, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },
 
   // THE NEW SWARM WAVE (Phase 6)
   { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },

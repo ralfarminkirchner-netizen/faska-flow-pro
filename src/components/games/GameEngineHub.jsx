@@ -34,6 +34,13 @@ const FaskaRidgeSwarm = lazy(() => import('./engines/FaskaRidgeSwarm/FaskaRidgeS
 const FaskaRockRacingSwarm = lazy(() => import('./engines/FaskaRockRacingSwarm/FaskaRockRacingSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Rock Racing Error</div> })));
 const FaskaRCSwarm = lazy(() => import('./engines/FaskaRCSwarm/FaskaRCSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA RC Error</div> })));
 
+// --- WAVE 5: ACTION & PLATFORMER SWARM ---
+const FaskaCrazyTaxiSwarm = lazy(() => import('./engines/FaskaCrazyTaxiSwarm/FaskaCrazyTaxiSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Taxi Error</div> })));
+const FaskaTonyHawkSwarm = lazy(() => import('./engines/FaskaTonyHawkSwarm/FaskaTonyHawkSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Tony Hawk Error</div> })));
+const FaskaExciteSwarm = lazy(() => import('./engines/FaskaExciteSwarm/FaskaExciteSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Excite Error</div> })));
+const FaskaKirbySwarm = lazy(() => import('./engines/FaskaKirbySwarm/FaskaKirbySwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Kirby Error</div> })));
+const FaskaAstroSwarm = lazy(() => import('./engines/FaskaAstroSwarm/FaskaAstroSwarm').catch(() => ({ default: () => <div className="text-white p-8">FASKA Astro Error</div> })));
+
 // --- PART 2: NEXT GENERATION TITLES ---
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Zero 2 wird von Elite Agent entwickelt...</div> })));
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">FASKA Skater 2 wird von Elite Agent entwickelt...</div> })));
@@ -117,6 +124,13 @@ const GAMES = [
   { id: 'faskaridgeswarm', title: 'FASKA Ridge', desc: '3D Arcade Drift Racing', icon: '🏎️', component: FaskaRidgeSwarm, color: 'bg-red-500', shadow: 'shadow-red-500/50' },
   { id: 'faskarockracingswarm', title: 'FASKA Rock Racing', desc: 'Iso-Combat Racing', icon: '🎸', component: FaskaRockRacingSwarm, color: 'bg-zinc-700', shadow: 'shadow-zinc-700/50' },
   { id: 'faskarcswarm', title: 'FASKA RC', desc: 'Top-Down Micro Racing', icon: '📻', component: FaskaRCSwarm, color: 'bg-blue-600', shadow: 'shadow-blue-600/50' },
+
+  // WAVE 5: ACTION & PLATFORMER SWARM
+  { id: 'faskacrazytaxiswarm', title: 'FASKA Taxi', desc: '3D Arcade Driving', icon: '🚕', component: FaskaCrazyTaxiSwarm, color: 'bg-yellow-500', shadow: 'shadow-yellow-500/50' },
+  { id: 'faskatonyhawkswarm', title: 'FASKA Tony Hawk', desc: '3D Skate Tricks', icon: '🛹', component: FaskaTonyHawkSwarm, color: 'bg-orange-400', shadow: 'shadow-orange-400/50' },
+  { id: 'faskaexciteswarm', title: 'FASKA Excite', desc: '2D Motocross Jumps', icon: '🏍️', component: FaskaExciteSwarm, color: 'bg-red-600', shadow: 'shadow-red-600/50' },
+  { id: 'faskakirbyswarm', title: 'FASKA Kirby', desc: 'Floaty Platformer', icon: '⭐', component: FaskaKirbySwarm, color: 'bg-pink-400', shadow: 'shadow-pink-400/50' },
+  { id: 'faskaastroswarm', title: 'FASKA Astro', desc: '3D Bot Platformer', icon: '🤖', component: FaskaAstroSwarm, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },
 
   // THE NEW SWARM WAVE (Phase 6)
   { id: 'faskaadventure', title: 'FASKA Tentacle', desc: 'SCUMM Point-and-Click', icon: '🦑', component: FaskaAdventure, color: 'bg-purple-900', shadow: 'shadow-purple-900/50' },

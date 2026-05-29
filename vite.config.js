@@ -11,4 +11,8 @@ export default defineConfig({
   preview: {
     allowedHosts: [".up.railway.app"],
   },
+  build: {
+    minify: false,
+    chunkSizeWarningLimit: 5000,
+  }
 })

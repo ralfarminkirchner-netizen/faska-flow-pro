@@ -684,7 +684,6 @@ export default function BeatMaker() {
 
   function playKeyboardNote(note) {
     setLastNote(note);
-    if (chordBufferRef.current.timer) return;
     
     const inst = MELODIC_INSTRUMENTS.find(i => i.id === selectedInstrument);
     if (inst && inst.play) {

@@ -133,7 +133,7 @@ const CameraRig = ({ skaterPos, shakeRef }) => {
   return null;
 };
 
-const GameScene = ({ pos, vel, s_vel, isAirborne, skaterRotation, answeredRef, triggerParticlesRef, generateNewQuestion, question, setQuestion, setFeedback, setStreak, shakeRef, flashRef }) => {
+const GameScene = ({ isLearncade, pos, vel, s_vel, isAirborne, skaterRotation, answeredRef, triggerParticlesRef, generateNewQuestion, question, setQuestion, setFeedback, setStreak, shakeRef, flashRef }) => {
   const skaterRef = useRef();
   const dirLightRef = useRef();
 
@@ -154,17 +154,23 @@ const GameScene = ({ pos, vel, s_vel, isAirborne, skaterRotation, answeredRef, t
     }
 
     if (isAirborne.current) {
-      vel.current.y -= G * dt;
-      pos.current.x += vel.current.x * dt;
-      pos.current.y += vel.current.y * dt;
+      let timeMultiplier = 1.0;
+      // BULLET TIME: Wenn Learncade und eine Frage noch nicht beantwortet ist, verlangsamt sich die Zeit!
+      if (isLearncade && question && answeredRef.current !== true) {
+         timeMultiplier = 0.15;
+      }
+
+      vel.current.y -= G * dt * timeMultiplier;
+      pos.current.x += vel.current.x * dt * timeMultiplier;
+      pos.current.y += vel.current.y * dt * timeMultiplier;
 
       if (answeredRef.current === true) {
-         skaterRotation.current += 15 * dt;
+         skaterRotation.current += 15 * dt * timeMultiplier;
          skaterRef.current.rotation.z = skaterRotation.current;
          skaterRef.current.rotation.y = skaterRotation.current * 0.5;
       } else {
-         skaterRef.current.rotation.z += 5 * dt;
-         skaterRef.current.rotation.x += 8 * dt;
+         skaterRef.current.rotation.z += 5 * dt * timeMultiplier;
+         skaterRef.current.rotation.x += 8 * dt * timeMultiplier;
       }
 
       const ry = getRampY(pos.current.x);
@@ -212,7 +218,12 @@ const GameScene = ({ pos, vel, s_vel, isAirborne, skaterRotation, answeredRef, t
         pos.current.x = Math.sign(pos.current.x) * (MAX_X - 0.1);
         pos.current.y = getRampY(pos.current.x);
         
-        generateNewQuestion();
+        if (isLearncade) {
+          generateNewQuestion();
+        } else {
+          // Im Pure Arcade Modus wird automatisch ein fetter Trick getriggert, ohne Frage
+          answeredRef.current = true;
+        }
       } else {
         const slope = getRampSlope(pos.current.x);
         const angle = Math.atan(slope);
@@ -369,7 +380,7 @@ const HUD = ({ score, streak, question, feedback, onExit }) => {
   );
 }
 
-export default function FaskaTonyHawkSwarm({ onExit }) {
+export default function FaskaTonyHawkSwarm({ onExit, isLearncade = true }) {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [question, setQuestion] = useState(null);
@@ -443,6 +454,7 @@ export default function FaskaTonyHawkSwarm({ onExit }) {
       <HUD score={score} streak={streak} question={question} feedback={feedback} onExit={onExit} />
       <Canvas shadows camera={{ position: [0, 5, 25], fov: 60 }}>
         <GameScene 
+          isLearncade={isLearncade}
           pos={pos} vel={vel} s_vel={s_vel} isAirborne={isAirborne} 
           skaterRotation={skaterRotation} answeredRef={answeredRef}
           triggerParticlesRef={triggerParticlesRef}

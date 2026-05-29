@@ -179,6 +179,7 @@ const GAMES = [
 
 export default function GameEngineHub({ onExit }) {
   const [activeGame, setActiveGame] = useState(null);
+  const [isLearncade, setIsLearncade] = useState(true);
 
   if (activeGame) {
     const GameComponent = activeGame.component;
@@ -186,7 +187,7 @@ export default function GameEngineHub({ onExit }) {
       <div className="absolute inset-0 z-50 bg-black flex items-center justify-center overflow-hidden">
         <ErrorBoundary onExit={() => setActiveGame(null)}>
           <Suspense fallback={<div className="text-white text-2xl font-bold animate-pulse">Lade Spiel...</div>}>
-            <GameComponent onExit={() => setActiveGame(null)} />
+            <GameComponent onExit={() => setActiveGame(null)} isLearncade={isLearncade} />
           </Suspense>
         </ErrorBoundary>
       </div>
@@ -209,7 +210,23 @@ export default function GameEngineHub({ onExit }) {
             <h2 className="text-3xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-pink-500 to-purple-500">
               RETRO ARCADE
             </h2>
-            <p className="text-slate-400 text-sm md:text-lg mt-1 font-bold tracking-widest uppercase">Wähle dein Spiel ({GAMES.length} verfügbar)</p>
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3">
+              <button 
+                onClick={() => setIsLearncade(false)}
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${!isLearncade ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+              >
+                🚀 Pure Arcade
+              </button>
+              <button 
+                onClick={() => setIsLearncade(true)}
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${isLearncade ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+              >
+                🧠 Learncade
+              </button>
+            </div>
+            <p className="text-slate-400 text-xs md:text-sm mt-3 font-bold tracking-widest uppercase">
+              Wähle dein Spiel ({GAMES.length} verfügbar)
+            </p>
           </div>
           <button 
             onClick={onExit}

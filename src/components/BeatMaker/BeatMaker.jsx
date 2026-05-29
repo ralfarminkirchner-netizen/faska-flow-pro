@@ -998,7 +998,10 @@ export default function BeatMaker() {
                 <Motion.button
                   key={pad.id}
                   whileTap={{ scale: 0.92 }}
-                  onClick={() => playPad(pad)}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'touch') e.preventDefault();
+                    playPad(pad);
+                  }}
                   className={`touch-none relative flex flex-col justify-end rounded-2xl border border-white/10 p-2 md:p-3 text-left shadow-lg transition aspect-square ${selectedPadId === pad.id ? "ring-2 ring-white" : "hover:border-white/30"}`}
                   style={{
                     background: `linear-gradient(145deg, ${pad.hue}, #0f172a 82%)`,
@@ -1371,7 +1374,8 @@ export default function BeatMaker() {
                 {padBank.map((pad) => (
                   <button
                     key={pad.id}
-                    onClick={() => {
+                    onPointerDown={(e) => {
+                      if (e.pointerType === 'touch') e.preventDefault();
                       setSelectedPadId(pad.id);
                       triggerPadSound(pad.id, selectedTrack || { volume: 0.9, pan: 0, send: 0.12 });
                     }}

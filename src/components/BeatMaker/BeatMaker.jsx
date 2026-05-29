@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { AnimatePresence, motion as Motion } from "framer-motion";
+import { Rnd } from "react-rnd";
+import { BASS_INSTRUMENTS } from "../../utils/sounds_basses.js";
+import { LEAD_INSTRUMENTS } from "../../utils/sounds_leads.js";
+import { NEW_DRUMS } from "../../utils/sounds_drums.js";
 import {
   Copy,
   Download,
@@ -18,6 +22,8 @@ import {
   Edit2,
   X,
   Play,
+  Minus,
+  Piano
 } from "lucide-react";
 import {
   playClap,
@@ -36,6 +42,8 @@ import {
   playHatTrap,
   playVinyl,
   playSnap,
+  playKickAcoustic, playSnareAcoustic, playTomLowAcoustic, playTomHighAcoustic, playCrashAcoustic, playRideAcoustic, playHiHatClosedAcoustic, playHiHatOpenAcoustic,
+  playKickEDM, playKickDeep, playSnareClap, playHatEDM, playCymbalReverse, playPercFM
 } from "../../utils/sounds";
 import MicSampler from "./MicSampler";
 
@@ -45,32 +53,51 @@ const CURRENT_STORAGE_KEY = "faskar-flow-beat-current-v2";
 const PROJECT_STORAGE_KEY = "faskar-flow-beat-projects-v2";
 
 const DRUM_SOUNDS = [
+  ...NEW_DRUMS,
   { id: "kick_deep", name: "Kick tief", short: "Kick", hue: "#6366f1", play: (track) => playKick(track) },
-  { id: "kick_soft", name: "Kick weich", short: "Soft", hue: "#818cf8", play: (track) => playKick({ ...track, volume: track.volume * 0.76, send: 0.12 }) },
+  { id: "kick_edm", name: "EDM Kick", short: "Kick E", hue: "#4f46e5", play: (track) => playKickEDM(track) },
+  { id: "kick_sub", name: "Deep Sub Kick", short: "Kick S", hue: "#4338ca", play: (track) => playKickDeep(track) },
+  { id: "kick_ac", name: "Akustik Kick", short: "Kick A", hue: "#d97706", play: (track) => playKickAcoustic(track) },
   { id: "snare_snap", name: "Snare knackig", short: "Snare", hue: "#ec4899", play: (track) => playSnare(track) },
-  { id: "snare_room", name: "Snare Raum", short: "Room", hue: "#f472b6", play: (track) => playSnare({ ...track, volume: track.volume * 0.82, send: 0.22 }) },
+  { id: "snare_clap", name: "Snare Clap", short: "Sn Clap", hue: "#be185d", play: (track) => playSnareClap(track) },
+  { id: "snare_ac", name: "Akustik Snare", short: "Snare A", hue: "#b45309", play: (track) => playSnareAcoustic(track) },
   { id: "clap", name: "Clap", short: "Clap", hue: "#fb7185", play: (track) => playClap(track) },
   { id: "rim", name: "Rimshot", short: "Rim", hue: "#f97316", play: (track) => playRim(track) },
   { id: "hat_closed", name: "Hi-Hat zu", short: "Hat", hue: "#facc15", play: (track) => playHiHat(track) },
+  { id: "hat_edm", name: "EDM Hat", short: "Hat E", hue: "#eab308", play: (track) => playHatEDM(track) },
+  { id: "hat_ac_closed", name: "Akustik Hat", short: "Hat A", hue: "#fbbf24", play: (track) => playHiHatClosedAcoustic(track) },
   { id: "hat_open", name: "Hi-Hat offen", short: "Open", hue: "#fde047", play: (track) => playHiHat({ ...track, open: true }) },
   { id: "shaker", name: "Shaker", short: "Shake", hue: "#a3e635", play: (track) => playShaker(track) },
   { id: "tom_low", name: "Tom tief", short: "Tom L", hue: "#14b8a6", play: (track) => playTom({ ...track, freq: 122 }) },
+  { id: "tom_ac_low", name: "Ak. Tom Tief", short: "Tom LA", hue: "#0f766e", play: (track) => playTomLowAcoustic(track) },
   { id: "tom_mid", name: "Tom mittel", short: "Tom M", hue: "#2dd4bf", play: (track) => playTom({ ...track, freq: 172 }) },
-  { id: "tom_high", name: "Tom hoch", short: "Tom H", hue: "#38bdf8", play: (track) => playTom({ ...track, freq: 238 }) },
+  { id: "tom_ac_high", name: "Ak. Tom Hoch", short: "Tom HA", hue: "#0d9488", play: (track) => playTomHighAcoustic(track) },
   { id: "crash", name: "Crash", short: "Crash", hue: "#0ea5e9", play: (track) => playCrash(track) },
+  { id: "crash_ac", name: "Akustik Crash", short: "Crash A", hue: "#0284c7", play: (track) => playCrashAcoustic(track) },
+  { id: "ride_ac", name: "Akustik Ride", short: "Ride", hue: "#0369a1", play: (track) => playRideAcoustic(track) },
+  { id: "cymbal_rev", name: "Reverse Cymbal", short: "Rev Cym", hue: "#3b82f6", play: (track) => playCymbalReverse(track) },
   { id: "kick_hiphop", name: "Hip-Hop Kick", short: "Kick H", hue: "#4f46e5", play: (track) => playKickHiphop(track) },
   { id: "snare_hiphop", name: "Hip-Hop Snare", short: "Snare H", hue: "#be185d", play: (track) => playSnareHiphop(track) },
   { id: "hat_trap", name: "Trap Hat", short: "Hat T", hue: "#eab308", play: (track) => playHatTrap(track) },
   { id: "808", name: "808 Bass", short: "808", hue: "#16a34a", play: (track) => play808(track) },
   { id: "snap", name: "Snap", short: "Snap", hue: "#d946ef", play: (track) => playSnap(track) },
   { id: "vinyl", name: "Vinyl Crackle", short: "Vinyl", hue: "#78716c", play: (track) => playVinyl(track) },
-  { id: "perc_wood", name: "Holz-Perc", short: "Wood", hue: "#d97706", play: (track) => playInstrumentTone("xylophon", 740, { velocity: track.volume * 0.85, pan: track.pan, send: track.send }) },
-  { id: "perc_bell", name: "Glöckchen", short: "Bell", hue: "#c084fc", play: (track) => playInstrumentTone("glockenspiel", 988, { velocity: track.volume * 0.7, pan: track.pan, send: 0.28 }) },
-  { id: "perc_bass", name: "808 Ton", short: "808", hue: "#22c55e", play: (track) => playInstrumentTone("bass", 196, { velocity: track.volume, pan: track.pan, send: 0.04 }) },
+  { id: "perc_fm", name: "FM Perc", short: "Perc F", hue: "#8b5cf6", play: (track) => playPercFM(track) },
 ];
 
 const MELODIC_INSTRUMENTS = [
+  ...LEAD_INSTRUMENTS,
+  ...BASS_INSTRUMENTS,
   { id: "piano", name: "Piano" },
+  { id: "piano_grand", name: "Konzertflügel" },
+  { id: "strings_orchestral", name: "Orchester-Streicher" },
+  { id: "upright_bass", name: "Kontrabass" },
+  { id: "lead_saw", name: "EDM Lead" },
+  { id: "pad_warm", name: "Warm Pad" },
+  { id: "wobble_bass", name: "Wobble Bass" },
+  { id: "bass_fm", name: "FM Bass" },
+  { id: "arp_pluck", name: "Arp Pluck" },
+  { id: "flute_wooden", name: "Holzflöte" },
   { id: "lofi_keys", name: "Lo-Fi Keys" },
   { id: "synth_bass", name: "Synth Bass" },
   { id: "brass_pad", name: "Brass Pad" },
@@ -78,33 +105,48 @@ const MELODIC_INSTRUMENTS = [
   { id: "kalimba", name: "Kalimba" },
   { id: "xylophon", name: "Xylo" },
   { id: "gitarre", name: "Gitarre" },
-  { id: "bass", name: "Bass" },
+  { id: "bass", name: "E-Bass" },
   { id: "floete", name: "Flöte" },
   { id: "trompete", name: "Trompete" },
   { id: "chor", name: "Chor" },
   { id: "traum", name: "Dream Pad" },
 ];
 
-const KEYBOARD_NOTES = [
-  { note: "C4", freq: 261.63, type: "white", key: "A" },
-  { note: "C#4", freq: 277.18, type: "black", key: "W" },
-  { note: "D4", freq: 293.66, type: "white", key: "S" },
-  { note: "D#4", freq: 311.13, type: "black", key: "E" },
-  { note: "E4", freq: 329.63, type: "white", key: "D" },
-  { note: "F4", freq: 349.23, type: "white", key: "F" },
-  { note: "F#4", freq: 369.99, type: "black", key: "T" },
-  { note: "G4", freq: 392, type: "white", key: "G" },
-  { note: "G#4", freq: 415.3, type: "black", key: "Y" },
-  { note: "A4", freq: 440, type: "white", key: "H" },
-  { note: "A#4", freq: 466.16, type: "black", key: "U" },
-  { note: "B4", freq: 493.88, type: "white", key: "J" },
-  { note: "C5", freq: 523.25, type: "white", key: "K" },
-  { note: "D5", freq: 587.33, type: "white", key: "L" },
-  { note: "E5", freq: 659.25, type: "white", key: "Ö" },
-  { note: "G5", freq: 783.99, type: "white", key: "Ä" },
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const PC_KEYS = [
+  "y", "s", "x", "d", "c", "v", "g", "b", "h", "n", "j", "m", 
+  "q", "2", "w", "3", "e", "r", "5", "t", "6", "z", "7", "u", "i", "9", "o"
 ];
 
-const COMPUTER_KEYS = new Map(KEYBOARD_NOTES.map((note) => [note.key.toLowerCase(), note]));
+const generateKeyboard = (baseOctave) => {
+  const keys = [];
+  for (let i = 0; i < 25; i++) {
+    const octave = baseOctave + Math.floor(i / 12);
+    const noteIndex = i % 12;
+    const name = NOTE_NAMES[noteIndex];
+    const midi = (octave + 1) * 12 + noteIndex;
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    keys.push({
+      note: `${name}${octave}`,
+      freq,
+      type: name.includes("#") ? "black" : "white",
+      key: PC_KEYS[i] || "",
+      label: PC_KEYS[i] ? PC_KEYS[i].toUpperCase() : ""
+    });
+  }
+  return keys;
+};
+
+const getNoteFrequency = (noteName) => {
+  const match = noteName.match(/([A-G]#?)(\d)/);
+  if (!match) return 261.63; // Default C4
+  const name = match[1];
+  const octave = parseInt(match[2], 10);
+  const noteIndex = NOTE_NAMES.indexOf(name);
+  if (noteIndex === -1) return 261.63;
+  const midi = (octave + 1) * 12 + noteIndex;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+};
 
 const PATTERN_TEMPLATES = [
   {
@@ -218,7 +260,9 @@ const fitArray = (array, steps, fillValue) => {
   return Array.from({ length: steps }, (_, index) => source[index] ?? fillValue);
 };
 
-const findNote = (noteName) => KEYBOARD_NOTES.find((note) => note.note === noteName) || KEYBOARD_NOTES[0];
+const findNote = (noteName) => {
+  return { note: noteName, freq: getNoteFrequency(noteName), velocity: 0.86 };
+};
 const drumById = (id) => DRUM_SOUNDS.find((sound) => sound.id === id) || DRUM_SOUNDS[0];
 
 const createTrack = ({ kind = "drum", instId = "kick_deep", instrument = "piano", name, steps = DEFAULT_STEPS }) => ({
@@ -326,6 +370,69 @@ const createTemplateTracks = (template) => {
 export default function BeatMaker() {
   const [initialProject] = useState(loadInitialProject);
 
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isDualKeyboard, setIsDualKeyboard] = useState(false);
+  
+  const [layoutCoords, setLayoutCoords] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem('faska-layout');
+      if (saved) return JSON.parse(saved);
+    }
+    return {
+      header: { x: 0, y: 0, width: "100%", height: "auto" },
+      drums: { x: 50, y: 50, width: 400, height: "auto" },
+      keys: { x: 100, y: 150, width: 800, height: "auto" },
+      grooves: { x: 200, y: 250, width: 400, height: "auto" }
+    };
+  });
+
+  const saveLayout = (id, d, ref) => {
+    setLayoutCoords(prev => {
+      const next = { ...prev, [id]: { x: d.x, y: d.y, width: ref.style.width, height: ref.style.height } };
+      localStorage.setItem('faska-layout', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const WorkspacePanel = ({ id, children }) => {
+    if (!isEditMode) return <div className="w-full relative z-10">{children}</div>;
+    return (
+      <Rnd
+        default={layoutCoords[id]}
+        bounds="parent"
+        className="z-50 bg-slate-900/95 backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)] rounded-[30px] border-4 border-fuchsia-500 overflow-hidden"
+        onDragStop={(e, d) => saveLayout(id, d, { style: layoutCoords[id] })}
+        onResizeStop={(e, direction, ref, delta, position) => saveLayout(id, position, ref)}
+        dragHandleClassName="drag-handle"
+      >
+        <div className="drag-handle bg-fuchsia-500/20 w-full h-8 cursor-move flex items-center justify-center border-b border-fuchsia-500/30">
+          <span className="text-[10px] font-bold text-fuchsia-300 tracking-widest uppercase">Anfassen & Bewegen</span>
+        </div>
+        <div className="h-[calc(100%-2rem)] overflow-y-auto custom-scrollbar p-2">
+          {children}
+        </div>
+      </Rnd>
+    );
+  };
+
+  const [isLandscapeFullscreen, setIsLandscapeFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== "undefined") {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const isMobileOrTablet = window.innerWidth <= 1180 || window.innerHeight <= 850;
+        setIsLandscapeFullscreen(isLandscape && isMobileOrTablet);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, []);
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(initialProject.bpm);
   const [steps, setSteps] = useState(initialProject.steps);
@@ -343,7 +450,20 @@ export default function BeatMaker() {
     return safeParse(window.localStorage.getItem(PROJECT_STORAGE_KEY), []);
   });
   const [customSamples, setCustomSamples] = useState([]);
-  const [lastNote, setLastNote] = useState(KEYBOARD_NOTES[0]);
+  const [octaveOffset, setOctaveOffset] = useState(3);
+  const keyboardNotes = useMemo(() => generateKeyboard(octaveOffset), [octaveOffset]);
+  const keyboardNotesUpper = useMemo(() => generateKeyboard(Math.min(6, octaveOffset + 1)), [octaveOffset]);
+  
+  const computerKeysMap = useMemo(() => {
+    const map = new Map();
+    keyboardNotes.forEach(n => map.set(n.key.toLowerCase(), n));
+    if (isDualKeyboard) {
+      // Map upper row manually to top keys if needed, but for now just basic mapping
+    }
+    return map;
+  }, [keyboardNotes, isDualKeyboard]);
+  
+  const [lastNote, setLastNote] = useState(keyboardNotes[0]);
   const [editingTrackId, setEditingTrackId] = useState(null);
 
   const tracksRef = useRef(tracks);
@@ -446,23 +566,24 @@ export default function BeatMaker() {
       send: track.send,
     };
 
-    if (track.kind === "melody") {
-      const noteData = track.notes[stepIndex];
-      if (noteData) {
-        const notesToPlay = Array.isArray(noteData) ? noteData : [noteData];
-        notesToPlay.forEach(note => {
-          if (!note) return;
-          playInstrumentTone(track.instrument || "piano", note.freq, {
+    const active = track.kind === "melody" ? Boolean(track.notes[stepIndex]) : Boolean(track.pattern[stepIndex]);
+    if (active && track.kind === "melody") {
+      const notesToPlay = Array.isArray(track.notes[stepIndex]) ? track.notes[stepIndex] : [track.notes[stepIndex]];
+      notesToPlay.forEach(note => {
+        if (!note) return;
+        const freq = note.freq || 440;
+        const inst = MELODIC_INSTRUMENTS.find(i => i.id === track.instrument);
+        if (inst && inst.play) {
+          inst.play(freq, { velocity: (note.velocity || 0.85) * track.volume, pan: track.pan, send: track.send });
+        } else {
+          playInstrumentTone(track.instrument || "piano", freq, {
             velocity: (note.velocity || 0.85) * track.volume,
             pan: track.pan,
             send: track.send,
           });
-        });
-      }
-      return;
-    }
-
-    if (track.pattern[stepIndex]) {
+        }
+      });
+    } else if (active && track.kind === "drum") {
       triggerPadSound(track.instId, output);
     }
   }, [soloActive, triggerPadSound]);
@@ -563,7 +684,15 @@ export default function BeatMaker() {
 
   function playKeyboardNote(note) {
     setLastNote(note);
-    playInstrumentTone(selectedInstrument, note.freq, { velocity: 0.88, send: 0.22 });
+    if (chordBufferRef.current.timer) return;
+    
+    const inst = MELODIC_INSTRUMENTS.find(i => i.id === selectedInstrument);
+    if (inst && inst.play) {
+      inst.play(note.freq, { velocity: 0.88, send: 0.22 });
+    } else {
+      playInstrumentTone(selectedInstrument, note.freq, { velocity: 0.88, send: 0.22 });
+    }
+
     if (!recordKeys) return;
 
     if (!chordBufferRef.current.timer) {
@@ -628,7 +757,7 @@ export default function BeatMaker() {
       if (event.repeat) return;
       const target = event.target;
       if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const note = COMPUTER_KEYS.get(event.key.toLowerCase());
+      const note = computerKeysMap.get(event.key.toLowerCase());
       if (note) {
         event.preventDefault();
         playKeyboardNote(note);
@@ -695,7 +824,7 @@ export default function BeatMaker() {
           ...track,
           notes: emptyNotes(steps).map((_, index) => {
             if (Math.random() > (index % 4 === 0 ? 0.52 : 0.82)) return null;
-            const note = KEYBOARD_NOTES[Math.floor(Math.random() * KEYBOARD_NOTES.length)];
+            const note = keyboardNotes[Math.floor(Math.random() * keyboardNotes.length)];
             return { note: note.note, freq: note.freq, velocity: 0.72 + Math.random() * 0.24 };
           }),
         };
@@ -770,8 +899,23 @@ export default function BeatMaker() {
   };
 
   return (
-    <div className="w-full overflow-hidden rounded-[34px] border border-slate-700 bg-slate-950 text-white shadow-2xl">
-      <div className="relative overflow-hidden border-b border-slate-800 bg-[radial-gradient(circle_at_top_left,#312e81_0%,#0f172a_34%,#020617_100%)] px-5 py-6 md:px-8">
+    <div className={isLandscapeFullscreen 
+      ? "fixed inset-0 z-[100] h-[100dvh] w-screen overflow-y-auto bg-slate-950 text-white" 
+      : "w-full overflow-hidden rounded-[34px] border border-slate-700 bg-slate-950 text-white shadow-2xl"
+    }>
+      <div className={`relative ${isEditMode ? 'min-h-[1200px]' : ''}`}>
+        
+        <div className="fixed top-4 right-4 z-[200]">
+          <button
+            onClick={() => setIsEditMode(e => !e)}
+            className={`px-6 py-3 rounded-full font-bold shadow-2xl transition-all border-2 flex items-center gap-2 ${isEditMode ? 'bg-fuchsia-500 text-white border-white scale-105' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400'}`}
+          >
+            {isEditMode ? "Workspace Speichern" : "Workspace Anpassen"}
+          </button>
+        </div>
+
+        <WorkspacePanel id="header">
+          <div className="relative overflow-hidden border-b border-slate-800 bg-[radial-gradient(circle_at_top_left,#312e81_0%,#0f172a_34%,#020617_100%)] px-5 py-6 md:px-8">
         <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
         <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0">
@@ -826,14 +970,16 @@ export default function BeatMaker() {
               </div>
             </div>
 
-            <MicSampler onSamplesUpdate={setCustomSamples} />
+            <MicSampler onSamplesUpdate={setCustomSamples} bpm={bpm} />
           </div>
         </div>
       </div>
+      </WorkspacePanel>
 
-      <div className="grid gap-5 p-5 md:p-8 xl:grid-cols-[minmax(16rem,18rem)_1fr]">
-        <section className="space-y-5">
-          <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
+      <div className={`p-5 md:p-8 ${isEditMode ? 'relative h-full' : 'flex flex-col gap-8'}`}>
+        <section className={isEditMode ? 'static' : 'space-y-5'}>
+          <WorkspacePanel id="drums">
+            <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl h-full">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[0.68rem] font-black uppercase tracking-[0.22em] text-amber-300">MPC Pads</p>
@@ -847,73 +993,145 @@ export default function BeatMaker() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 gap-2 md:gap-3">
               {padBank.slice(0, 16).map((pad) => (
                 <Motion.button
                   key={pad.id}
                   whileTap={{ scale: 0.92 }}
                   onClick={() => playPad(pad)}
-                  className={`relative flex flex-col justify-end rounded-2xl border border-white/10 p-3 text-left shadow-lg transition aspect-square sm:aspect-auto ${selectedPadId === pad.id ? "ring-2 ring-white" : "hover:border-white/30"}`}
+                  className={`touch-none relative flex flex-col justify-end rounded-2xl border border-white/10 p-2 md:p-3 text-left shadow-lg transition aspect-square ${selectedPadId === pad.id ? "ring-2 ring-white" : "hover:border-white/30"}`}
                   style={{
                     background: `linear-gradient(145deg, ${pad.hue}, #0f172a 82%)`,
                     boxShadow: selectedPadId === pad.id ? `0 0 22px ${pad.hue}66` : undefined,
                   }}
                 >
-                  <span className="block text-[0.64rem] font-black uppercase tracking-widest text-white/70">{pad.short}</span>
-                  <span className="mt-2 block truncate font-hand text-xl font-bold leading-none text-white">{pad.name}</span>
+                  <span className="block text-[0.55rem] md:text-[0.64rem] font-black uppercase tracking-widest text-white/70">{pad.short}</span>
+                  <span className="mt-1 md:mt-2 block truncate font-hand text-sm md:text-xl font-bold leading-none text-white">{pad.name}</span>
                 </Motion.button>
               ))}
             </div>
           </div>
+          </WorkspacePanel>
 
-          <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
-            <div className="mb-4 flex items-center gap-3">
-              <Keyboard className="text-sky-300" size={22} />
-              <div>
-                <p className="text-[0.68rem] font-black uppercase tracking-[0.22em] text-sky-300">Klaviatur</p>
-                <h3 className="font-hand text-3xl font-bold text-white">Melodie einspielen</h3>
+          <WorkspacePanel id="keys">
+            <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl h-full">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
+                  <Piano size={20} />
+                </div>
+                <div>
+                  <h3 className="font-hand text-2xl font-bold text-white">Klaviatur & Instrumente</h3>
+                  <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-500">2 Oktaven spielbar</p>
+                </div>
               </div>
-            </div>
-
-            <div className="mb-4 flex flex-wrap gap-2">
-              {MELODIC_INSTRUMENTS.map((instrument) => (
-                <button
-                  key={instrument.id}
-                  onClick={() => setSelectedInstrument(instrument.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-bold ${selectedInstrument === instrument.id ? "bg-sky-400 text-slate-950" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={selectedInstrument}
+                  onChange={(event) => setSelectedInstrument(event.target.value)}
+                  className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-bold text-white outline-none"
                 >
-                  {instrument.name}
-                </button>
-              ))}
+                  {MELODIC_INSTRUMENTS.map((instrument) => (
+                    <option key={instrument.id} value={instrument.id}>{instrument.name}</option>
+                  ))}
+                </select>
+                
+                <div className="flex items-center gap-2 rounded-xl bg-slate-950 p-1">
+                  <button 
+                    onClick={() => setIsDualKeyboard(!isDualKeyboard)}
+                    className={`rounded-lg p-2 text-xs font-bold uppercase tracking-widest ${isDualKeyboard ? "bg-amber-400 text-slate-900" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
+                  >
+                    2 Zeilen
+                  </button>
+                  <button 
+                    onClick={() => setOctaveOffset(o => Math.max(1, o - 1))}
+                    className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    title="-1 Oktave"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center text-xs font-bold text-slate-400">Okt {octaveOffset}</span>
+                  <button 
+                    onClick={() => setOctaveOffset(o => Math.min(6, o + 1))}
+                    className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    title="+1 Oktave"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <button
               onClick={() => setRecordKeys((value) => !value)}
-              className={`mb-3 w-full rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-widest ${recordKeys ? "bg-rose-500 text-white" : "bg-slate-800 text-slate-400"}`}
+              className={`mt-4 mb-3 w-full rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-widest ${recordKeys ? "bg-rose-500 text-white" : "bg-slate-800 text-slate-400"}`}
             >
               Melodie aufnehmen
             </button>
 
-            <div className="flex h-36 items-stretch gap-1 overflow-x-auto rounded-2xl bg-slate-950 p-2">
-              {KEYBOARD_NOTES.map((note) => (
-                <Motion.button
-                  key={note.note}
-                  whileTap={{ y: 4 }}
-                  onClick={() => playKeyboardNote(note)}
-                  className={`relative flex min-w-12 flex-col items-center justify-end rounded-xl border px-2 pb-2 text-xs font-black ${
-                    note.type === "black"
-                      ? "h-24 bg-slate-900 text-white border-slate-600"
-                      : "h-32 bg-white text-slate-900 border-slate-200"
-                  }`}
-                >
-                  <span className="font-hand text-lg">{note.note}</span>
-                  <span className={note.type === "black" ? "text-slate-500" : "text-slate-400"}>{note.key}</span>
-                </Motion.button>
-              ))}
+            <div className="bg-slate-950/50 p-5 rounded-xl border border-slate-800 flex flex-col gap-4">
+              
+              {isDualKeyboard && (
+                <div className="flex justify-center overflow-x-auto pb-2 custom-scrollbar">
+                  <div className="flex relative min-w-max px-4">
+                    {keyboardNotesUpper.map((note) => {
+                      const isBlack = note.type === "black";
+                      return (
+                        <button
+                          key={note.note + "-upper"}
+                          className={`touch-none flex-shrink-0 relative rounded-b-xl transition-all outline-none border
+                            h-32 md:h-40 
+                            ${isBlack ? "w-8 md:w-12 bg-slate-800 -mx-4 md:-mx-6 z-10 border-slate-900 shadow-xl" : "w-12 md:w-16 bg-white border-slate-300 z-0 shadow-sm"}
+                            ${lastNote?.note === note.note ? (isBlack ? "bg-slate-700 translate-y-1" : "bg-slate-100 translate-y-1") : "hover:bg-slate-50"}
+                          `}
+                          onPointerDown={(e) => {
+                            if (e.pointerType === 'touch') e.preventDefault();
+                            playKeyboardNote(note);
+                          }}
+                        >
+                          <div className={`absolute bottom-3 w-full text-center text-xs font-bold ${isBlack ? "text-slate-400" : "text-slate-400"}`}>
+                            <span className="block text-[8px]">{note.note.replace("#", "♯")}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-center overflow-x-auto pb-4 custom-scrollbar">
+                <div className="flex relative min-w-max px-4">
+                  {keyboardNotes.map((note) => {
+                    const isBlack = note.type === "black";
+                    return (
+                      <button
+                        key={note.note}
+                        className={`touch-none flex-shrink-0 relative rounded-b-xl transition-all outline-none border
+                          h-48 md:h-56 
+                          ${isBlack ? "w-10 md:w-14 bg-slate-800 -mx-5 md:-mx-7 z-10 border-slate-900 shadow-xl" : "w-14 md:w-20 bg-white border-slate-300 z-0 shadow-sm"}
+                          ${lastNote?.note === note.note ? (isBlack ? "bg-slate-700 translate-y-1" : "bg-slate-100 translate-y-1") : "hover:bg-slate-50"}
+                        `}
+                        onPointerDown={(e) => {
+                          if (e.pointerType === 'touch') e.preventDefault();
+                          playKeyboardNote(note);
+                        }}
+                      >
+                        <div className={`absolute bottom-3 w-full text-center text-xs font-bold ${isBlack ? "text-slate-400" : "text-slate-400"}`}>
+                          <span className="block mb-1">{note.note.replace("#", "♯")}</span>
+                          <span className="block text-[9px] uppercase">{note.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
+          </WorkspacePanel>
 
-          <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
+          <WorkspacePanel id="grooves">
+            <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl h-full">
             <div className="mb-3 flex items-center gap-2">
               <Sparkles size={19} className="text-fuchsia-300" />
               <h3 className="font-hand text-3xl font-bold text-white">Grooves</h3>
@@ -927,9 +1145,11 @@ export default function BeatMaker() {
               ))}
             </div>
           </div>
+          </WorkspacePanel>
         </section>
 
         <section className="min-w-0 space-y-5">
+          <WorkspacePanel id="sequencer">
           <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1109,8 +1329,8 @@ export default function BeatMaker() {
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
+          <div className="flex flex-col gap-5 lg:flex-row">
+            <div className="flex-1 rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
               <div className="mb-3 flex items-center gap-2">
                 <Save className="text-emerald-300" size={20} />
                 <h3 className="font-hand text-3xl font-bold text-white">Projekte</h3>
@@ -1142,12 +1362,12 @@ export default function BeatMaker() {
               </div>
             </div>
 
-            <div className="rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
+            <div className="flex-[2] rounded-[26px] border border-slate-800 bg-slate-900 p-4 shadow-xl">
               <div className="mb-3 flex items-center gap-2">
                 <Mic2 className="text-cyan-300" size={20} />
-                <h3 className="font-hand text-3xl font-bold text-white">Sound-Auswahl</h3>
+                <h3 className="font-hand text-3xl font-bold text-white">Sound-Auswahl (Pads)</h3>
               </div>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-6">
                 {padBank.map((pad) => (
                   <button
                     key={pad.id}
@@ -1164,6 +1384,7 @@ export default function BeatMaker() {
               </div>
             </div>
           </div>
+          </WorkspacePanel>
         </section>
       </div>
 
@@ -1224,7 +1445,7 @@ export default function BeatMaker() {
                         </div>
 
                         {/* Piano Rows */}
-                        {[...KEYBOARD_NOTES].reverse().map(note => (
+                        {[...keyboardNotes].reverse().map(note => (
                           <div key={note.note} className="flex min-h-[32px] gap-1">
                             <div className={`flex w-16 md:w-24 shrink-0 items-center justify-end rounded-l-lg border-r-4 pr-2 text-xs font-bold ${note.type === "black" ? "bg-slate-900 text-slate-400 border-slate-700" : "bg-slate-200 text-slate-900 border-white"}`}>
                               {note.note.replace("#", "♯")}
@@ -1268,6 +1489,7 @@ export default function BeatMaker() {
           </Motion.div>
         )}
       </AnimatePresence>
+    </div>
     </div>
   );
 }

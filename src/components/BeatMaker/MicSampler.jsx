@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { playPop, getAudioContext, playMicSample, generateWaveform } from "../../utils/sounds";
+import { playPop, getAudioContext, playMicSample, generateWaveform, timeStretchBuffer } from "../../utils/sounds";
 
-export default function MicSampler({ onSamplesUpdate }) {
+export default function MicSampler({ onSamplesUpdate, bpm = 120 }) {
   const [samples, setSamples] = useState([]);
   const [status, setStatus] = useState("idle"); 
   const [errorMsg, setErrorMsg] = useState("");
@@ -92,6 +92,79 @@ export default function MicSampler({ onSamplesUpdate }) {
     setEditingSample(null);
   };
 
+  const autoSyncSample = async (sample) => {
+    setStatus("processing");
+    try {
+      const buffer = sample.buffer;
+      const data = buffer.getChannelData(0);
+      const threshold = 0.015;
+      
+      let startIdx = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (Math.abs(data[i]) > threshold) {
+          startIdx = i;
+          break;
+        }
+      }
+      
+      let endIdx = data.length - 1;
+      for (let i = data.length - 1; i >= 0; i--) {
+        if (Math.abs(data[i]) > threshold) {
+          endIdx = i;
+          break;
+        }
+      }
+      
+      const trimStart = Math.max(0, (startIdx / buffer.sampleRate) - 0.05); // 50ms pre-roll
+      const trimEnd = Math.min(buffer.duration, (endIdx / buffer.sampleRate) + 0.05);
+      const duration = trimEnd - trimStart;
+      
+      // Calculate target duration based on DAW BPM
+      const beatSecs = 60 / bpm;
+      const possibleTargets = [beatSecs, beatSecs * 2, beatSecs * 4, beatSecs * 8];
+      let targetDuration = possibleTargets[0];
+      let minDiff = Math.abs(duration - targetDuration);
+      for (let i = 1; i < possibleTargets.length; i++) {
+        const diff = Math.abs(duration - possibleTargets[i]);
+        if (diff < minDiff) {
+          minDiff = diff;
+          targetDuration = possibleTargets[i];
+        }
+      }
+      
+      const audioCtx = getAudioContext();
+      const trimmedLen = Math.floor(duration * audioCtx.sampleRate);
+      const trimmedBuffer = audioCtx.createBuffer(buffer.numberOfChannels, trimmedLen, audioCtx.sampleRate);
+      for(let c=0; c<buffer.numberOfChannels; c++) {
+        const inData = buffer.getChannelData(c);
+        const outData = trimmedBuffer.getChannelData(c);
+        const offset = Math.floor(trimStart * audioCtx.sampleRate);
+        for(let i=0; i<trimmedLen; i++) {
+           if (offset + i < inData.length) {
+             outData[i] = inData[offset + i];
+           }
+        }
+      }
+      
+      const stretchedBuffer = await timeStretchBuffer(audioCtx, trimmedBuffer, targetDuration);
+      
+      setEditingSample(prev => ({
+        ...prev,
+        buffer: stretchedBuffer,
+        originalDuration: stretchedBuffer.duration,
+        trimStart: 0,
+        trimEnd: stretchedBuffer.duration,
+        waveform: generateWaveform(stretchedBuffer, 50)
+      }));
+      setStatus("idle");
+      playPop();
+    } catch(err) {
+      console.error(err);
+      setStatus("error");
+      setErrorMsg("Time-Stretch Error");
+    }
+  };
+
   return (
     <div className="flex gap-4 items-stretch h-full">
       {/* Record Box */}
@@ -173,10 +246,13 @@ export default function MicSampler({ onSamplesUpdate }) {
                 </div>
              </div>
 
-             <div className="flex justify-end gap-4 mt-8">
-               <button onClick={() => playPreview(editingSample)} className="px-6 py-3 bg-slate-700 text-white rounded-xl font-bold shadow-md hover:bg-slate-600 transition-colors">▶ Vorschau</button>
-               <button onClick={() => setEditingSample(null)} className="px-6 py-3 bg-transparent text-slate-400 rounded-xl font-bold hover:text-white transition-colors">Abbrechen</button>
-               <button onClick={() => saveEdit(editingSample)} className="px-8 py-3 bg-sky-500 text-white rounded-xl font-bold shadow-lg hover:bg-sky-400 shadow-sky-500/40 transition-colors">Speichern</button>
+             <div className="flex justify-between items-center mt-8">
+               <button onClick={() => autoSyncSample(editingSample)} className="px-4 py-3 bg-fuchsia-600/20 text-fuchsia-300 rounded-xl font-bold border border-fuchsia-500/50 hover:bg-fuchsia-500/30 transition-colors flex items-center gap-2">🪄 Auto-Sync & Stretch</button>
+               <div className="flex gap-4">
+                 <button onClick={() => playPreview(editingSample)} className="px-6 py-3 bg-slate-700 text-white rounded-xl font-bold shadow-md hover:bg-slate-600 transition-colors">▶ Vorschau</button>
+                 <button onClick={() => setEditingSample(null)} className="px-6 py-3 bg-transparent text-slate-400 rounded-xl font-bold hover:text-white transition-colors">Abbrechen</button>
+                 <button onClick={() => saveEdit(editingSample)} className="px-8 py-3 bg-sky-500 text-white rounded-xl font-bold shadow-lg hover:bg-sky-400 shadow-sky-500/40 transition-colors">Speichern</button>
+               </div>
              </div>
           </motion.div>
         </div>

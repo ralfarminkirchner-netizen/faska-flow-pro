@@ -286,6 +286,69 @@ export const playInstrumentTone = (instrumentId = "piano", freq = 261.63, option
       voice({ freq, type: "sawtooth", start, attack: 0.15, hold: 0.4, release: 0.6, gain: 0.2, sustain: 0.15, detune: -4, destination: input, filter: { type: "lowpass", frequency: 600, to: 2000, time: 0.2 } });
       voice({ freq: freq * 1.01, type: "sawtooth", start, attack: 0.18, hold: 0.38, release: 0.6, gain: 0.2, sustain: 0.15, detune: 5, destination: input, filter: { type: "lowpass", frequency: 600, to: 2000, time: 0.2 } });
       break;
+    
+    case "strings_orchestral":
+      voice({ freq, type: "sawtooth", start, attack: 0.25, hold: 0.5, release: 0.8, gain: 0.15, sustain: 0.12, detune: -6, destination: input, filter: { type: "lowpass", frequency: 1500, to: 2500, time: 0.4 } });
+      voice({ freq: freq * 1.005, type: "sawtooth", start, attack: 0.3, hold: 0.45, release: 0.85, gain: 0.15, sustain: 0.12, detune: 5, destination: input, filter: { type: "lowpass", frequency: 1600, to: 2400, time: 0.4 } });
+      voice({ freq: freq * 0.5, type: "sawtooth", start, attack: 0.2, hold: 0.5, release: 0.9, gain: 0.08, sustain: 0.06, detune: -2, destination: input, filter: { type: "lowpass", frequency: 800 } });
+      break;
+    case "flute_wooden": {
+      noiseBurst({ start, duration: 0.6, attack: 0.1, release: 0.3, gain: 0.03, frequency: 3000, filterType: "bandpass", q: 2, output: input });
+      const fluteOsc = voice({ freq, type: "sine", start, attack: 0.15, hold: 0.4, release: 0.35, gain: 0.35, sustain: 0.25, destination: input });
+      voice({ freq: freq * 2, type: "sine", start, attack: 0.15, hold: 0.35, release: 0.3, gain: 0.05, sustain: 0.03, destination: input });
+      if (fluteOsc && ctx) {
+        const vibrato = ctx.createOscillator();
+        const vibratoGain = ctx.createGain();
+        vibrato.frequency.setValueAtTime(5.5, now);
+        vibratoGain.gain.setValueAtTime(4, now);
+        vibrato.connect(vibratoGain);
+        vibratoGain.connect(fluteOsc.frequency);
+        vibrato.start(now + 0.2); 
+        vibrato.stop(now + 1.2);
+      }
+      break;
+    }
+    case "piano_grand":
+      voice({ freq, type: "triangle", start, attack: 0.005, hold: 0.15, release: 1.5, gain: 0.35, sustain: 0.15, destination: input, filter: { type: "lowpass", frequency: 2500 } });
+      voice({ freq: freq * 1.002, type: "triangle", start, attack: 0.005, hold: 0.15, release: 1.4, gain: 0.25, sustain: 0.1, detune: 3, destination: input });
+      voice({ freq: freq * 2, type: "sine", start, attack: 0.005, hold: 0.1, release: 0.8, gain: 0.1, sustain: 0.05, destination: input });
+      voice({ freq: freq * 3.01, type: "sine", start, attack: 0.005, hold: 0.05, release: 0.5, gain: 0.05, sustain: 0.02, destination: input });
+      noiseBurst({ start, duration: 0.03, gain: 0.02, frequency: 500, filterType: "lowpass", output: input });
+      break;
+    case "upright_bass":
+      voice({ freq: freq * 0.5, type: "triangle", start, attack: 0.01, hold: 0.2, release: 0.8, gain: 0.45, sustain: 0.15, destination: input, filter: { type: "lowpass", frequency: 800, to: 300, time: 0.4 } });
+      voice({ freq: freq * 0.5, type: "sine", start, attack: 0.015, hold: 0.25, release: 1.0, gain: 0.55, sustain: 0.2, destination: input, bendTo: freq * 0.495, bendTime: 0.5 }); 
+      voice({ freq, type: "sine", start, attack: 0.005, hold: 0.1, release: 0.4, gain: 0.1, sustain: 0.05, destination: input });
+      noiseBurst({ start, duration: 0.04, attack: 0.002, release: 0.03, gain: 0.04, frequency: 1200, filterType: "bandpass", q: 1, output: input });
+      break;
+
+    case "lead_saw":
+      voice({ freq, type: "sawtooth", start, attack: 0.015, hold: 0.2, release: 0.4, gain: 0.22, sustain: 0.18, detune: 0, destination: input, filter: { type: "lowpass", frequency: 4500, to: 1800, time: 0.25 } });
+      voice({ freq, type: "sawtooth", start, attack: 0.02, hold: 0.2, release: 0.4, gain: 0.2, sustain: 0.16, detune: 14, destination: input, filter: { type: "lowpass", frequency: 4500, to: 1800, time: 0.25 } });
+      voice({ freq, type: "sawtooth", start, attack: 0.02, hold: 0.2, release: 0.4, gain: 0.2, sustain: 0.16, detune: -14, destination: input, filter: { type: "lowpass", frequency: 4500, to: 1800, time: 0.25 } });
+      voice({ freq: freq * 2, type: "square", start, attack: 0.01, hold: 0.15, release: 0.3, gain: 0.08, sustain: 0.06, destination: input });
+      break;
+    case "pad_warm":
+      voice({ freq, type: "sine", start, attack: 0.4, hold: 1.0, release: 1.5, gain: 0.28, sustain: 0.22, destination: input, filter: { type: "lowpass", frequency: 800, to: 1200, time: 1.0 } });
+      voice({ freq: freq * 1.006, type: "triangle", start, attack: 0.5, hold: 0.9, release: 1.4, gain: 0.18, sustain: 0.14, detune: 8, destination: input });
+      voice({ freq: freq * 0.994, type: "sawtooth", start, attack: 0.6, hold: 0.8, release: 1.3, gain: 0.12, sustain: 0.08, detune: -8, destination: input, filter: { type: "lowpass", frequency: 600, to: 1000, time: 0.8 } });
+      break;
+    case "arp_pluck":
+      voice({ freq, type: "square", start, attack: 0.005, hold: 0.05, release: 0.2, gain: 0.2, sustain: 0.04, destination: input, filter: { type: "lowpass", frequency: 3500, to: 400, time: 0.12 } });
+      voice({ freq, type: "sawtooth", start, attack: 0.005, hold: 0.05, release: 0.15, gain: 0.18, sustain: 0.04, detune: 5, destination: input, filter: { type: "lowpass", frequency: 4000, to: 500, time: 0.1 } });
+      noiseBurst({ start, duration: 0.02, gain: 0.04, frequency: 3000, filterType: "highpass", output: input });
+      break;
+    case "bass_fm":
+      voice({ freq: freq * 0.5, type: "sine", start, attack: 0.01, hold: 0.15, release: 0.4, gain: 0.4, sustain: 0.25, destination: input });
+      voice({ freq: freq, type: "triangle", start, attack: 0.01, hold: 0.1, release: 0.3, gain: 0.25, sustain: 0.1, detune: 0, destination: input, bendTo: freq * 0.98, bendTime: 0.15 });
+      voice({ freq: freq * 2, type: "square", start, attack: 0.01, hold: 0.05, release: 0.2, gain: 0.1, sustain: 0.04, destination: input, filter: { type: "bandpass", frequency: freq * 4, q: 2, to: freq * 2, time: 0.1 } });
+      break;
+    case "wobble_bass":
+      voice({ freq: freq * 0.5, type: "sawtooth", start, attack: 0.02, hold: 0.3, release: 0.4, gain: 0.3, sustain: 0.2, detune: -9, destination: input, filter: { type: "lowpass", frequency: 200, to: 2200, time: 0.15 } });
+      voice({ freq: freq * 0.5, type: "sawtooth", start, attack: 0.02, hold: 0.3, release: 0.4, gain: 0.3, sustain: 0.2, detune: 9, destination: input, filter: { type: "lowpass", frequency: 200, to: 2200, time: 0.15 } });
+      voice({ freq: freq * 0.25, type: "square", start, attack: 0.02, hold: 0.3, release: 0.4, gain: 0.25, sustain: 0.2, destination: input, filter: { type: "lowpass", frequency: 1000, to: 300, time: 0.25 } });
+      break;
+
     case "piano":
     default:
       noiseBurst({ start, duration: 0.035, gain: 0.025, frequency: 2800, filterType: "highpass", output: input });
@@ -549,4 +612,217 @@ export const generateWaveform = (audioBuffer, points = 40) => {
   return max > 0 ? waveform.map((n) => n / max) : waveform;
 };
 
+export const timeStretchBuffer = async (ctx, originalBuffer, targetDurationSec) => {
+  const originalDuration = originalBuffer.duration;
+  const ratio = originalDuration / targetDurationSec;
+  const sampleRate = ctx.sampleRate;
+  
+  const targetSamples = Math.floor(targetDurationSec * sampleRate);
+  const newBuffer = ctx.createBuffer(originalBuffer.numberOfChannels, targetSamples, sampleRate);
+  
+  const windowSize = Math.floor(sampleRate * 0.05); // 50ms grain
+  const hopSize = Math.floor(windowSize / 2); // 50% overlap
+  
+  // Hann window calculation
+  const hann = new Float32Array(windowSize);
+  for (let i = 0; i < windowSize; i++) {
+    hann[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (windowSize - 1)));
+  }
+
+  for (let channel = 0; channel < originalBuffer.numberOfChannels; channel++) {
+    const input = originalBuffer.getChannelData(channel);
+    const output = newBuffer.getChannelData(channel);
+    
+    let outOffset = 0;
+    while (outOffset < targetSamples) {
+      const inOffset = Math.floor(outOffset * ratio);
+      
+      for (let i = 0; i < windowSize; i++) {
+        if (inOffset + i < input.length && outOffset + i < targetSamples) {
+          output[outOffset + i] += input[inOffset + i] * hann[i];
+        }
+      }
+      outOffset += hopSize;
+    }
+    
+    // Normalize to prevent clipping from overlap-add
+    let maxAmp = 0;
+    for (let i = 0; i < targetSamples; i++) {
+      if (Math.abs(output[i]) > maxAmp) maxAmp = Math.abs(output[i]);
+    }
+    if (maxAmp > 1.0) {
+      for (let i = 0; i < targetSamples; i++) output[i] /= maxAmp;
+    }
+  }
+  
+  return newBuffer;
+};
+
 export const getAudioContext = () => initAudio();
+
+
+// --- Acoustic Drums ---
+export const playKickAcoustic = ({ volume = 1, pan = 0, send = 0.05 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  voice({ freq: 110, type: "sine", attack: 0.002, hold: 0.03, release: 0.35, gain: 0.6, destination: out.input, bendTo: 45, bendTime: 0.1 });
+  voice({ freq: 140, type: "triangle", attack: 0.002, hold: 0.02, release: 0.15, gain: 0.2, destination: out.input, bendTo: 60, bendTime: 0.05 });
+  noiseBurst({ duration: 0.02, attack: 0.001, release: 0.015, gain: 0.1, frequency: 3000, filterType: "bandpass", q: 1, output: out.input });
+});
+
+export const playSnareAcoustic = ({ volume = 0.9, pan = 0, send = 0.08 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  voice({ freq: 190, type: "sine", attack: 0.002, hold: 0.04, release: 0.15, gain: 0.3, destination: out.input, bendTo: 160, bendTime: 0.05 });
+  voice({ freq: 320, type: "triangle", attack: 0.002, hold: 0.02, release: 0.25, gain: 0.1, destination: out.input });
+  noiseBurst({ duration: 0.25, attack: 0.005, release: 0.2, gain: 0.35, frequency: 2400, filterType: "bandpass", q: 0.8, output: out.input });
+});
+
+export const playTomLowAcoustic = ({ volume = 0.85, pan = -0.2, send = 0.08 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  voice({ freq: 90, type: "sine", attack: 0.005, hold: 0.08, release: 0.45, gain: 0.5, destination: out.input, bendTo: 60, bendTime: 0.15 });
+  voice({ freq: 140, type: "triangle", attack: 0.003, hold: 0.04, release: 0.2, gain: 0.15, destination: out.input, bendTo: 80, bendTime: 0.1 });
+  noiseBurst({ duration: 0.05, gain: 0.05, frequency: 1500, filterType: "bandpass", q: 1, output: out.input });
+});
+
+export const playTomHighAcoustic = ({ volume = 0.85, pan = 0.2, send = 0.08 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  voice({ freq: 150, type: "sine", attack: 0.004, hold: 0.06, release: 0.35, gain: 0.45, destination: out.input, bendTo: 100, bendTime: 0.1 });
+  voice({ freq: 220, type: "triangle", attack: 0.003, hold: 0.03, release: 0.15, gain: 0.15, destination: out.input, bendTo: 130, bendTime: 0.08 });
+  noiseBurst({ duration: 0.04, gain: 0.05, frequency: 2000, filterType: "bandpass", q: 1, output: out.input });
+});
+
+export const playCrashAcoustic = ({ volume = 0.6, pan = 0.3, send = 0.25 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  const ratios = [1.8, 2.4, 3.1, 4.0, 5.2, 6.5, 7.8, 9.1];
+  ratios.forEach((ratio, index) => {
+    voice({ freq: 130 * ratio, type: "square", start: index * 0.001, attack: 0.005, hold: 0.1, release: 1.2 + (index * 0.1), gain: 0.015, destination: out.input, filter: { type: "highpass", frequency: 4000 } });
+  });
+  noiseBurst({ duration: 1.5, attack: 0.005, release: 1.2, gain: 0.2, frequency: 8000, filterType: "highpass", output: out.input });
+  noiseBurst({ duration: 1.0, attack: 0.01, release: 0.8, gain: 0.1, frequency: 4000, filterType: "bandpass", q: 0.5, output: out.input });
+});
+
+export const playRideAcoustic = ({ volume = 0.65, pan = -0.3, send = 0.15 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  const ratios = [2.2, 3.5, 4.8, 6.1, 7.5];
+  ratios.forEach((ratio) => {
+    voice({ freq: 280 * ratio, type: "square", start: 0, attack: 0.002, hold: 0.05, release: 1.5, gain: 0.01, destination: out.input, filter: { type: "highpass", frequency: 5000 } });
+  });
+  
+  voice({ freq: 3200, type: "sine", attack: 0.001, hold: 0.01, release: 0.3, gain: 0.05, destination: out.input });
+  noiseBurst({ duration: 1.5, attack: 0.005, release: 1.2, gain: 0.08, frequency: 7000, filterType: "highpass", output: out.input });
+});
+
+export const playHiHatClosedAcoustic = ({ volume = 0.7, pan = 0.1, send = 0.05 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  const ratios = [2.5, 3.8, 4.9, 6.2];
+  ratios.forEach((ratio) => {
+    voice({ freq: 150 * ratio, type: "square", start: 0, attack: 0.001, hold: 0.01, release: 0.06, gain: 0.02, destination: out.input, filter: { type: "highpass", frequency: 6000 } });
+  });
+  noiseBurst({ duration: 0.06, attack: 0.001, release: 0.05, gain: 0.15, frequency: 9500, filterType: "highpass", output: out.input });
+});
+
+export const playHiHatOpenAcoustic = ({ volume = 0.7, pan = 0.1, send = 0.08 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  
+  const ratios = [2.5, 3.8, 4.9, 6.2, 7.5];
+  ratios.forEach((ratio) => {
+    voice({ freq: 150 * ratio, type: "square", start: 0, attack: 0.005, hold: 0.1, release: 0.35, gain: 0.015, destination: out.input, filter: { type: "highpass", frequency: 5000 } });
+  });
+  noiseBurst({ duration: 0.45, attack: 0.005, release: 0.35, gain: 0.18, frequency: 8000, filterType: "highpass", output: out.input });
+});
+
+// ============================================================================
+// Melodic Synths (cases for playInstrumentTone)
+// Dump these directly into the switch(instrumentId) statement in sounds.js
+// ============================================================================
+
+// --- Electronic Drums ---
+// ==========================================
+// ELECTRONIC & EDM DRUMS
+// ==========================================
+
+export const playKickEDM = ({ volume = 1, pan = 0, send = 0.1 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // Punchy, clicky kick
+  voice({ freq: 280, type: "sine", attack: 0.001, hold: 0.02, release: 0.35, gain: 0.8, destination: out.input, bendTo: 45, bendTime: 0.1 });
+  voice({ freq: 150, type: "triangle", attack: 0.001, hold: 0.01, release: 0.2, gain: 0.3, destination: out.input, bendTo: 30, bendTime: 0.08 });
+  noiseBurst({ duration: 0.03, gain: 0.15, frequency: 4000, filterType: "highpass", output: out.input });
+});
+
+export const playKickDeep = ({ volume = 1, pan = 0, send = 0.05 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // Massive sub kick
+  voice({ freq: 120, type: "sine", attack: 0.01, hold: 0.05, release: 0.8, gain: 0.9, destination: out.input, bendTo: 35, bendTime: 0.25 });
+  voice({ freq: 80, type: "triangle", attack: 0.01, hold: 0.05, release: 0.7, gain: 0.4, destination: out.input, bendTo: 35, bendTime: 0.2 });
+});
+
+export const playSnareClap = ({ volume = 0.85, pan = 0, send = 0.15 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // Body of snare
+  voice({ freq: 220, type: "triangle", attack: 0.002, hold: 0.04, release: 0.2, gain: 0.25, destination: out.input, bendTo: 160, bendTime: 0.1 });
+  // Clap noise burst layered
+  [0, 0.015, 0.03].forEach((startDelay, index) => {
+    noiseBurst({ start: startDelay, duration: 0.15 + index * 0.03, attack: 0.002, release: 0.15, gain: 0.25 - index * 0.04, frequency: 2200 + index * 400, filterType: "bandpass", q: 1.5, output: out.input });
+  });
+  // High noise tail
+  noiseBurst({ start: 0.01, duration: 0.25, attack: 0.005, release: 0.2, gain: 0.3, frequency: 3500, filterType: "highpass", output: out.input });
+});
+
+export const playHatEDM = ({ volume = 0.7, pan = 0, send = 0.08 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // Metallic oscillators
+  const ratios = [2.5, 3.8, 4.9, 6.1];
+  ratios.forEach((ratio, index) => {
+    voice({ freq: 300 * ratio, type: "square", start: index * 0.002, attack: 0.001, hold: 0.02, release: 0.08, gain: 0.03, destination: out.input, filter: { type: "highpass", frequency: 8000 } });
+  });
+  // Sharp noise
+  noiseBurst({ duration: 0.06, attack: 0.001, release: 0.05, gain: 0.25, frequency: 10000, filterType: "highpass", output: out.input });
+});
+
+export const playCymbalReverse = ({ volume = 0.6, pan = 0, send = 0.3 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // Reverse envelope simulated with a long attack and instant release
+  const attackTime = 0.6;
+  const ratios = [2.2, 3.5, 4.8, 5.9];
+  ratios.forEach((ratio) => {
+    voice({ freq: 150 * ratio, type: "square", start: 0, attack: attackTime, hold: 0.02, release: 0.05, gain: 0.04, destination: out.input, filter: { type: "highpass", frequency: 4000 } });
+  });
+  noiseBurst({ start: 0, duration: attackTime + 0.05, attack: attackTime, release: 0.05, gain: 0.2, frequency: 6000, filterType: "highpass", output: out.input });
+});
+
+export const playPercFM = ({ volume = 0.8, pan = 0, send = 0.1 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  // A metallic FM-like percussion hit
+  voice({ freq: 440, type: "sine", attack: 0.002, hold: 0.03, release: 0.15, gain: 0.4, destination: out.input, bendTo: 110, bendTime: 0.1 });
+  voice({ freq: 880, type: "square", attack: 0.002, hold: 0.02, release: 0.1, gain: 0.15, destination: out.input, filter: { type: "bandpass", frequency: 1200, q: 3 } });
+  voice({ freq: 1760, type: "triangle", attack: 0.005, hold: 0.05, release: 0.2, gain: 0.1, destination: out.input });
+});
+
+
+// ==========================================
+// MELODIC SYNTHS
+// ==========================================
+
+// To avoid syntax errors in this isolated file, the melodic synths are wrapped in a dummy switch block.
+// Copy and paste the case blocks below into the `switch (instrumentId)` block 
+// of the `playInstrumentTone` function in your sounds.js file.

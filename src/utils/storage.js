@@ -1,5 +1,5 @@
 /**
- * Simple localStorage wrapper for Faskar Flow persistence
+ * Simple localStorage wrapper for FASKA flow persistence
  */
 
 const STORAGE_KEY = "montessori_progress";

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Phaser from 'phaser';
+import PhaserWrapper from '../../../../utils/PhaserWrapper';
 
 /* ─────────────────────────────────────────────
    FaskaZeldaSwarm – Top-down Action RPG
@@ -35,11 +36,21 @@ const COLS = 20;
 const ROWS = 15;
 
 const FaskaZeldaSwarm = ({ onExit }) => {
-  const gameRef = useRef(null);
+  const [quizData, setQuizData] = useState(null);
 
   useEffect(() => {
-    class DungeonScene extends Phaser.Scene {
-      constructor() { super({ key: 'DungeonScene' }); }
+    const handleQuizOpen = (e) => setQuizData(e.detail);
+    const handleQuizClose = () => setQuizData(null);
+    window.addEventListener('ZELDA_QUIZ_OPEN', handleQuizOpen);
+    window.addEventListener('ZELDA_QUIZ_CLOSE', handleQuizClose);
+    return () => {
+      window.removeEventListener('ZELDA_QUIZ_OPEN', handleQuizOpen);
+      window.removeEventListener('ZELDA_QUIZ_CLOSE', handleQuizClose);
+    };
+  }, []);
+
+  class DungeonScene extends Phaser.Scene {
+    constructor() { super({ key: 'DungeonScene' }); }
 
       preload() {
         const g = this.make.graphics({ x: 0, y: 0, add: false });
@@ -86,6 +97,12 @@ const FaskaZeldaSwarm = ({ onExit }) => {
         this._createInputs();
         this._createColliders();
         this._startAmbient();
+
+        this._submitHandler = (e) => this._submitAnswer(e.detail.answer);
+        window.addEventListener('ZELDA_QUIZ_SUBMIT', this._submitHandler);
+        this.events.once('destroy', () => {
+          window.removeEventListener('ZELDA_QUIZ_SUBMIT', this._submitHandler);
+        });
       }
 
       // ══════════════════════════════════════════
@@ -539,19 +556,6 @@ const FaskaZeldaSwarm = ({ onExit }) => {
         this.keyX     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
         this.keyC     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
         this.keySPACE = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-        this.input.keyboard.on('keydown', (event) => {
-          if (!this.quizActive) return;
-          if (event.key === 'Enter') {
-            this._submitAnswer();
-          } else if (event.key === 'Backspace') {
-            this.quizAnswer = this.quizAnswer.slice(0, -1);
-            this.quizInputTxt.setText(this.quizAnswer + '█');
-          } else if (event.key.length === 1 && this.quizAnswer.length < 30) {
-            this.quizAnswer += event.key;
-            this.quizInputTxt.setText(this.quizAnswer + '█');
-          }
-        });
       }
 
       // ══════════════════════════════════════════
@@ -919,36 +923,22 @@ const FaskaZeldaSwarm = ({ onExit }) => {
 
         const qData = GEOGRAPHY_QUESTIONS[chest.qIndex];
         this.quizActive     = true;
-        this.quizAnswer     = '';
         this.quizCorrectAns = qData.a;
-
-        const W = COLS * TILE, H = ROWS * TILE;
-        this.bannerGfx.clear();
-        this.bannerGfx.fillStyle(0x000020, 0.9);
-        this.bannerGfx.fillRoundedRect(W / 2 - 310, H / 2 - 100, 620, 200, 14);
-        this.bannerGfx.lineStyle(4, 0x00ccff);
-        this.bannerGfx.strokeRoundedRect(W / 2 - 310, H / 2 - 100, 620, 200, 14);
-
-        this.bannerTxt.setText(`📦 CHEST UNLOCKED — GEOGRAPHY QUIZ\n\n❓ ${qData.q}\n\nType your answer then press ENTER`)
-          .setColor('#00ccff').setVisible(true);
-        this.quizInputTxt.setText('█').setVisible(true);
 
         this._spawnParticles(chest.x, chest.y, 0xffdd00, 22);
         this.cameras.main.shake(140, 0.01);
-
         this.enemyGroup.getChildren().forEach(e => e.body && e.body.setVelocity(0, 0));
+
+        window.dispatchEvent(new CustomEvent('ZELDA_QUIZ_OPEN', { detail: qData }));
       }
 
-      _submitAnswer() {
+      _submitAnswer(typed) {
         if (!this.quizActive) return;
-        const typed = this.quizAnswer.trim().toLowerCase();
-
-        if (typed === this.quizCorrectAns) {
+        
+        if (typed.trim().toLowerCase() === this.quizCorrectAns) {
           this.quizActive = false;
-          this.bannerGfx.clear();
-          this.bannerTxt.setVisible(false);
-          this.quizInputTxt.setVisible(false);
-
+          window.dispatchEvent(new CustomEvent('ZELDA_QUIZ_CLOSE'));
+          
           this.keysCount++;
           this.cameras.main.shake(240, 0.014);
           this.cameras.main.flash(350, 0, 180, 100);
@@ -961,23 +951,20 @@ const FaskaZeldaSwarm = ({ onExit }) => {
             onComplete: () => kp.destroy()
           });
 
-          this._showBanner(`✅ CORRECT! "${this.quizCorrectAns.toUpperCase()}"\n🔑 Key acquired! (${this.keysCount}/4)\n${this.keysCount < 4 ? `Find ${4 - this.keysCount} more key(s)!` : '🚪 Boss door is unlocked!'}`,
-            3000, '#00ffcc');
-          this.quizAnswer = '';
+          this._showBanner(`✅ CORRECT! "${this.quizCorrectAns.toUpperCase()}"\n🔑 Key acquired! (${this.keysCount}/4)\n${this.keysCount < 4 ? `Find ${4 - this.keysCount} more key(s)!` : '🚪 Boss door is unlocked!'}`, 3000, '#00ffcc');
         } else {
           // Wrong
+          this.quizActive = false;
+          window.dispatchEvent(new CustomEvent('ZELDA_QUIZ_CLOSE'));
           this.cameras.main.shake(280, 0.024);
           this._spawnParticles(this.player.x, this.player.y, 0xff2244, 18);
           for (let i = 0; i < 2; i++) {
-            const ex = Phaser.Math.Between(TILE * 3, (COLS - 3) * TILE);
-            const ey = Phaser.Math.Between(TILE * 3, (ROWS - 3) * TILE);
-            this._spawnSlime(ex, ey);
+             const ex = Phaser.Math.Between(TILE * 3, (COLS - 3) * TILE);
+             const ey = Phaser.Math.Between(TILE * 3, (ROWS - 3) * TILE);
+             this._spawnSlime(ex, ey);
           }
           this._createColliders();
-          this.bannerTxt.setColor('#ff4444');
-          this.time.delayedCall(350, () => this.bannerTxt.setColor('#00ccff'));
-          this.quizAnswer = '';
-          this.quizInputTxt.setText('❌ Wrong! Try again → █');
+          this._showBanner(`❌ WRONG!\nMore enemies spawned!`, 2500, '#ff4444');
         }
       }
 
@@ -1107,22 +1094,16 @@ const FaskaZeldaSwarm = ({ onExit }) => {
     // ══════════════════════════════════════════
     // PHASER GAME CONFIG
     // ══════════════════════════════════════════
-    const config = {
-      type:            Phaser.AUTO,
-      width:           COLS * TILE,
-      height:          ROWS * TILE,
-      parent:          gameRef.current,
-      backgroundColor: '#0a0a15',
-      physics: {
-        default: 'arcade',
-        arcade:  { gravity: { y: 0 }, debug: false },
-      },
-      scene: [DungeonScene],
-    };
-
-    const game = new Phaser.Game(config);
-    return () => { game.destroy(true); };
-  }, []);
+  const config = {
+    type:            Phaser.AUTO,
+    width:           COLS * TILE,
+    height:          ROWS * TILE,
+    backgroundColor: '#0a0a15',
+    physics: {
+      default: 'arcade',
+      arcade:  { gravity: { y: 0 }, debug: false },
+    },
+  };
 
   return (
     <div style={{
@@ -1135,7 +1116,33 @@ const FaskaZeldaSwarm = ({ onExit }) => {
       overflow:     'hidden',
       border:       '2px solid #222255',
     }}>
-      <div ref={gameRef} />
+      <PhaserWrapper config={config} sceneClass={DungeonScene} />
+      
+      {quizData && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 500, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div style={{ backgroundColor: '#0f172a', border: '2px solid #22d3ee', padding: '2rem', borderRadius: '12px', boxShadow: '0 0 30px rgba(0,200,255,0.4)', textAlign: 'center', width: '100%', maxWidth: '28rem' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#67e8f9', marginBottom: '1.5rem' }}>Geography Quiz</h2>
+            <p style={{ fontSize: '1.25rem', color: '#ffffff', marginBottom: '2rem' }}>{quizData.q}</p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const val = e.target.elements.answer.value;
+              window.dispatchEvent(new CustomEvent('ZELDA_QUIZ_SUBMIT', { detail: { answer: val } }));
+            }}>
+              <input 
+                name="answer"
+                autoFocus
+                autoComplete="off"
+                style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #06b6d4', borderRadius: '4px', padding: '0.75rem', color: '#ffffff', fontSize: '1.125rem', outline: 'none', marginBottom: '1rem' }}
+                placeholder="Type your answer..."
+              />
+              <button type="submit" style={{ width: '100%', backgroundColor: '#0891b2', color: '#ffffff', fontWeight: 'bold', padding: '0.75rem', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', border: 'none' }}>
+                Submit Answer
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={onExit}
         style={{

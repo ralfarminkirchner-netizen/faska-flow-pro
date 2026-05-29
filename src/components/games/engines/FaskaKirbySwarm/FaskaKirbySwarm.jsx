@@ -1,14 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import Phaser from 'phaser';
+import PhaserWrapper from '../../../../utils/PhaserWrapper';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
-export default function FaskaKirbySwarm({ onExit }) {
-  const gameContainerRef = useRef(null);
-
-  useEffect(() => {
-    class MainScene extends Phaser.Scene {
+class MainScene extends Phaser.Scene {
       constructor() {
         super('MainScene');
         this.score = 0;
@@ -468,32 +465,24 @@ export default function FaskaKirbySwarm({ onExit }) {
       }
     }
 
-    const config = {
-      type: Phaser.AUTO,
-      scale: {
-          mode: Phaser.Scale.FIT,
-          parent: gameContainerRef.current,
-          autoCenter: Phaser.Scale.CENTER_BOTH,
-          width: GAME_WIDTH,
-          height: GAME_HEIGHT,
-      },
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: { y: 800 },
-          debug: false
-        }
-      },
-      scene: [MainScene]
-    };
+const config = {
+  type: Phaser.AUTO,
+  scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+  },
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: 800 },
+      debug: false
+    }
+  },
+};
 
-    const game = new Phaser.Game(config);
-
-    return () => {
-      game.destroy(true);
-    };
-  }, []);
-
+export default function FaskaKirbySwarm({ onExit }) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#192a56' }}>
       <button 
@@ -516,7 +505,9 @@ export default function FaskaKirbySwarm({ onExit }) {
       >
         Beenden
       </button>
-      <div ref={gameContainerRef} style={{ width: '100%', height: '100%' }} />
+      <div style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%', maxHeight: '100%' }}>
+        <PhaserWrapper config={config} sceneClass={MainScene} />
+      </div>
     </div>
   );
 }

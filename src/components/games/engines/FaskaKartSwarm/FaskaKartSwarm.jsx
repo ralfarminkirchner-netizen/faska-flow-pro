@@ -492,7 +492,8 @@ const PlayerKart = ({
           heldItem: item,
           pendingCountry: country,
           showCountryModal: true,
-          countryAnswer: ''
+          countryAnswer: '',
+          phase: 'quiz'
         });
         setItemBoxes(prev => {
           const next = [...prev];
@@ -1022,7 +1023,8 @@ const FaskaKartSwarm = ({ onExit }) => {
       showCountryModal: false,
       pendingCountry: null,
       countryAnswer: '',
-      wrongAnswer: false
+      wrongAnswer: false,
+      phase: 'racing'
     });
   }, [updateGame]);
 

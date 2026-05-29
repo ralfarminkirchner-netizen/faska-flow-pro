@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Phaser from 'phaser';
+import PhaserWrapper from '../../../../utils/PhaserWrapper';
 
 const BLOCK_SIZE = 48;
 const COLS = 15;
@@ -125,19 +126,15 @@ class MainScene extends Phaser.Scene {
         this.playerBombsActive = 0;
         this.playerSpeed = 150;
         
-        this.inputBuffer = "";
-
-        // UI
-        this.uiText = this.add.text(10, HEIGHT + 10, "Antwort tippen & ENTER: [ ]", {
-            fontSize: '24px',
-            fill: '#ffffff',
-            fontFamily: 'monospace'
-        });
-        this.infoText = this.add.text(10, HEIGHT + 50, "Bombe: SPACE, Bewegen: WASD/Pfeile", {
-            fontSize: '18px',
-            fill: '#aaaaaa',
-            fontFamily: 'monospace'
-        });
+        // Inputs
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+            space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        };
         
         // Draw grid
         for (let r = 0; r < ROWS; r++) {
@@ -188,19 +185,23 @@ class MainScene extends Phaser.Scene {
         
         this.physics.add.collider(this.enemy, this.blocks);
         this.physics.add.collider(this.enemy, this.softBlocks);
-        this.physics.add.collider(this.enemy, this.bombs);
+        this.physics.add.overlap(this.player, this.powerups, this.touchPowerup, null, this);
 
-        // Inputs
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.wasd = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-            space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        this._quizCloseHandler = (e) => {
+            if (!this.activeQuizPowerup) return;
+            const success = e.detail.success;
+            this.scene.resume();
+            if (success) {
+                this.collectPowerup(this.activeQuizPowerup);
+            } else {
+                this.destroyPowerup(this.activeQuizPowerup);
+            }
+            this.activeQuizPowerup = null;
         };
-        
-        this.input.keyboard.on('keydown', this.handleTyping, this);
+        window.addEventListener('BOMBERMAN_QUIZ_CLOSE', this._quizCloseHandler);
+        this.events.once('destroy', () => {
+            window.removeEventListener('BOMBERMAN_QUIZ_CLOSE', this._quizCloseHandler);
+        });
 
         this.particles = this.add.particles('spark');
         this.emitter = this.particles.createEmitter({
@@ -215,50 +216,27 @@ class MainScene extends Phaser.Scene {
         
         this.gameOver = false;
     }
-    
-    handleTyping(event) {
-        if (this.gameOver) return;
+    touchPowerup(player, sprite) {
+        if (this.activeQuizPowerup) return;
+        const p = this.activePowerups.find(p => p.sprite === sprite);
+        if (!p || !p.active) return;
         
-        if (event.key >= '0' && event.key <= '9') {
-            this.inputBuffer += event.key;
-            if (this.inputBuffer.length > 5) this.inputBuffer = this.inputBuffer.slice(1);
-        } else if (event.key === 'Backspace') {
-            this.inputBuffer = this.inputBuffer.slice(0, -1);
-        } else if (event.key === 'Enter') {
-            this.checkAnswer();
-        }
-        
-        this.uiText.setText(`Antwort tippen & ENTER: [ ${this.inputBuffer} ]`);
+        this.activeQuizPowerup = p;
+        this.scene.pause();
+        window.dispatchEvent(new CustomEvent('BOMBERMAN_QUIZ_OPEN', { detail: { q: p.str, a: p.answer } }));
     }
 
-    checkAnswer() {
-        let matched = false;
-        if (this.inputBuffer.trim() === "") return;
-
-        const answerVal = parseInt(this.inputBuffer, 10);
+    destroyPowerup(p) {
+        p.active = false;
         
-        for (let i = 0; i < this.activePowerups.length; i++) {
-            const p = this.activePowerups[i];
-            if (p.answer === answerVal && p.active) {
-                // Collect powerup!
-                matched = true;
-                this.collectPowerup(p);
-                break; // Only collect one at a time
-            }
-        }
+        this.emitter.setPosition(p.sprite.x, p.sprite.y);
+        this.emitter.explode(20);
         
-        if (matched) {
-            this.inputBuffer = "";
-            this.cameras.main.flash(200, 0, 255, 0); // Green flash
-        } else {
-            this.inputBuffer = ""; // Reset on wrong
-            this.cameras.main.shake(100, 0.01);
-            this.uiText.setColor('#ff0000');
-            this.time.delayedCall(300, () => {
-                this.uiText.setColor('#ffffff');
-            });
-        }
-        this.uiText.setText(`Antwort tippen & ENTER: [ ${this.inputBuffer} ]`);
+        p.sprite.destroy();
+        p.text.destroy();
+        
+        const index = this.activePowerups.indexOf(p);
+        if (index > -1) this.activePowerups.splice(index, 1);
     }
 
     collectPowerup(p) {
@@ -499,7 +477,8 @@ class MainScene extends Phaser.Scene {
         const x = c * BLOCK_SIZE + BLOCK_SIZE/2;
         const y = r * BLOCK_SIZE + BLOCK_SIZE/2;
         
-        const sprite = this.add.sprite(x, y, 'powerup');
+        const sprite = this.powerups.create(x, y, 'powerup');
+        sprite.body.setSize(BLOCK_SIZE - 12, BLOCK_SIZE - 12);
         
         // Generate math
         const ops = ['+', '-', '*'];
@@ -519,7 +498,7 @@ class MainScene extends Phaser.Scene {
             ans = n1 * n2;
         }
         
-        const str = `${n1}${op}${n2}`;
+        const str = `${n1} ${op} ${n2} = ?`;
         
         const text = this.add.text(x, y - 10, str, {
             fontSize: '14px', fill: '#ffffff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3
@@ -543,7 +522,7 @@ class MainScene extends Phaser.Scene {
         });
         
         this.activePowerups.push({
-            sprite, text, answer: ans, active: true
+            sprite, text, answer: ans, str, active: true
         });
     }
 
@@ -584,58 +563,88 @@ class MainScene extends Phaser.Scene {
 }
 
 export default function FaskaBombermanSwarm({ onExit }) {
-    const gameRef = useRef(null);
-    const containerRef = useRef(null);
+    const [quizData, setQuizData] = useState(null);
 
     useEffect(() => {
-        const config = {
-            type: Phaser.AUTO,
-            width: WIDTH,
-            height: HEIGHT + UI_HEIGHT,
-            parent: containerRef.current,
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
-                }
-            },
-            scene: [BootScene, MainScene]
-        };
-
-        const game = new Phaser.Game(config);
-        gameRef.current = game;
-
+        const handleQuizOpen = (e) => setQuizData(e.detail);
+        const handleQuizClose = () => setQuizData(null);
+        window.addEventListener('BOMBERMAN_QUIZ_OPEN', handleQuizOpen);
+        window.addEventListener('BOMBERMAN_QUIZ_CLOSE', handleQuizClose);
         return () => {
-            if (gameRef.current) {
-                gameRef.current.destroy(true);
-                gameRef.current = null;
-            }
+            window.removeEventListener('BOMBERMAN_QUIZ_OPEN', handleQuizOpen);
+            window.removeEventListener('BOMBERMAN_QUIZ_CLOSE', handleQuizClose);
         };
     }, []);
 
+    const config = {
+        type: Phaser.AUTO,
+        width: WIDTH,
+        height: HEIGHT,
+        backgroundColor: '#222',
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 0 },
+                debug: false
+            }
+        },
+        scene: [BootScene, MainScene]
+    };
+
     return (
-        <div style={{ position: 'relative', width: WIDTH, height: HEIGHT + UI_HEIGHT, margin: '0 auto', backgroundColor: '#222' }}>
+        <div style={{ position: 'relative', width: WIDTH, height: HEIGHT, margin: '0 auto', backgroundColor: '#222', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 30px rgba(0,0,0,0.8)' }}>
+            
+            <PhaserWrapper config={config} sceneClass={null} />
+
+            {quizData && (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 500, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
+                    <div style={{ backgroundColor: '#0f172a', border: '2px solid #f59e0b', padding: '2rem', borderRadius: '12px', boxShadow: '0 0 30px rgba(245,158,11,0.4)', textAlign: 'center', width: '100%', maxWidth: '24rem' }}>
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fcd34d', marginBottom: '1rem' }}>Math Power-Up!</h2>
+                        <p style={{ fontSize: '2rem', color: '#ffffff', marginBottom: '2rem', letterSpacing: '2px' }}>{quizData.q}</p>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const val = parseInt(e.target.elements.answer.value, 10);
+                            const success = val === quizData.a;
+                            window.dispatchEvent(new CustomEvent('BOMBERMAN_QUIZ_CLOSE', { detail: { success } }));
+                        }}>
+                            <input 
+                                name="answer"
+                                type="number"
+                                autoFocus
+                                autoComplete="off"
+                                style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #f59e0b', borderRadius: '4px', padding: '0.75rem', color: '#ffffff', fontSize: '1.5rem', outline: 'none', marginBottom: '1rem', textAlign: 'center' }}
+                                placeholder="Type answer..."
+                            />
+                            <button type="submit" style={{ width: '100%', backgroundColor: '#d97706', color: '#ffffff', fontWeight: 'bold', padding: '0.75rem', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', border: 'none', fontSize: '1.125rem' }}>
+                                Unlock
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <button 
                 onClick={onExit} 
                 style={{
                     position: 'absolute', 
                     top: 10, 
                     right: 10, 
-                    zIndex: 10,
+                    zIndex: 1000,
                     padding: '8px 16px',
-                    fontSize: '16px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
                     backgroundColor: '#ff4444',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                    textTransform: 'uppercase'
                 }}
             >
-                Beenden
+                ✖ Beenden
             </button>
-            <div ref={containerRef} />
         </div>
     );
 }

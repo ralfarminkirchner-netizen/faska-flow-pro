@@ -229,7 +229,7 @@ export default function App() {
                 initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2, type: "spring" }}
               >
-                Faskar Flow
+                FASKA flow!
               </motion.h1>
               {/* Decorative plants row */}
               <motion.div className="flex gap-4 mt-5 justify-center md:justify-start"

@@ -15,6 +15,9 @@ import {
   Square,
   Trash2,
   Volume2,
+  Edit2,
+  X,
+  Play,
 } from "lucide-react";
 import {
   playClap,
@@ -27,6 +30,12 @@ import {
   playShaker,
   playSnare,
   playTom,
+  play808,
+  playKickHiphop,
+  playSnareHiphop,
+  playHatTrap,
+  playVinyl,
+  playSnap,
 } from "../../utils/sounds";
 import MicSampler from "./MicSampler";
 
@@ -49,6 +58,12 @@ const DRUM_SOUNDS = [
   { id: "tom_mid", name: "Tom mittel", short: "Tom M", hue: "#2dd4bf", play: (track) => playTom({ ...track, freq: 172 }) },
   { id: "tom_high", name: "Tom hoch", short: "Tom H", hue: "#38bdf8", play: (track) => playTom({ ...track, freq: 238 }) },
   { id: "crash", name: "Crash", short: "Crash", hue: "#0ea5e9", play: (track) => playCrash(track) },
+  { id: "kick_hiphop", name: "Hip-Hop Kick", short: "Kick H", hue: "#4f46e5", play: (track) => playKickHiphop(track) },
+  { id: "snare_hiphop", name: "Hip-Hop Snare", short: "Snare H", hue: "#be185d", play: (track) => playSnareHiphop(track) },
+  { id: "hat_trap", name: "Trap Hat", short: "Hat T", hue: "#eab308", play: (track) => playHatTrap(track) },
+  { id: "808", name: "808 Bass", short: "808", hue: "#16a34a", play: (track) => play808(track) },
+  { id: "snap", name: "Snap", short: "Snap", hue: "#d946ef", play: (track) => playSnap(track) },
+  { id: "vinyl", name: "Vinyl Crackle", short: "Vinyl", hue: "#78716c", play: (track) => playVinyl(track) },
   { id: "perc_wood", name: "Holz-Perc", short: "Wood", hue: "#d97706", play: (track) => playInstrumentTone("xylophon", 740, { velocity: track.volume * 0.85, pan: track.pan, send: track.send }) },
   { id: "perc_bell", name: "Glöckchen", short: "Bell", hue: "#c084fc", play: (track) => playInstrumentTone("glockenspiel", 988, { velocity: track.volume * 0.7, pan: track.pan, send: 0.28 }) },
   { id: "perc_bass", name: "808 Ton", short: "808", hue: "#22c55e", play: (track) => playInstrumentTone("bass", 196, { velocity: track.volume, pan: track.pan, send: 0.04 }) },
@@ -56,6 +71,9 @@ const DRUM_SOUNDS = [
 
 const MELODIC_INSTRUMENTS = [
   { id: "piano", name: "Piano" },
+  { id: "lofi_keys", name: "Lo-Fi Keys" },
+  { id: "synth_bass", name: "Synth Bass" },
+  { id: "brass_pad", name: "Brass Pad" },
   { id: "glockenspiel", name: "Glocken" },
   { id: "kalimba", name: "Kalimba" },
   { id: "xylophon", name: "Xylo" },
@@ -162,6 +180,24 @@ const PATTERN_TEMPLATES = [
       ["E4", 4],
       ["G4", 8],
       ["E5", 12],
+    ],
+  },
+  {
+    id: "boombap",
+    name: "Boom Bap",
+    bpm: 92,
+    steps: 16,
+    patterns: {
+      kick_hiphop: [0, 8, 11],
+      snare_hiphop: [4, 12],
+      hat_trap: [0, 2, 4, 6, 8, 10, 12, 14],
+      vinyl: [0],
+    },
+    melody: [
+      ["C4", 0],
+      ["D#4", 4],
+      ["G4", 8],
+      ["A#4", 12],
     ],
   },
 ];
@@ -308,6 +344,7 @@ export default function BeatMaker() {
   });
   const [customSamples, setCustomSamples] = useState([]);
   const [lastNote, setLastNote] = useState(KEYBOARD_NOTES[0]);
+  const [editingTrackId, setEditingTrackId] = useState(null);
 
   const tracksRef = useRef(tracks);
   const bpmRef = useRef(bpm);
@@ -315,6 +352,11 @@ export default function BeatMaker() {
   const swingRef = useRef(swing);
   const currentStepRef = useRef(currentStep);
   const customSamplesRef = useRef(customSamples);
+  
+  const playTimerRef = useRef(null);
+  const nextNoteTimeRef = useRef(0);
+  const scheduleAheadTime = 0.1;
+  const chordBufferRef = useRef({ notes: [], timer: null });
 
   const selectedTrack = tracks.find((track) => track.id === selectedTrackId) || tracks[0];
   const soloActive = tracks.some((track) => track.solo);
@@ -405,12 +447,16 @@ export default function BeatMaker() {
     };
 
     if (track.kind === "melody") {
-      const note = track.notes[stepIndex];
-      if (note) {
-        playInstrumentTone(track.instrument || "piano", note.freq, {
-          velocity: (note.velocity || 0.85) * track.volume,
-          pan: track.pan,
-          send: track.send,
+      const noteData = track.notes[stepIndex];
+      if (noteData) {
+        const notesToPlay = Array.isArray(noteData) ? noteData : [noteData];
+        notesToPlay.forEach(note => {
+          if (!note) return;
+          playInstrumentTone(track.instrument || "piano", note.freq, {
+            velocity: (note.velocity || 0.85) * track.volume,
+            pan: track.pan,
+            send: track.send,
+          });
         });
       }
       return;
@@ -479,7 +525,14 @@ export default function BeatMaker() {
     updateTrack(trackId, (track) => {
       if (track.kind === "melody") {
         const nextNotes = [...track.notes];
-        nextNotes[stepIndex] = nextNotes[stepIndex] ? null : { note: lastNote.note, freq: lastNote.freq, velocity: 0.86 };
+        const existing = nextNotes[stepIndex];
+        if (Array.isArray(existing) && existing.length > 0) {
+          nextNotes[stepIndex] = [];
+        } else if (existing && !Array.isArray(existing)) {
+          nextNotes[stepIndex] = [];
+        } else {
+          nextNotes[stepIndex] = [{ note: lastNote.note, freq: lastNote.freq, velocity: 0.86 }];
+        }
         return { ...track, notes: nextNotes };
       }
 
@@ -512,23 +565,45 @@ export default function BeatMaker() {
     setLastNote(note);
     playInstrumentTone(selectedInstrument, note.freq, { velocity: 0.88, send: 0.22 });
     if (!recordKeys) return;
-    const trackId = selectOrCreateTrack("melody");
-    updateTrack(trackId, (track) => {
-      const nextNotes = [...track.notes];
-      nextNotes[currentStepRef.current] = { note: note.note, freq: note.freq, velocity: 0.9 };
-      return {
-        ...track,
-        kind: "melody",
-        instrument: selectedInstrument,
-        name: MELODIC_INSTRUMENTS.find((instrument) => instrument.id === selectedInstrument)?.name || "Melodie",
-        notes: nextNotes,
-      };
-    });
-    setCurrentStep((value) => {
-      const next = (value + 1) % stepsRef.current;
-      currentStepRef.current = next;
-      return next;
-    });
+
+    chordBufferRef.current.notes.push({ note: note.note, freq: note.freq, velocity: 0.9 });
+    
+    if (chordBufferRef.current.timer) return;
+    
+    chordBufferRef.current.timer = setTimeout(() => {
+      const recordedNotes = [...chordBufferRef.current.notes];
+      chordBufferRef.current.notes = [];
+      chordBufferRef.current.timer = null;
+      
+      const trackId = selectOrCreateTrack("melody");
+      updateTrack(trackId, (track) => {
+        const nextNotes = [...track.notes];
+        const step = currentStepRef.current;
+        const existing = nextNotes[step];
+        
+        if (Array.isArray(existing)) {
+          nextNotes[step] = [...existing, ...recordedNotes];
+        } else if (existing) {
+          nextNotes[step] = [existing, ...recordedNotes];
+        } else {
+          nextNotes[step] = recordedNotes;
+        }
+        
+        return {
+          ...track,
+          kind: "melody",
+          instrument: selectedInstrument,
+          name: MELODIC_INSTRUMENTS.find((instrument) => instrument.id === selectedInstrument)?.name || "Melodie",
+          notes: nextNotes,
+        };
+      });
+      
+      setCurrentStep((value) => {
+        const next = (value + 1) % stepsRef.current;
+        currentStepRef.current = next;
+        return next;
+      });
+    }, 45);
   }
 
   const toggleTransport = () => {
@@ -765,13 +840,13 @@ export default function BeatMaker() {
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {padBank.slice(0, 16).map((pad) => (
                 <Motion.button
                   key={pad.id}
                   whileTap={{ scale: 0.92 }}
                   onClick={() => playPad(pad)}
-                  className={`aspect-square rounded-2xl border border-white/10 p-2 text-left shadow-lg transition ${selectedPadId === pad.id ? "ring-2 ring-white" : "hover:border-white/30"}`}
+                  className={`relative flex flex-col justify-end rounded-2xl border border-white/10 p-3 text-left shadow-lg transition aspect-square sm:aspect-auto ${selectedPadId === pad.id ? "ring-2 ring-white" : "hover:border-white/30"}`}
                   style={{
                     background: `linear-gradient(145deg, ${pad.hue}, #0f172a 82%)`,
                     boxShadow: selectedPadId === pad.id ? `0 0 22px ${pad.hue}66` : undefined,
@@ -910,13 +985,24 @@ export default function BeatMaker() {
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               {track.kind === "melody" ? (
-                                <select
-                                  value={track.instrument}
-                                  onChange={(event) => updateTrack(track.id, (prev) => ({ ...prev, instrument: event.target.value, name: MELODIC_INSTRUMENTS.find((instrument) => instrument.id === event.target.value)?.name || prev.name }))}
-                                  className="max-w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[0.65rem] font-bold text-slate-300 outline-none"
-                                >
-                                  {MELODIC_INSTRUMENTS.map((instrument) => <option key={instrument.id} value={instrument.id}>{instrument.name}</option>)}
-                                </select>
+                                <>
+                                  <button
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setEditingTrackId(track.id);
+                                    }}
+                                    className="rounded-lg bg-indigo-500 px-2 py-1 text-[0.65rem] font-bold text-white hover:bg-indigo-400 flex items-center gap-1 shadow-lg shadow-indigo-500/30"
+                                  >
+                                    <Edit2 size={12} /> Roll
+                                  </button>
+                                  <select
+                                    value={track.instrument}
+                                    onChange={(event) => updateTrack(track.id, (prev) => ({ ...prev, instrument: event.target.value, name: MELODIC_INSTRUMENTS.find((instrument) => instrument.id === event.target.value)?.name || prev.name }))}
+                                    className="max-w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[0.65rem] font-bold text-slate-300 outline-none"
+                                  >
+                                    {MELODIC_INSTRUMENTS.map((instrument) => <option key={instrument.id} value={instrument.id}>{instrument.name}</option>)}
+                                  </select>
+                                </>
                               ) : (
                                 <select
                                   value={track.instId}
@@ -989,7 +1075,7 @@ export default function BeatMaker() {
                               } ${isNow ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950" : ""}`}
                               style={active ? { backgroundColor: color, boxShadow: `0 0 18px ${color}55` } : undefined}
                             >
-                              {track.kind === "melody" && track.notes[index]?.note ? track.notes[index].note.replace("#", "♯") : active ? "●" : ""}
+                              {track.kind === "melody" && active ? (Array.isArray(track.notes[index]) ? (track.notes[index][0]?.note || "").replace("#", "♯") + (track.notes[index].length > 1 ? "+" : "") : track.notes[index].note.replace("#", "♯")) : active ? "●" : ""}
                             </Motion.button>
                           );
                         })}
@@ -1073,6 +1159,108 @@ export default function BeatMaker() {
           </div>
         </section>
       </div>
+
+      <AnimatePresence>
+        {editingTrackId && (
+          <Motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-2 md:p-8 backdrop-blur-md"
+          >
+            <div className="flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl">
+              {(() => {
+                const trk = tracks.find(t => t.id === editingTrackId);
+                if (!trk) return null;
+                return (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-950 p-4">
+                      <div>
+                        <h2 className="font-hand text-3xl font-bold text-white">Piano Roll - {trk.name}</h2>
+                        <p className="text-xs font-black uppercase tracking-widest text-sky-400">Polyphoner Editor</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <select
+                          value={trk.instrument}
+                          onChange={(e) => updateTrack(trk.id, (prev) => ({ ...prev, instrument: e.target.value, name: MELODIC_INSTRUMENTS.find(i => i.id === e.target.value)?.name || prev.name }))}
+                          className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-white outline-none"
+                        >
+                          {MELODIC_INSTRUMENTS.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                        </select>
+                        <button
+                          onClick={toggleTransport}
+                          className={`flex h-12 w-12 items-center justify-center rounded-full transition ${isPlaying ? "bg-rose-500 text-white" : "bg-emerald-400 text-slate-950"}`}
+                        >
+                          {isPlaying ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                        </button>
+                        <button
+                          onClick={() => setEditingTrackId(null)}
+                          className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        >
+                          <X size={24} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-auto bg-slate-950 p-4">
+                      <div className="inline-flex min-w-full flex-col gap-1 pb-12">
+                        {/* Headers */}
+                        <div className="flex">
+                          <div className="w-16 md:w-24 shrink-0" />
+                          <div className="flex flex-1 gap-1">
+                            {Array.from({ length: steps }).map((_, stepIdx) => (
+                              <div key={stepIdx} className={`flex-1 text-center text-[0.6rem] md:text-xs font-black ${currentStep === stepIdx ? "text-amber-400" : stepIdx % 4 === 0 ? "text-slate-400" : "text-slate-700"}`}>
+                                {stepIdx + 1}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Piano Rows */}
+                        {[...KEYBOARD_NOTES].reverse().map(note => (
+                          <div key={note.note} className="flex min-h-[32px] gap-1">
+                            <div className={`flex w-16 md:w-24 shrink-0 items-center justify-end rounded-l-lg border-r-4 pr-2 text-xs font-bold ${note.type === "black" ? "bg-slate-900 text-slate-400 border-slate-700" : "bg-slate-200 text-slate-900 border-white"}`}>
+                              {note.note.replace("#", "♯")}
+                            </div>
+                            <div className="flex flex-1 gap-1">
+                              {Array.from({ length: steps }).map((_, stepIdx) => {
+                                const stepNotes = Array.isArray(trk.notes[stepIdx]) ? trk.notes[stepIdx] : (trk.notes[stepIdx] ? [trk.notes[stepIdx]] : []);
+                                const isActive = stepNotes.some(n => n.note === note.note);
+                                const isNow = isPlaying && currentStep === stepIdx;
+                                
+                                return (
+                                  <button
+                                    key={stepIdx}
+                                    onClick={() => {
+                                      updateTrack(trk.id, prev => {
+                                        const newNotes = [...prev.notes];
+                                        let currentStepNotes = Array.isArray(newNotes[stepIdx]) ? [...newNotes[stepIdx]] : (newNotes[stepIdx] ? [newNotes[stepIdx]] : []);
+                                        
+                                        if (isActive) {
+                                          currentStepNotes = currentStepNotes.filter(n => n.note !== note.note);
+                                        } else {
+                                          currentStepNotes.push({ note: note.note, freq: note.freq, velocity: 0.9 });
+                                        }
+                                        newNotes[stepIdx] = currentStepNotes.length > 0 ? currentStepNotes : null;
+                                        return { ...prev, notes: newNotes };
+                                      });
+                                    }}
+                                    className={`flex-1 rounded-md border transition-all ${isActive ? "border-sky-300 bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.5)]" : isNow ? "border-amber-400/50 bg-amber-400/10" : "border-slate-800 bg-slate-900/50 hover:bg-slate-800"}`}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </Motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

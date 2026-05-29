@@ -273,6 +273,19 @@ export const playInstrumentTone = (instrumentId = "piano", freq = 261.63, option
       voice({ freq: freq * 1.5, type: "sine", start: start + 0.035, attack: 0.1, hold: 0.34, release: 0.95, gain: 0.14, sustain: 0.09, detune: 7, destination: input });
       voice({ freq: freq * 2.01, type: "sine", start: start + 0.13, attack: 0.06, hold: 0.18, release: 0.8, gain: 0.08, sustain: 0.04, destination: input });
       break;
+    case "synth_bass":
+      voice({ freq, type: "sawtooth", start, attack: 0.02, hold: 0.2, release: 0.4, gain: 0.28, sustain: 0.2, destination: input, filter: { type: "lowpass", frequency: 800, to: 300, time: 0.3 } });
+      voice({ freq: freq * 0.5, type: "sine", start, attack: 0.02, hold: 0.3, release: 0.4, gain: 0.4, sustain: 0.3, destination: input });
+      break;
+    case "lofi_keys":
+      noiseBurst({ start, duration: 0.05, gain: 0.02, frequency: 3000, filterType: "lowpass", output: input });
+      voice({ freq, type: "sine", start, attack: 0.05, hold: 0.3, release: 0.6, gain: 0.3, sustain: 0.15, detune: Math.sin(now * 5) * 10, destination: input, filter: { type: "lowpass", frequency: 1200 } });
+      voice({ freq: freq * 2, type: "triangle", start, attack: 0.06, hold: 0.2, release: 0.5, gain: 0.1, sustain: 0.05, detune: Math.cos(now * 4) * 8, destination: input });
+      break;
+    case "brass_pad":
+      voice({ freq, type: "sawtooth", start, attack: 0.15, hold: 0.4, release: 0.6, gain: 0.2, sustain: 0.15, detune: -4, destination: input, filter: { type: "lowpass", frequency: 600, to: 2000, time: 0.2 } });
+      voice({ freq: freq * 1.01, type: "sawtooth", start, attack: 0.18, hold: 0.38, release: 0.6, gain: 0.2, sustain: 0.15, detune: 5, destination: input, filter: { type: "lowpass", frequency: 600, to: 2000, time: 0.2 } });
+      break;
     case "piano":
     default:
       noiseBurst({ start, duration: 0.035, gain: 0.025, frequency: 2800, filterType: "highpass", output: input });
@@ -441,6 +454,49 @@ export const playShaker = ({ volume = 0.5, pan = 0, send = 0.05 } = {}) => withS
   const out = createOutput({ volume, pan, send });
   if (!out) return;
   noiseBurst({ duration: 0.075, attack: 0.001, release: 0.06, gain: 0.12, frequency: 7200, filterType: "bandpass", q: 1.8, output: out.input });
+});
+
+export const play808 = ({ volume = 1, pan = 0, send = 0.05, freq = 55 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  voice({ freq, type: "sine", attack: 0.02, hold: 0.4, release: 0.9, gain: 0.85, destination: out.input, bendTo: freq * 0.98, bendTime: 0.8 });
+  voice({ freq: freq * 2, type: "square", attack: 0.01, hold: 0.1, release: 0.3, gain: 0.08, destination: out.input, filter: { type: "lowpass", frequency: 400 } });
+});
+
+export const playKickHiphop = ({ volume = 1, pan = 0, send = 0.03 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  voice({ freq: 110, type: "sine", attack: 0.001, hold: 0.03, release: 0.3, gain: 0.8, destination: out.input, bendTo: 30, bendTime: 0.15 });
+  voice({ freq: 110, type: "square", attack: 0.001, hold: 0.02, release: 0.1, gain: 0.1, destination: out.input, filter: { type: "lowpass", frequency: 300 } });
+});
+
+export const playSnareHiphop = ({ volume = 0.9, pan = 0, send = 0.1 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  voice({ freq: 220, type: "triangle", attack: 0.002, hold: 0.03, release: 0.2, gain: 0.25, destination: out.input, bendTo: 140, bendTime: 0.08 });
+  voice({ freq: 160, type: "sine", attack: 0.002, hold: 0.05, release: 0.25, gain: 0.15, destination: out.input });
+  noiseBurst({ duration: 0.22, attack: 0.002, release: 0.18, gain: 0.38, frequency: 2200, filterType: "bandpass", q: 0.8, output: out.input });
+});
+
+export const playHatTrap = ({ volume = 0.7, pan = 0, send = 0.06 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  voice({ freq: 8000, type: "square", attack: 0.001, hold: 0.01, release: 0.04, gain: 0.04, destination: out.input, filter: { type: "highpass", frequency: 7000 } });
+  noiseBurst({ duration: 0.04, attack: 0.001, release: 0.03, gain: 0.18, frequency: 10000, filterType: "highpass", output: out.input });
+});
+
+export const playVinyl = ({ volume = 0.3, pan = 0, send = 0.0 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  noiseBurst({ duration: 0.1, attack: 0.01, release: 0.05, gain: 0.05, frequency: 600, filterType: "lowpass", q: 0.5, output: out.input });
+  noiseBurst({ duration: 0.02, attack: 0.001, release: 0.01, gain: 0.15, frequency: 4000, filterType: "highpass", output: out.input });
+});
+
+export const playSnap = ({ volume = 0.7, pan = 0, send = 0.1 } = {}) => withSound(() => {
+  const out = createOutput({ volume, pan, send });
+  if (!out) return;
+  noiseBurst({ duration: 0.03, attack: 0.001, release: 0.02, gain: 0.3, frequency: 3500, filterType: "bandpass", q: 3, output: out.input });
+  voice({ freq: 2800, type: "sine", attack: 0.001, hold: 0.01, release: 0.02, gain: 0.1, destination: out.input });
 });
 
 export const playSynth = (freq, options = {}) => {

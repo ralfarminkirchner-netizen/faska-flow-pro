@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import Phaser from 'phaser';
+import PhaserWrapper from '../../../../utils/PhaserWrapper';
 
 const REGULAR_VERBS = ['play', 'walk', 'talk', 'call', 'look', 'wash', 'clean', 'work', 'start', 'try', 'cook', 'paint', 'help', 'jump'];
 const IRREGULAR_VERBS = ['go', 'eat', 'see', 'take', 'make', 'come', 'know', 'find', 'give', 'tell', 'run', 'swim', 'fly', 'buy'];
@@ -335,37 +336,22 @@ class PlayScene extends Phaser.Scene {
     }
 }
 
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            debug: false
+        }
+    },
+};
+
 const FaskaExciteSwarm = ({ onExit }) => {
-    const gameRef = useRef(null);
-
-    useEffect(() => {
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: 'phaser-faska-excite-swarm',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    debug: false
-                }
-            },
-            scene: PlayScene
-        };
-
-        const game = new Phaser.Game(config);
-        gameRef.current = game;
-
-        return () => {
-            if (gameRef.current) {
-                gameRef.current.destroy(true);
-            }
-        };
-    }, []);
-
     return (
         <div style={{ position: 'relative', width: '800px', height: '600px', margin: '0 auto', overflow: 'hidden' }}>
-            <div id="phaser-faska-excite-swarm" style={{ width: '100%', height: '100%' }}></div>
+            <PhaserWrapper config={config} sceneClass={PlayScene} />
             <button
                 onClick={onExit}
                 style={{

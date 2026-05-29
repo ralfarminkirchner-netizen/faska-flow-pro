@@ -566,28 +566,32 @@ export default function BeatMaker() {
     playInstrumentTone(selectedInstrument, note.freq, { velocity: 0.88, send: 0.22 });
     if (!recordKeys) return;
 
+    if (!chordBufferRef.current.timer) {
+      chordBufferRef.current.captureStep = currentStepRef.current;
+    }
+
     chordBufferRef.current.notes.push({ note: note.note, freq: note.freq, velocity: 0.9 });
     
     if (chordBufferRef.current.timer) return;
     
     chordBufferRef.current.timer = setTimeout(() => {
       const recordedNotes = [...chordBufferRef.current.notes];
+      const targetStep = chordBufferRef.current.captureStep;
       chordBufferRef.current.notes = [];
       chordBufferRef.current.timer = null;
       
       const trackId = selectOrCreateTrack("melody");
       updateTrack(trackId, (track) => {
         const nextNotes = [...track.notes];
-        const step = currentStepRef.current;
-        const existing = nextNotes[step];
+        const existing = nextNotes[targetStep];
         
-        if (Array.isArray(existing)) {
-          nextNotes[step] = [...existing, ...recordedNotes];
-        } else if (existing) {
-          nextNotes[step] = [existing, ...recordedNotes];
-        } else {
-          nextNotes[step] = recordedNotes;
-        }
+        // Remove duplicates and combine
+        const combined = Array.isArray(existing) ? [...existing] : (existing ? [existing] : []);
+        recordedNotes.forEach(n => {
+           if (!combined.some(e => e.note === n.note)) combined.push(n);
+        });
+        
+        nextNotes[targetStep] = combined.length === 1 ? combined[0] : combined;
         
         return {
           ...track,
@@ -598,12 +602,15 @@ export default function BeatMaker() {
         };
       });
       
-      setCurrentStep((value) => {
-        const next = (value + 1) % stepsRef.current;
-        currentStepRef.current = next;
-        return next;
-      });
-    }, 45);
+      // Only advance step automatically if sequencer is stopped
+      if (!isPlaying) {
+        setCurrentStep((value) => {
+          const next = (value + 1) % stepsRef.current;
+          currentStepRef.current = next;
+          return next;
+        });
+      }
+    }, 120);
   }
 
   const toggleTransport = () => {

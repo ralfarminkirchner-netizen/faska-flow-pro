@@ -111,8 +111,15 @@ export default function App() {
   const [floatingStars, setFloatingStars] = useState([]);
   const [mascotMood, setMascotMood] = useState("idle");
   const [unlockedBadge, setUnlockedBadge] = useState(null);
-  const [showGameHub, setShowGameHub] = useState(false);
   const badgeTimeoutRef = useRef(null);
+
+  // Check URL for standalone arcade mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get('mode');
+
+  if (mode === 'arcade') {
+    return <GameEngineHub onExit={() => window.close()} />;
+  }
 
   // Sync with storage on changes
   useEffect(() => {
@@ -165,13 +172,6 @@ export default function App() {
       />
 
       <AchievementToast badge={unlockedBadge} />
-
-      {/* Retro Arcade Hub Overlay */}
-      <AnimatePresence>
-        {showGameHub && (
-          <GameEngineHub onExit={() => setShowGameHub(false)} />
-        )}
-      </AnimatePresence>
 
       {/* Floating star feedback */}
       <AnimatePresence>
@@ -251,7 +251,7 @@ export default function App() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => { playPop(); setShowGameHub(true); }}
+              onClick={() => { playPop(); window.open('?mode=arcade', '_blank'); }}
               className="w-full bg-slate-900 text-white rounded-3xl p-4 flex items-center justify-between shadow-xl border-2 border-slate-700 hover:border-slate-500 transition-colors"
             >
               <div className="flex items-center gap-3">

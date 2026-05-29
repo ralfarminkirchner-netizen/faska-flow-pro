@@ -96,7 +96,7 @@ export const getMelodicSynthCases = (instrumentId, freq, start, input, ctx, now)
       voice({ freq: freq * 0.5, type: "sawtooth", start, attack: 0.2, hold: 0.5, release: 0.9, gain: 0.08, sustain: 0.06, detune: -2, destination: input, filter: { type: "lowpass", frequency: 800 } });
       break;
 
-    case "flute_wooden":
+    case "flute_wooden": {
       noiseBurst({ start, duration: 0.6, attack: 0.1, release: 0.3, gain: 0.03, frequency: 3000, filterType: "bandpass", q: 2, output: input });
       const fluteOsc = voice({ freq, type: "sine", start, attack: 0.15, hold: 0.4, release: 0.35, gain: 0.35, sustain: 0.25, destination: input });
       voice({ freq: freq * 2, type: "sine", start, attack: 0.15, hold: 0.35, release: 0.3, gain: 0.05, sustain: 0.03, destination: input });
@@ -111,6 +111,7 @@ export const getMelodicSynthCases = (instrumentId, freq, start, input, ctx, now)
         vibrato.stop(now + 1.2);
       }
       break;
+    }
 
     case "piano_grand":
       voice({ freq, type: "triangle", start, attack: 0.005, hold: 0.15, release: 1.5, gain: 0.35, sustain: 0.15, destination: input, filter: { type: "lowpass", frequency: 2500 } });

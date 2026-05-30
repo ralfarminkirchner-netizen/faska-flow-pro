@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+@theme {
+  --color-faska-dark: #0a0a1a;
+  --color-faska-darker: #050510;
+  --color-faska-card: #12122a;
+  --color-faska-border: #2a2a5a;
+  --color-faska-accent: #7c3aed;
+  --color-faska-accent-2: #06b6d4;
+  --color-faska-glow: #a855f7;
+  --color-faska-gold: #f59e0b;
+  --color-faska-success: #10b981;
+  --color-faska-danger: #ef4444;
+  --color-faska-text: #e2e8f0;
+  --color-faska-muted: #94a3b8;
+  --font-family-display: 'Outfit', sans-serif;
+  --font-family-body: 'Inter', sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-faska-dark);
+    color: var(--color-faska-text);
+    font-family: var(--font-family-body);
+  }
+
+  ::selection {
+    background: var(--color-faska-accent);
+    color: white;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(18, 18, 42, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px rgba(124, 58, 237, 0.6), 0 0 40px rgba(124, 58, 237, 0.3);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-family: var(--font-family-display);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.5);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .game-card {
+    background: linear-gradient(145deg, rgba(18, 18, 42, 0.9), rgba(10, 10, 26, 0.95));
+    border: 1px solid rgba(124, 58, 237, 0.15);
+    border-radius: 20px;
+    padding: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .game-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(6, 182, 212, 0.05));
+    opacity: 0;
+    transition: opacity 0.4s;
+    border-radius: inherit;
+  }
+
+  .game-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(124, 58, 237, 0.4);
+    box-shadow: 0 20px 60px rgba(124, 58, 237, 0.15), 0 0 0 1px rgba(124, 58, 237, 0.1);
+  }
+
+  .game-card:hover::before {
+    opacity: 1;
+  }
+
+  .joystick-zone {
+    position: fixed;
+    bottom: 20px;
+    z-index: 100;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .joystick-base {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(18, 18, 42, 0.7);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(124, 58, 237, 0.4);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .joystick-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+    position: absolute;
+    transition: none;
+  }
+
+  .action-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid rgba(124, 58, 237, 0.4);
+    background: rgba(18, 18, 42, 0.7);
+    backdrop-filter: blur(10px);
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    font-family: var(--font-family-display);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .action-btn:active, .action-btn.pressed {
+    background: rgba(124, 58, 237, 0.6);
+    transform: scale(0.9);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+  }
+
+  .action-btn-a {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+
+  .action-btn-b {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(124, 58, 237, 0.6); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}

@@ -12,6 +12,7 @@ const FaskaCoreArcade = lazy(() => import('./engines/FaskaCoreArcade/FaskaCoreAr
 const FaskaBike = lazy(() => import('./engines/FaskaBike/FaskaBike').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBike</div> })));
 const FaskaBillard = lazy(() => import('./engines/FaskaBillard/FaskaBillard').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBillard</div> })));
 const FaskaBlocks = lazy(() => import('./engines/FaskaBlocks/FaskaBlocks').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBlocks</div> })));
+const FaskaBlocksSwarm = lazy(() => import('./engines/FaskaBlocksSwarm/FaskaBlocksSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBlocksSwarm</div> })));
 const FaskaBomberman = lazy(() => import('./engines/FaskaBomberman/FaskaBomberman').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBomberman</div> })));
 const FaskaBombermanSwarm = lazy(() => import('./engines/FaskaBombermanSwarm/FaskaBombermanSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBombermanSwarm</div> })));
 const FaskaBreakout = lazy(() => import('./engines/FaskaBreakout/FaskaBreakout').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBreakout</div> })));
@@ -49,7 +50,9 @@ const FaskaMarbleMadness = lazy(() => import('./engines/FaskaMarbleMadness/Faska
 const FaskaMarbleSwarm = lazy(() => import('./engines/FaskaMarbleSwarm/FaskaMarbleSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMarbleSwarm</div> })));
 const FaskaMario64 = lazy(() => import('./engines/FaskaMario64/FaskaMario64').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMario64</div> })));
 const FaskaMicroMachines = lazy(() => import('./engines/FaskaMicroMachines/FaskaMicroMachines').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMicroMachines</div> })));
+const FaskaMicroMachinesSwarm = lazy(() => import('./engines/FaskaMicroMachinesSwarm/FaskaMicroMachinesSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMicroMachinesSwarm</div> })));
 const FaskaMoorhuhn = lazy(() => import('./engines/FaskaMoorhuhn/FaskaMoorhuhn').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMoorhuhn</div> })));
+const FaskaMoorhuhnSwarm = lazy(() => import('./engines/FaskaMoorhuhnSwarm/FaskaMoorhuhnSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMoorhuhnSwarm</div> })));
 const FaskaMotocross = lazy(() => import('./engines/FaskaMotocross/FaskaMotocross').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaMotocross</div> })));
 const FaskaPacSwarm = lazy(() => import('./engines/FaskaPacSwarm/FaskaPacSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaPacSwarm</div> })));
 const FaskaPinball = lazy(() => import('./engines/FaskaPinball/FaskaPinball').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaPinball</div> })));
@@ -71,11 +74,15 @@ const FaskaRTypeSwarm = lazy(() => import('./engines/FaskaRTypeSwarm/FaskaRTypeS
 const FaskaSixtyFour = lazy(() => import('./engines/FaskaSixtyFour/FaskaSixtyFour').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSixtyFour</div> })));
 const FaskaSkater2 = lazy(() => import('./engines/FaskaSkater2/FaskaSkater2').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSkater2</div> })));
 const FaskaSnake = lazy(() => import('./engines/FaskaSnake/FaskaSnake').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSnake</div> })));
+const FaskaSnakeSwarm = lazy(() => import('./engines/FaskaSnakeSwarm/FaskaSnakeSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSnakeSwarm</div> })));
 const FaskaSoccerSwarm = lazy(() => import('./engines/FaskaSoccerSwarm/FaskaSoccerSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSoccerSwarm</div> })));
 const FaskaSolid = lazy(() => import('./engines/FaskaSolid/FaskaSolid').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSolid</div> })));
 const FaskaSonic = lazy(() => import('./engines/FaskaSonic/FaskaSonic').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSonic</div> })));
 const FaskaSonicSwarm = lazy(() => import('./engines/FaskaSonicSwarm/FaskaSonicSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSonicSwarm</div> })));
 const FaskaSpaceInvaders = lazy(() => import('./engines/FaskaSpaceInvaders/FaskaSpaceInvaders').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSpaceInvaders</div> })));
+const FaskaSpaceInvadersSwarm = lazy(() => import('./engines/FaskaSpaceInvadersSwarm/FaskaSpaceInvadersSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSpaceInvadersSwarm</div> })));
+const FaskaSpaceOdyssey = lazy(() => import('./engines/FaskaSpaceOdyssey/FaskaSpaceOdyssey').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaSpaceOdyssey</div> })));
+const FaskaEpicRPG = lazy(() => import('./engines/FaskaLearncadeRPG/FaskaLearncadeRPG').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaEpicRPG</div> })));
 const FaskaTekken = lazy(() => import('./engines/FaskaTekken/FaskaTekken').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaTekken</div> })));
 const FaskaTekkenSwarm = lazy(() => import('./engines/FaskaTekkenSwarm/FaskaTekkenSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaTekkenSwarm</div> })));
 const FaskaTennisSwarm = lazy(() => import('./engines/FaskaTennisSwarm/FaskaTennisSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaTennisSwarm</div> })));
@@ -117,7 +124,14 @@ const GAMES = [
   { id: 'faskaexciteswarm', title: 'FASKA Excite (Pro)', desc: 'Retro Arcade Game', icon: '⚔️', component: FaskaExciteSwarm, color: 'bg-orange-500', shadow: 'shadow-white/10' },
   { id: 'faskafantasyswarm', title: 'FASKA Fantasy (Pro)', desc: 'Retro Arcade Game', icon: '🛡️', component: FaskaFantasySwarm, color: 'bg-indigo-600', shadow: 'shadow-white/10' },
   { id: 'faskafighter', title: 'FASKA Fighter', desc: 'Retro Arcade Game', icon: '💣', component: FaskaFighter, color: 'bg-blue-600', shadow: 'shadow-white/10' },
-  { id: 'faskafighter3', title: 'FASKA Fighter3', desc: 'Retro Arcade Game', icon: '⭐', component: FaskaFighter3, color: 'bg-emerald-600', shadow: 'shadow-white/10' },
+  { id: 'faskaepicrpg', title: 'FASKA Epic RPG', desc: 'New AAA Adventure', icon: '🏰', component: FaskaEpicRPG, color: 'bg-yellow-600', shadow: 'shadow-white/10' },
+  { id: 'faskaspaceodyssey', title: 'Space Odyssey', desc: 'New AAA Shooter', icon: '🚀', component: FaskaSpaceOdyssey, color: 'bg-purple-700', shadow: 'shadow-white/10' },
+  { id: 'faskasnakeswarm', title: 'FASKA Snake (Pro)', desc: 'Retro Arcade Game', icon: '🐍', component: FaskaSnakeSwarm, color: 'bg-green-600', shadow: 'shadow-white/10' },
+  { id: 'faskamoorhuhnswarm', title: 'FASKA Moorhuhn (Pro)', desc: 'Retro Arcade Game', icon: '🦆', component: FaskaMoorhuhnSwarm, color: 'bg-orange-600', shadow: 'shadow-white/10' },
+  { id: 'faskablocksswarm', title: 'FASKA Blocks (Pro)', desc: 'Retro Arcade Game', icon: '🟦', component: FaskaBlocksSwarm, color: 'bg-blue-600', shadow: 'shadow-white/10' },
+  { id: 'faskaspaceinvadersswarm', title: 'FASKA Invaders (Pro)', desc: 'Retro Arcade Game', icon: '👾', component: FaskaSpaceInvadersSwarm, color: 'bg-indigo-600', shadow: 'shadow-white/10' },
+  { id: 'faskamicromachinesswarm', title: 'FASKA MicroMachines (Pro)', desc: 'Retro Arcade Game', icon: '🏎️', component: FaskaMicroMachinesSwarm, color: 'bg-red-600', shadow: 'shadow-white/10' },
+  { id: 'faskafighter3', title: 'FASKA Fighter (Pro)', desc: 'Retro Arcade Game', icon: '🥋', component: FaskaFighter3, color: 'bg-red-600', shadow: 'shadow-white/10' },
   { id: 'faskafinalfantasy', title: 'FASKA FinalFantasy', desc: 'Retro Arcade Game', icon: '🛹', component: FaskaFinalFantasy, color: 'bg-rose-600', shadow: 'shadow-white/10' },
   { id: 'faskaforces', title: 'FASKA Forces', desc: 'Retro Arcade Game', icon: '🏁', component: FaskaForces, color: 'bg-amber-500', shadow: 'shadow-white/10' },
   { id: 'faskafrisbeeswarm', title: 'FASKA Frisbee (Pro)', desc: 'Retro Arcade Game', icon: '⚽', component: FaskaFrisbeeSwarm, color: 'bg-purple-600', shadow: 'shadow-white/10' },

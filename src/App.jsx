@@ -113,18 +113,18 @@ export default function App() {
   const [unlockedBadge, setUnlockedBadge] = useState(null);
   const badgeTimeoutRef = useRef(null);
 
+  // Sync with storage on changes
+  useEffect(() => {
+    saveProgress({ points: globalPoints, streak });
+  }, [globalPoints, streak]);
+
   // Check URL for standalone arcade mode
   const urlParams = new URLSearchParams(window.location.search);
   const mode = urlParams.get('mode');
 
   if (mode === 'arcade') {
-    return <GameEngineHub onExit={() => window.close()} />;
+    return <GameEngineHub onExit={() => window.location.assign(`${window.location.origin}${window.location.pathname}`)} />;
   }
-
-  // Sync with storage on changes
-  useEffect(() => {
-    saveProgress({ points: globalPoints, streak });
-  }, [globalPoints, streak]);
 
   const activeFach = FAECHER.find(f => f.id === activeSubject);
 

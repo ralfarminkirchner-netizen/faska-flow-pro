@@ -1,129 +1,26 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Text, KeyboardControls, useKeyboardControls, PerspectiveCamera } from '@react-three/drei';
+import { Text, KeyboardControls, PerspectiveCamera } from '@react-three/drei';
+import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 
-const isPrime = (num) => {
-  if (num <= 1) return false;
-  if (num <= 3) return true;
-  if (num % 2 === 0 || num % 3 === 0) return false;
-  for (let i = 5; i * i <= num; i += 6) {
-    if (num % i === 0 || num % (i + 2) === 0) return false;
-  }
-  return true;
-};
-
-const createHoopData = (zPos) => {
-  const isP = Math.random() > 0.4;
-  let num;
-  do {
-    num = Math.floor(Math.random() * 98) + 2;
-  } while (isPrime(num) !== isP);
-
-  return {
-    x: (Math.random() - 0.5) * 30,
-    z: zPos,
-    number: num,
-    isPrime: isP,
-    hit: false,
-    active: true,
-    color: '#00ffff', 
-  };
-};
+import useGameStore, { createHoopData, spawnParticles } from './GameLogic';
+import World from './World';
+import Player from './Player';
+import UIOverlay from './UIOverlay';
+import MobileJoystick from './MobileJoystick';
 
 const MAX_HOOPS = 12;
 const MAX_PARTICLES = 150;
 
-const spawnParticles = (g, x, z, colorStr) => {
-  const color = new THREE.Color(colorStr);
-  let spawned = 0;
-  for (let i = 0; i < MAX_PARTICLES; i++) {
-    const p = g.particles[i];
-    if (p.life <= 0) {
-      p.life = 0.5 + Math.random() * 0.8;
-      p.x = x + (Math.random() - 0.5) * 3;
-      p.y = 1.5 + (Math.random() - 0.5) * 3;
-      p.z = z + (Math.random() - 0.5) * 3;
-      const speed = 10 + Math.random() * 30;
-      const angle1 = Math.random() * Math.PI * 2;
-      const angle2 = Math.random() * Math.PI * 2;
-      p.vx = Math.cos(angle1) * Math.sin(angle2) * speed;
-      p.vy = Math.sin(angle1) * speed;
-      p.vz = Math.cos(angle2) * speed;
-      p.color = color;
-      p.scale = Math.random() * 0.8 + 0.2;
-      spawned++;
-      if (spawned > 30) break;
-    }
-  }
-};
-
-const Ship = ({ gameRef }) => {
-  const shipMesh = useRef();
-  const [, get] = useKeyboardControls();
-
-  useFrame((state, delta) => {
-    const keys = get();
-    const g = gameRef.current;
-
-    let ax = 0;
-    if (keys.left) ax = -1;
-    if (keys.right) ax = 1;
-
-    g.x += ax * 40 * delta;
-    g.x = THREE.MathUtils.clamp(g.x, -18, 18); 
-
-    if (shipMesh.current) {
-      shipMesh.current.position.x = THREE.MathUtils.lerp(shipMesh.current.position.x, g.x, 15 * delta);
-      shipMesh.current.rotation.z = THREE.MathUtils.lerp(shipMesh.current.rotation.z, -ax * 0.7, 10 * delta);
-      shipMesh.current.rotation.y = THREE.MathUtils.lerp(shipMesh.current.rotation.y, -ax * 0.3, 10 * delta);
-      shipMesh.current.position.y = 1 + Math.sin(state.clock.elapsedTime * 8) * 0.1;
-    }
-    
-    if (keys.up) g.targetSpeed = 100 + g.boost;
-    else if (keys.down) g.targetSpeed = 30 + g.boost;
-    else g.targetSpeed = 60 + g.boost;
-
-    g.speed = THREE.MathUtils.lerp(g.speed, g.targetSpeed, 3 * delta);
-    if (g.boost > 0) {
-      g.boost -= 15 * delta; 
-    }
-  });
-
-  return (
-    <group ref={shipMesh} position={[0, 1, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow>
-        <coneGeometry args={[1.2, 4, 3]} />
-        <meshStandardMaterial color="#ff0055" metalness={0.6} roughness={0.2} />
-      </mesh>
-      <mesh position={[-0.8, -0.3, -1.5]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.4, 0.4, 1, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[0.8, -0.3, -1.5]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.4, 0.4, 1, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[-0.8, -0.3, -2.1]}>
-        <sphereGeometry args={[0.3, 8, 8]} />
-        <meshBasicMaterial color="#00ffff" />
-      </mesh>
-      <mesh position={[0.8, -0.3, -2.1]}>
-        <sphereGeometry args={[0.3, 8, 8]} />
-        <meshBasicMaterial color="#00ffff" />
-      </mesh>
-    </group>
-  );
-};
-
-const Hoop = ({ index, gameRef }) => {
+const Hoop = ({ index }) => {
   const groupRef = useRef();
   const textRef = useRef();
   const [data, setData] = useState({ number: 0, color: 'white', visible: false });
 
   useFrame(() => {
-    const g = gameRef.current;
-    const hoop = g.hoops[index];
+    const hoops = useGameStore.getState().hoops;
+    const hoop = hoops[index];
     if (!hoop) return;
     
     if (groupRef.current) {
@@ -161,9 +58,9 @@ const Hoop = ({ index, gameRef }) => {
   );
 };
 
-const GameLogic = ({ gameRef }) => {
+const GameEngineUpdater = () => {
   useFrame((state, delta) => {
-    const g = gameRef.current;
+    const g = useGameStore.getState();
     
     g.hoops.forEach(hoop => {
       if (hoop.active) {
@@ -176,15 +73,19 @@ const GameLogic = ({ gameRef }) => {
             hoop.active = false; 
             
             if (hoop.isPrime) {
-              g.score += 10;
-              g.boost = 60;
-              spawnParticles(g, hoop.x, hoop.z, '#00ff00');
+              useGameStore.setState({ 
+                score: g.score + 10,
+                boost: 60
+              });
+              spawnParticles(g.particles, hoop.x, hoop.z, '#00ff00');
             } else {
-              g.score -= 5;
-              g.speed = Math.max(10, g.speed - 50); 
-              g.shake = 0.6;
-              g.flash = 1.0;
-              spawnParticles(g, hoop.x, hoop.z, '#ff0000');
+              useGameStore.setState({ 
+                score: g.score - 5,
+                speed: Math.max(10, g.speed - 50),
+                shake: 0.6,
+                flash: 1.0
+              });
+              spawnParticles(g.particles, hoop.x, hoop.z, '#ff0000');
             }
           }
         }
@@ -212,42 +113,44 @@ const GameLogic = ({ gameRef }) => {
   return null;
 };
 
-const HoopManager = ({ gameRef }) => {
+const HoopManager = () => {
+  const hoops = useGameStore(state => state.hoops);
+
   useEffect(() => {
-    const g = gameRef.current;
-    if (g.hoops.length === 0) {
-      for (let i = 0; i < MAX_HOOPS; i++) {
-         g.hoops.push(createHoopData(i * -60 - 100));
-      }
+    const newHoops = [];
+    for (let i = 0; i < MAX_HOOPS; i++) {
+       newHoops.push(createHoopData(i * -60 - 100));
     }
+    useGameStore.setState({ hoops: newHoops });
   }, []);
 
   return (
     <>
-      {Array.from({ length: MAX_HOOPS }).map((_, i) => (
-        <Hoop key={i} index={i} gameRef={gameRef} />
+      {hoops.length > 0 && Array.from({ length: MAX_HOOPS }).map((_, i) => (
+        <Hoop key={i} index={i} />
       ))}
-      <GameLogic gameRef={gameRef} />
+      {hoops.length > 0 && <GameEngineUpdater />}
     </>
   );
 };
 
-const Particles = ({ gameRef }) => {
+const Particles = () => {
   const meshRef = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tempColor = useMemo(() => new THREE.Color(), []);
+  const particles = useGameStore(state => state.particles);
 
   useEffect(() => {
-    const g = gameRef.current;
-    if (g.particles.length === 0) {
-      for (let i = 0; i < MAX_PARTICLES; i++) {
-        g.particles.push({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, scale: 1, color: new THREE.Color() });
-      }
+    const newParticles = [];
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      newParticles.push({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, scale: 1, colorStr: '#ffffff' });
     }
+    useGameStore.setState({ particles: newParticles });
   }, []);
 
   useFrame(() => {
-    const g = gameRef.current;
-    if (!meshRef.current) return;
+    const g = useGameStore.getState();
+    if (!meshRef.current || g.particles.length === 0) return;
     
     for (let i = 0; i < MAX_PARTICLES; i++) {
       const p = g.particles[i];
@@ -257,7 +160,8 @@ const Particles = ({ gameRef }) => {
         dummy.scale.set(s, s, s);
         dummy.updateMatrix();
         meshRef.current.setMatrixAt(i, dummy.matrix);
-        meshRef.current.setColorAt(i, p.color);
+        tempColor.set(p.colorStr);
+        meshRef.current.setColorAt(i, tempColor);
       } else {
         dummy.position.set(0, -1000, 0); 
         dummy.updateMatrix();
@@ -278,52 +182,17 @@ const Particles = ({ gameRef }) => {
   );
 };
 
-const Track = ({ gameRef }) => {
-  const gridRef = useRef();
-  
-  useFrame((state, delta) => {
-    const g = gameRef.current;
-    if (gridRef.current) {
-      gridRef.current.position.z += g.speed * delta;
-      if (gridRef.current.position.z > 20) {
-        gridRef.current.position.z -= 20; 
-      }
-    }
-  });
-
-  return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -200]}>
-        <planeGeometry args={[120, 600]} />
-        <meshStandardMaterial color="#050510" />
-      </mesh>
-      
-      <mesh ref={gridRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, -200]}>
-        <planeGeometry args={[60, 600, 12, 120]} />
-        <meshBasicMaterial color="#ff0055" wireframe={true} transparent opacity={0.2} />
-      </mesh>
-      
-      <mesh position={[-30, 5, -200]}>
-         <boxGeometry args={[2, 10, 600]} />
-         <meshStandardMaterial color="#111" />
-      </mesh>
-      <mesh position={[30, 5, -200]}>
-         <boxGeometry args={[2, 10, 600]} />
-         <meshStandardMaterial color="#111" />
-      </mesh>
-    </group>
-  );
-};
-
-const CameraManager = ({ gameRef }) => {
+const CameraManager = () => {
   const cameraRef = useRef();
   
   useFrame((state, delta) => {
-    const g = gameRef.current;
+    const g = useGameStore.getState();
     
-    if (g.shake > 0) {
-      g.shake -= delta;
-      if (g.shake < 0) g.shake = 0;
+    let shake = g.shake;
+    if (shake > 0) {
+      shake -= delta;
+      if (shake < 0) shake = 0;
+      useGameStore.setState({ shake });
     }
     
     if (cameraRef.current) {
@@ -335,8 +204,8 @@ const CameraManager = ({ gameRef }) => {
       cameraRef.current.position.y = THREE.MathUtils.lerp(cameraRef.current.position.y, targetY, 5 * delta);
       cameraRef.current.position.z = THREE.MathUtils.lerp(cameraRef.current.position.z, targetZ, 5 * delta);
       
-      if (g.shake > 0) {
-        const shakeIntensity = g.shake * 2;
+      if (shake > 0) {
+        const shakeIntensity = shake * 2;
         cameraRef.current.position.x += (Math.random() - 0.5) * shakeIntensity;
         cameraRef.current.position.y += (Math.random() - 0.5) * shakeIntensity;
       }
@@ -352,25 +221,27 @@ const CameraManager = ({ gameRef }) => {
   return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4, 12]} fov={75} />;
 };
 
-const PostEffects = ({ gameRef }) => {
+const PostEffects = () => {
   const lightRef = useRef();
   
   useFrame((state, delta) => {
-    const g = gameRef.current;
-    if (g.flash > 0) {
-      g.flash -= delta * 3;
-      if (g.flash < 0) g.flash = 0;
+    const g = useGameStore.getState();
+    let flash = g.flash;
+    if (flash > 0) {
+      flash -= delta * 3;
+      if (flash < 0) flash = 0;
+      useGameStore.setState({ flash });
     }
     
     if (lightRef.current) {
-       lightRef.current.intensity = g.flash * 10;
+       lightRef.current.intensity = flash * 10;
     }
   });
 
   return <pointLight ref={lightRef} position={[0, 5, 5]} color="#ff0000" intensity={0} distance={50} />;
 };
 
-const Scene = ({ gameRef }) => {
+const Scene = () => {
   return (
     <>
       <color attach="background" args={['#020205']} />
@@ -378,12 +249,16 @@ const Scene = ({ gameRef }) => {
       <ambientLight intensity={0.4} />
       <directionalLight position={[10, 20, 5]} intensity={1.5} color="#aaaaff" />
       
-      <CameraManager gameRef={gameRef} />
-      <Ship gameRef={gameRef} />
-      <Track gameRef={gameRef} />
-      <HoopManager gameRef={gameRef} />
-      <Particles gameRef={gameRef} />
-      <PostEffects gameRef={gameRef} />
+      <CameraManager />
+      
+      <Physics>
+        <Player />
+      </Physics>
+      
+      <World />
+      <HoopManager />
+      <Particles />
+      <PostEffects />
     </>
   );
 };
@@ -396,58 +271,16 @@ const keyboardMap = [
 ];
 
 export default function FaskaFZeroSwarm({ onExit }) {
-  const gameRef = useRef({
-    x: 0,
-    speed: 60,
-    targetSpeed: 60,
-    score: 0,
-    shake: 0,
-    flash: 0,
-    hoops: [],
-    particles: [],
-    boost: 0,
-  });
-
-  const [uiState, setUiState] = useState({ score: 0, speed: 60 });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setUiState({
-        score: gameRef.current.score,
-        speed: Math.floor(gameRef.current.speed)
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', backgroundColor: '#000', fontFamily: 'sans-serif' }}>
-       <div style={{ position: 'absolute', top: 20, left: 20, color: '#00ffff', zIndex: 10, textShadow: '0 0 10px #00ffff' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>SCORE: {uiState.score}</div>
-          <div style={{ fontSize: '24px' }}>SPEED: {uiState.speed} KM/H</div>
-          <div style={{ marginTop: '10px', fontSize: '16px', color: '#fff', textShadow: 'none' }}>
-            Fly through <strong style={{color:'#00ff00'}}>PRIME NUMBERS</strong>!<br/>
-            Dodge composites.
-          </div>
-       </div>
-
-       <button 
-         onClick={onExit}
-         style={{ 
-           position: 'absolute', top: 20, right: 20, zIndex: 10, 
-           padding: '12px 24px', fontSize: '18px', fontWeight: 'bold',
-           cursor: 'pointer', backgroundColor: '#ff0055', color: 'white', 
-           border: 'none', borderRadius: '8px',
-           boxShadow: '0 4px 15px rgba(255,0,85,0.5)',
-           textTransform: 'uppercase'
-         }}
-       >
-         Beenden
-       </button>
+       <UIOverlay onExit={onExit} />
+       <MobileJoystick />
        
        <KeyboardControls map={keyboardMap}>
          <Canvas shadows>
-            <Scene gameRef={gameRef} />
+            <Suspense fallback={null}>
+              <Scene />
+            </Suspense>
          </Canvas>
        </KeyboardControls>
     </div>

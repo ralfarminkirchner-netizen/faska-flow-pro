@@ -1,11 +1,14 @@
-import React, { useState, Suspense, lazy } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
+import { motion as Motion } from 'framer-motion';
 import ErrorBoundary from './ErrorBoundary';
 
 const Faska64Part2 = lazy(() => import('./engines/Faska64Part2/Faska64Part2').catch(() => ({ default: () => <div className="text-white p-8">Error loading Faska64Part2</div> })));
 const FaskaAlleyway = lazy(() => import('./engines/FaskaAlleyway/FaskaAlleyway').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaAlleyway</div> })));
 const FaskaAstro = lazy(() => import('./engines/FaskaAstro/FaskaAstro').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaAstro</div> })));
 const FaskaAstroSwarm = lazy(() => import('./engines/FaskaAstroSwarm/FaskaAstroSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaAstroSwarm</div> })));
+const FaskaDarkCitadel = lazy(() => import('./engines/FaskaDarkCitadel/FaskaDarkCitadel').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaDarkCitadel</div> })));
+const FaskaLearncadeRPG = lazy(() => import('./engines/FaskaLearncadeRPG/FaskaLearncadeRPG').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaLearncadeRPG</div> })));
+const FaskaCoreArcade = lazy(() => import('./engines/FaskaCoreArcade/FaskaCoreArcade').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaCoreArcade</div> })));
 const FaskaBike = lazy(() => import('./engines/FaskaBike/FaskaBike').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBike</div> })));
 const FaskaBillard = lazy(() => import('./engines/FaskaBillard/FaskaBillard').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBillard</div> })));
 const FaskaBlocks = lazy(() => import('./engines/FaskaBlocks/FaskaBlocks').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaBlocks</div> })));
@@ -89,6 +92,9 @@ const FaskaZelda = lazy(() => import('./engines/FaskaZelda/FaskaZelda').catch(()
 const FaskaZeldaSwarm = lazy(() => import('./engines/FaskaZeldaSwarm/FaskaZeldaSwarm').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaZeldaSwarm</div> })));
 const FaskaZero2 = lazy(() => import('./engines/FaskaZero2/FaskaZero2').catch(() => ({ default: () => <div className="text-white p-8">Error loading FaskaZero2</div> })));
 const GAMES = [
+  { id: 'faskalearncaderpg', title: 'Animal Friends RPG', desc: 'Interaktive Lern-Welt', icon: '🌍', component: FaskaLearncadeRPG, color: 'bg-emerald-600', shadow: 'shadow-emerald-500/30' },
+  { id: 'faskadarkcitadel', title: 'FASKA Dark Citadel', desc: '3D Soulslike Combat Vertical', icon: '⚔️', component: FaskaDarkCitadel, color: 'bg-rose-950', shadow: 'shadow-rose-500/30' },
+  { id: 'faskacorearcade', title: 'FASKA Core Arcade', desc: '6 stabile Spiele + Lernmodus', icon: '🎯', component: FaskaCoreArcade, color: 'bg-amber-500', shadow: 'shadow-amber-300/20' },
   { id: 'faska64part2', title: 'FASKA 64Part2', desc: 'Retro Arcade Game', icon: '🕹️', component: Faska64Part2, color: 'bg-indigo-600', shadow: 'shadow-white/10' },
   { id: 'faskaalleyway', title: 'FASKA Alleyway', desc: 'Retro Arcade Game', icon: '👾', component: FaskaAlleyway, color: 'bg-blue-600', shadow: 'shadow-white/10' },
   { id: 'faskaastro', title: 'FASKA Astro', desc: 'Retro Arcade Game', icon: '🚀', component: FaskaAstro, color: 'bg-emerald-600', shadow: 'shadow-white/10' },
@@ -177,17 +183,77 @@ const GAMES = [
   { id: 'faskazero2', title: 'FASKA Zero2', desc: 'Retro Arcade Game', icon: '👾', component: FaskaZero2, color: 'bg-purple-600', shadow: 'shadow-white/10' },
 ];
 
+const findGameFromUrl = () => {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const gameId = params.get('game');
+  return GAMES.find((game) => game.id === gameId) || null;
+};
+
+const writeGameToUrl = (game) => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('mode', 'arcade');
+  if (game) {
+    url.searchParams.set('game', game.id);
+  } else {
+    url.searchParams.delete('game');
+  }
+  window.history.pushState({}, '', url);
+};
+
 export default function GameEngineHub({ onExit }) {
-  const [activeGame, setActiveGame] = useState(null);
-  const [isLearncade, setIsLearncade] = useState(true);
+  const [activeGame, setActiveGame] = useState(() => findGameFromUrl());
+  const [appMode, setAppMode] = useState('arcade'); // 'arcade', 'learncade', 'argschade'
+  const isLearncade = appMode === 'learncade';
+
+  const PREMIUM_GAMES = ['faskatonyhawkswarm', 'faskakartswarm', 'faskasixtyfour', 'faskadarkcitadel', 'faskacorearcade'];
+  
+  const filteredGames = GAMES.filter(game => {
+    // Wenn Argschade aktiv ist, zeige ALLE Spiele, die nicht Premium sind und nicht RPG
+    if (appMode === 'argschade') {
+      return !PREMIUM_GAMES.includes(game.id) && game.id !== 'faskalearncaderpg';
+    }
+    // Learncade zeigt NUR das RPG
+    if (appMode === 'learncade') {
+      return game.id === 'faskalearncaderpg';
+    }
+    // Wenn Arcade, zeige NUR Premium-Spiele
+    return PREMIUM_GAMES.includes(game.id) && game.id !== 'faskalearncaderpg';
+  });
+
+  // Sortiere alphabetisch
+  filteredGames.sort((a, b) => a.title.localeCompare(b.title));
+
+  useEffect(() => {
+    const syncGameFromUrl = () => {
+      setActiveGame(findGameFromUrl());
+    };
+    const frame = requestAnimationFrame(syncGameFromUrl);
+    window.addEventListener('popstate', syncGameFromUrl);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('popstate', syncGameFromUrl);
+    };
+  }, []);
+
+  const openGame = (game) => {
+    writeGameToUrl(game);
+    setActiveGame(game);
+  };
+
+  const closeGame = () => {
+    writeGameToUrl(null);
+    setActiveGame(null);
+  };
 
   if (activeGame) {
     const GameComponent = activeGame.component;
     return (
       <div className="absolute inset-0 z-50 bg-black flex items-center justify-center overflow-hidden">
-        <ErrorBoundary onExit={() => setActiveGame(null)}>
+        <ErrorBoundary onExit={closeGame}>
           <Suspense fallback={<div className="text-white text-2xl font-bold animate-pulse">Lade Spiel...</div>}>
-            <GameComponent onExit={() => setActiveGame(null)} isLearncade={isLearncade} />
+            <GameComponent onExit={closeGame} isLearncade={isLearncade} />
           </Suspense>
         </ErrorBoundary>
       </div>
@@ -195,7 +261,7 @@ export default function GameEngineHub({ onExit }) {
   }
 
   return (
-    <motion.div 
+    <Motion.div 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -212,37 +278,43 @@ export default function GameEngineHub({ onExit }) {
             </h2>
             <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3">
               <button 
-                onClick={() => setIsLearncade(false)}
-                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${!isLearncade ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+                onClick={() => setAppMode('arcade')}
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${appMode === 'arcade' ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
               >
                 🚀 Pure Arcade
               </button>
               <button 
-                onClick={() => setIsLearncade(true)}
-                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${isLearncade ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+                onClick={() => setAppMode('learncade')}
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${appMode === 'learncade' ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
               >
                 🧠 Learncade
               </button>
+              <button 
+                onClick={() => setAppMode('argschade')}
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-sm md:text-base font-bold transition-all ${appMode === 'argschade' ? 'bg-zinc-700 text-white shadow-[0_0_15px_rgba(63,63,70,0.5)] scale-105' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+              >
+                🗑️ Argschade
+              </button>
             </div>
             <p className="text-slate-400 text-xs md:text-sm mt-3 font-bold tracking-widest uppercase">
-              Wähle dein Spiel ({GAMES.length} verfügbar)
+              Wähle dein Spiel ({filteredGames.length} verfügbar)
             </p>
           </div>
           <button 
             onClick={onExit}
-            className="w-12 h-12 md:w-16 md:h-16 bg-white/10 hover:bg-rose-500/20 text-white hover:text-rose-400 rounded-2xl flex items-center justify-center transition-all border border-white/10 hover:border-rose-500/50"
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white transition-all hover:border-amber-300/60 hover:bg-amber-300 hover:text-slate-950 md:px-5 md:py-4"
           >
-            <span className="text-xl md:text-2xl font-bold">✕</span>
+            FASKA Flow
           </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 pb-20">
-          {GAMES.map(game => (
-            <motion.button
+          {filteredGames.map(game => (
+            <Motion.button
               key={game.id}
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveGame(game)}
+              onClick={() => openGame(game)}
               className={`relative overflow-hidden text-left ${game.color} rounded-3xl p-4 md:p-5 shadow-2xl transition-all border border-white/20 group hover:ring-4 ring-white/30`}
             >
               <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-[80px] -mr-6 -mt-6 transition-transform group-hover:scale-110"></div>
@@ -251,10 +323,10 @@ export default function GameEngineHub({ onExit }) {
                 <h3 className="font-black text-lg md:text-xl leading-tight mb-1 tracking-tight drop-shadow-md">{game.title}</h3>
                 <p className="font-bold text-[10px] text-white/80 uppercase tracking-widest bg-black/20 rounded px-2 py-0.5 inline-block">{game.desc}</p>
               </div>
-            </motion.button>
+            </Motion.button>
           ))}
         </div>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }

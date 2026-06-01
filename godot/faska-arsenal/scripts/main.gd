@@ -8,14 +8,56 @@ const BASE_SPEED := 430.0
 const BOOST_SPEED := 620.0
 const FRICTION := 7.4
 const TOUCH_DEADZONE := 0.08
+const LEARN_GOAL := 8
+const LESSONS := ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
 
-const LEARN_TASKS = [
-	{"subject": "Deutsch", "prompt": "Welche Wortart ist 'mutig'?", "answer": "Adjektiv", "options": ["Nomen", "Verb", "Adjektiv"]},
-	{"subject": "Mathe", "prompt": "9 + 8 = ?", "answer": "17", "options": ["16", "17", "18"]},
-	{"subject": "Englisch", "prompt": "Was bedeutet 'shield'?", "answer": "Schild", "options": ["Schild", "Schwert", "Stern"]},
-	{"subject": "Sachkunde", "prompt": "Welcher Planet ist rot?", "answer": "Mars", "options": ["Mars", "Venus", "Neptun"]},
-	{"subject": "Deutsch", "prompt": "Welche Wortart ist 'rennt'?", "answer": "Verb", "options": ["Verb", "Nomen", "Artikel"]},
-	{"subject": "Mathe", "prompt": "6 x 7 = ?", "answer": "42", "options": ["36", "42", "48"]}
+const TASKS_WORD := [
+	{"prompt": "Welche Wortart ist 'mutig'?", "answer": "Adjektiv", "options": ["Nomen", "Verb", "Adjektiv"], "hint": "Mutig beschreibt eine Eigenschaft."},
+	{"prompt": "Welches Wort ist ein Verb?", "answer": "springen", "options": ["springen", "Stein", "hell"], "hint": "Ein Verb sagt, was getan wird."},
+	{"prompt": "Welche Wortart ist 'unter'?", "answer": "Praeposition", "options": ["Praeposition", "Artikel", "Nomen"], "hint": "Unter beschreibt eine Lage."},
+	{"prompt": "Welche Wortart ist 'und'?", "answer": "Konjunktion", "options": ["Adjektiv", "Konjunktion", "Verb"], "hint": "Und verbindet Woerter oder Saetze."},
+]
+
+const TASKS_READING := [
+	{"prompt": "Lies: Der Scout nimmt den blauen Schild. Was nimmt er?", "answer": "Schild", "options": ["Schild", "Rocket", "Tor"], "hint": "Das Ding steht nach 'nimmt den blauen'."},
+	{"prompt": "Lies: Im Osten wartet ein Drone. Wo wartet er?", "answer": "im Osten", "options": ["im Osten", "im Norden", "im Wasser"], "hint": "Achte auf die Ortsangabe."},
+	{"prompt": "Lies: Nach dem Sprung laedt die Railgun. Wann laedt sie?", "answer": "nach dem Sprung", "options": ["nach dem Sprung", "vor der Welle", "nie"], "hint": "Die Zeitangabe steht am Anfang."},
+	{"prompt": "Lies: Das gelbe Pad schleudert dich nach oben. Was schleudert dich?", "answer": "das Pad", "options": ["das Pad", "der Gegner", "die Wand"], "hint": "Das Subjekt steht am Satzanfang."},
+]
+
+const TASKS_SENTENCE := [
+	{"prompt": "Was ist das Subjekt? Der Pilot sichert Alpha.", "answer": "Der Pilot", "options": ["Der Pilot", "sichert", "Alpha"], "hint": "Wer handelt?"},
+	{"prompt": "Welche Satzstelle ist der Ort? Die Rocket liegt am Rand.", "answer": "am Rand", "options": ["Die Rocket", "liegt", "am Rand"], "hint": "Frage: Wo liegt sie?"},
+	{"prompt": "Was passt? Der Drone ___ seitlich.", "answer": "fliegt", "options": ["fliegt", "Drone", "seitlich"], "hint": "Gesucht ist das Tun-Wort."},
+	{"prompt": "Welches Wort verbindet den Grund? Wir boosten, ___ Gegner kommen.", "answer": "weil", "options": ["weil", "unter", "schnell"], "hint": "Weil nennt einen Grund."},
+]
+
+const TASKS_COMPOUND := [
+	{"prompt": "Bilde ein Wort: Rakete + Sprung", "answer": "Raketensprung", "options": ["Raketensprung", "Sprungrakete", "raketig"], "hint": "Ein Sprung mit Rakete."},
+	{"prompt": "Bilde ein Wort: Schutz + Schild", "answer": "Schutzschild", "options": ["Schildschutz", "Schutzschild", "schuetzen"], "hint": "Ein Schild zum Schutz."},
+	{"prompt": "Bilde ein Wort: Plasma + Kugel", "answer": "Plasmakugel", "options": ["Plasmakugel", "Kugelplasma", "plasmatisch"], "hint": "Eine Kugel aus Plasma."},
+	{"prompt": "Bilde ein Wort: Arena + Tor", "answer": "Arenator", "options": ["Arenator", "Torena", "torisch"], "hint": "Das Tor gehoert zur Arena."},
+]
+
+const TASKS_MATH := [
+	{"prompt": "9 + 8 = ?", "answer": "17", "options": ["16", "17", "18"], "hint": "9 und 8 ergeben 17."},
+	{"prompt": "6 x 7 = ?", "answer": "42", "options": ["36", "42", "48"], "hint": "Sechs Reihen mit sieben."},
+	{"prompt": "Du hast 12 Rockets und schiesst 5. Wie viele bleiben?", "answer": "7", "options": ["6", "7", "8"], "hint": "12 minus 5."},
+	{"prompt": "Vier Nodes geben je 25 Punkte. Wie viele Punkte?", "answer": "100", "options": ["75", "100", "125"], "hint": "4 mal 25."},
+]
+
+const TASKS_ENGLISH := [
+	{"prompt": "Was bedeutet 'shield'?", "answer": "Schild", "options": ["Schild", "Schwert", "Stern"], "hint": "Ein shield schuetzt dich."},
+	{"prompt": "Was bedeutet 'rocket'?", "answer": "Rakete", "options": ["Rakete", "Schluessel", "Fenster"], "hint": "Eine rocket explodiert."},
+	{"prompt": "Was bedeutet 'jump'?", "answer": "Sprung", "options": ["Sprung", "Schuss", "Wand"], "hint": "Jump ist eine Bewegung nach oben."},
+	{"prompt": "Was bedeutet 'enemy'?", "answer": "Gegner", "options": ["Gegner", "Freund", "Muenze"], "hint": "Ein enemy greift dich an."},
+]
+
+const TASKS_SCIENCE := [
+	{"prompt": "Welcher Planet ist rot?", "answer": "Mars", "options": ["Mars", "Venus", "Neptun"], "hint": "Mars wird oft der rote Planet genannt."},
+	{"prompt": "Was misst Geschwindigkeit?", "answer": "Weg pro Zeit", "options": ["Weg pro Zeit", "Farbe pro Klang", "Gewicht pro Licht"], "hint": "Wie weit in welcher Zeit?"},
+	{"prompt": "Was braucht Strom im Stromkreis?", "answer": "geschlossenen Kreis", "options": ["offene Tuer", "geschlossenen Kreis", "nur Luft"], "hint": "Der Kreis muss geschlossen sein."},
+	{"prompt": "Was ist Reibung?", "answer": "bremsende Kraft", "options": ["bremsende Kraft", "helles Licht", "leiser Ton"], "hint": "Reibung bremst Bewegung."},
 ]
 
 const WEAPONS = {
@@ -46,17 +88,22 @@ var aim_world := Vector2.ZERO
 var touch_axis := Vector2.ZERO
 var touch_pointer := -1
 var touch_buttons := {}
+var touch_button_state := {}
+var active_touch_buttons := {}
 var current_weapon := "pulse"
 var weapon_index := 0
 var mode := "Normal"
 var phase := "run"
 var wave := 1
 var wave_timer := 0.0
+var lesson_index := 0
 var question_index := 0
+var repeat_queue: Array = []
 var score := 0
 var combo := 0
 var message := ""
 var message_timer := 0.0
+var grace_timer := 0.0
 var notice := ""
 var notice_timer := 0.0
 var shake := 0.0
@@ -66,7 +113,7 @@ func _ready() -> void:
 	rng.seed = 84031
 	font = get_theme_default_font()
 	focus_mode = Control.FOCUS_ALL
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	grab_focus()
 	reset_game()
 
@@ -122,15 +169,20 @@ func reset_game() -> void:
 	touch_axis = Vector2.ZERO
 	touch_pointer = -1
 	touch_buttons.clear()
+	touch_button_state = {"fire": false, "boost": false, "weapon": false, "learn": false, "subject": false}
+	active_touch_buttons.clear()
 	current_weapon = "pulse"
 	weapon_index = 0
 	mode = "Normal"
 	phase = "run"
 	wave = 1
 	wave_timer = 1.0
+	lesson_index = 0
 	question_index = 0
+	repeat_queue.clear()
 	score = 0
 	combo = 0
+	grace_timer = 18.0
 	stats = {"kills": 0, "waves": 0, "nodes": 0, "learn": 0, "rail": 0, "rocket": 0, "quad": 0, "pads": 0}
 	message = "FASKA ARSENAL - Godot 4"
 	message_timer = 2.2
@@ -167,6 +219,7 @@ func update_game(delta: float) -> void:
 			message = "Welle " + str(wave)
 			message_timer = 1.8
 	player.heat = max(0.0, float(player.heat) - delta * 22.0)
+	grace_timer = max(0.0, grace_timer - delta)
 	player.fire_cd = max(0.0, float(player.fire_cd) - delta)
 	player.quad = max(0.0, float(player.quad) - delta)
 	player.air = max(0.0, float(player.air) - delta)
@@ -191,11 +244,11 @@ func update_input(delta: float) -> void:
 		axis += touch_axis
 	if axis.length() > 1.0:
 		axis = axis.normalized()
-	var speed := BOOST_SPEED if Input.is_key_pressed(KEY_SHIFT) else BASE_SPEED
+	var speed := BOOST_SPEED if Input.is_key_pressed(KEY_SHIFT) or bool(touch_button_state.get("boost", false)) else BASE_SPEED
 	var target_vel := axis * speed
 	player.vel = Vector2(player.vel).lerp(target_vel, min(1.0, delta * FRICTION))
 	move_player(Vector2(player.vel) * delta)
-	if Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE):
+	if Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE) or bool(touch_button_state.get("fire", false)):
 		fire_current_weapon()
 	aim_world = screen_to_world(get_local_mouse_position())
 
@@ -222,6 +275,8 @@ func move_player(delta_pos: Vector2) -> void:
 
 func spawn_wave() -> void:
 	var count := 5 + wave * 2
+	if wave % 4 == 0:
+		spawn_enemy("boss", Vector2(ARENA_W * 0.5, 120.0))
 	for i in range(count):
 		var side := i % 4
 		var pos := Vector2.ZERO
@@ -236,6 +291,8 @@ func spawn_wave() -> void:
 		var kind := "grunt"
 		if i % 5 == 0 and wave > 1:
 			kind = "brute"
+		elif i % 7 == 0 and wave > 2:
+			kind = "sniper"
 		elif i % 3 == 0:
 			kind = "drone"
 		spawn_enemy(kind, pos)
@@ -250,12 +307,22 @@ func spawn_enemy(kind: String, pos: Vector2) -> void:
 		speed = 132.0
 		color = Color(1.0, 0.55, 0.18)
 		radius = 29.0
+	elif kind == "sniper":
+		hp = 42.0 + wave * 3.0
+		speed = 118.0
+		color = Color(0.35, 0.95, 1.0)
+		radius = 19.0
 	elif kind == "drone":
 		hp = 26.0 + wave * 2.0
 		speed = 250.0
 		color = Color(0.76, 0.42, 1.0)
 		radius = 18.0
-	enemies.append({"kind": kind, "pos": pos, "vel": Vector2.ZERO, "hp": hp, "max_hp": hp, "speed": speed, "radius": radius, "color": color, "shoot": rng.randf_range(0.8, 2.2), "phase": rng.randf_range(0.0, TAU)})
+	elif kind == "boss":
+		hp = 420.0 + wave * 22.0
+		speed = 94.0
+		color = Color(0.95, 0.12, 0.42)
+		radius = 48.0
+	enemies.append({"kind": kind, "pos": pos, "vel": Vector2.ZERO, "hp": hp, "max_hp": hp, "speed": speed, "radius": radius, "color": color, "shoot": rng.randf_range(0.8, 2.2), "contact": 0.0, "phase": rng.randf_range(0.0, TAU)})
 
 func update_enemies(delta: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
@@ -265,6 +332,10 @@ func update_enemies(delta: float) -> void:
 		var desired: Vector2 = to_player / dist
 		if String(e.kind) == "drone":
 			desired = desired.rotated(sin(float(e.phase)) * 0.9)
+		elif String(e.kind) == "sniper" and dist < 440.0:
+			desired = -desired
+		elif String(e.kind) == "boss":
+			desired = desired.rotated(sin(float(e.phase) * 0.65) * 0.35)
 		e.phase = float(e.phase) + delta * 2.0
 		e.vel = Vector2(e.vel).lerp(desired * float(e.speed), min(1.0, delta * 3.8))
 		var next := Vector2(e.pos) + Vector2(e.vel) * delta
@@ -273,16 +344,25 @@ func update_enemies(delta: float) -> void:
 		if not circle_hits_wall(next, float(e.radius)):
 			e.pos = next
 		e.shoot = float(e.shoot) - delta
-		if float(e.shoot) <= 0.0 and dist < 720.0:
-			e.shoot = rng.randf_range(1.0, 2.0)
+		var range := 920.0 if String(e.kind) == "sniper" else 720.0
+		if grace_timer <= 0.0 and float(e.shoot) <= 0.0 and dist < range:
+			e.shoot = rng.randf_range(0.72, 1.25) if String(e.kind) == "boss" else rng.randf_range(1.0, 2.0)
 			fire_enemy_bullet(e)
-		if dist < float(e.radius) + PLAYER_R:
+		e.contact = max(0.0, float(e.get("contact", 0.0)) - delta)
+		if grace_timer <= 0.0 and dist < float(e.radius) + PLAYER_R and float(e.contact) <= 0.0:
+			e.contact = 0.72
 			damage_player(14.0 * delta, "Kontakt")
 		enemies[i] = e
 
 func fire_enemy_bullet(e) -> void:
 	var dir := (Vector2(player.pos) - Vector2(e.pos)).normalized()
-	enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 430.0, "life": 2.5, "damage": 9.0, "color": Color(1.0, 0.2, 0.16)})
+	if String(e.kind) == "boss":
+		for spread in [-0.22, 0.0, 0.22]:
+			enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir.rotated(spread) * 470.0, "life": 2.8, "damage": 10.0, "color": Color(1.0, 0.25, 0.5)})
+	elif String(e.kind) == "sniper":
+		enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 760.0, "life": 2.0, "damage": 15.0, "color": Color(0.35, 0.95, 1.0)})
+	else:
+		enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 430.0, "life": 2.5, "damage": 9.0, "color": Color(1.0, 0.2, 0.16)})
 
 func fire_current_weapon() -> void:
 	var weapon = WEAPONS[current_weapon]
@@ -382,6 +462,13 @@ func hit_enemy(index: int, damage: float, weapon_id: String, hit_pos: Vector2) -
 			points = 250
 		elif String(e.kind) == "drone":
 			points = 150
+		elif String(e.kind) == "sniper":
+			points = 220
+		elif String(e.kind) == "boss":
+			points = 1100
+			player.rail = int(player.rail) + 5
+			player.rocket = int(player.rocket) + 4
+			add_text("BOSS DOWN", Vector2(e.pos) + Vector2(-42, -26), Color(1.0, 0.66, 0.9))
 		if float(player.quad) > 0.0:
 			points *= 2
 			stats.quad += 1
@@ -463,10 +550,10 @@ func update_control_nodes(delta: float) -> void:
 
 func build_learn_pillars() -> void:
 	learn_pillars.clear()
-	var task = LEARN_TASKS[question_index % LEARN_TASKS.size()]
+	var task := current_task()
 	var positions = [Vector2(620, 430), Vector2(1260, 980), Vector2(1990, 430)]
 	for i in range(3):
-		learn_pillars.append({"pos": positions[i], "option": String(task.options[i]), "answer": String(task.answer), "task": task, "active": true})
+		learn_pillars.append({"pos": positions[i], "option": String(task.options[i]), "answer": String(task.answer), "task": task, "active": true, "repeat": bool(task.get("repeat", false))})
 
 func update_learn_pillars(_delta: float) -> void:
 	if mode != "Learncade":
@@ -474,18 +561,77 @@ func update_learn_pillars(_delta: float) -> void:
 	for i in range(learn_pillars.size()):
 		var pillar = learn_pillars[i]
 		if bool(pillar.active) and Vector2(player.pos).distance_to(Vector2(pillar.pos)) < 58.0:
+			var task: Dictionary = current_task()
+			var repeated := bool(task.get("repeat", false))
 			if String(pillar.option) == String(pillar.answer):
 				stats.learn += 1
-				score += 650
-				player.hp = min(140.0, float(player.hp) + 14.0)
-				add_text("RICHTIG", Vector2(pillar.pos), Color(0.35, 1.0, 0.48))
+				score += 820 if repeated else 650
+				player.hp = min(150.0, float(player.hp) + (18.0 if repeated else 14.0))
+				player.armor = min(130.0, float(player.armor) + 8.0)
+				remove_repeat(task)
+				add_text("WDH GELOEST" if repeated else "RICHTIG", Vector2(pillar.pos), Color(0.35, 1.0, 0.48))
+				if int(stats.learn) == LEARN_GOAL:
+					player.quad = max(float(player.quad), 8.0)
+					score += 900
+					add_text("LERNZIEL: QUAD", Vector2(player.pos), Color(0.9, 0.55, 1.0))
 			else:
+				queue_repeat(task)
 				damage_player(15.0, "Falsche Saeule")
-				add_text("FALSCH", Vector2(pillar.pos), Color(1.0, 0.25, 0.22))
-			question_index += 1
+				add_text("FALSCH - KOMMT WIEDER", Vector2(pillar.pos), Color(1.0, 0.25, 0.22))
+				message = "Tipp: " + String(task.get("hint", ""))
+			question_index = (question_index + 1) % question_bank().size()
 			build_learn_pillars()
 			message_timer = 2.0
 			return
+
+func question_bank() -> Array:
+	var lesson := String(LESSONS[lesson_index])
+	if lesson == "LESEN":
+		return TASKS_READING
+	if lesson == "SATZ":
+		return TASKS_SENTENCE
+	if lesson == "KOMPOSITUM":
+		return TASKS_COMPOUND
+	if lesson == "MATHE":
+		return TASKS_MATH
+	if lesson == "ENGLISCH":
+		return TASKS_ENGLISH
+	if lesson == "SACHKUNDE":
+		return TASKS_SCIENCE
+	return TASKS_WORD
+
+func current_task() -> Dictionary:
+	var lesson := String(LESSONS[lesson_index])
+	for entry in repeat_queue:
+		if String(entry.get("lesson", "")) == lesson:
+			return entry["task"]
+	var bank := question_bank()
+	var task: Dictionary = bank[question_index % bank.size()].duplicate(true)
+	task["lesson"] = lesson
+	return task
+
+func task_id(task: Dictionary) -> String:
+	return "%s::%s" % [String(task.get("lesson", LESSONS[lesson_index])), String(task.get("prompt", ""))]
+
+func queue_repeat(task: Dictionary) -> void:
+	var copy := task.duplicate(true)
+	copy["lesson"] = String(copy.get("lesson", LESSONS[lesson_index]))
+	copy["repeat"] = true
+	var id := task_id(copy)
+	for entry in repeat_queue:
+		var stored: Dictionary = entry["task"]
+		if task_id(stored) == id:
+			return
+	if repeat_queue.size() >= 10:
+		repeat_queue.pop_front()
+	repeat_queue.append({"lesson": copy["lesson"], "task": copy})
+
+func remove_repeat(task: Dictionary) -> void:
+	var id := task_id(task)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		var stored: Dictionary = repeat_queue[i]["task"]
+		if task_id(stored) == id:
+			repeat_queue.remove_at(i)
 
 func toggle_learncade() -> void:
 	mode = "Learncade" if mode == "Normal" else "Normal"
@@ -493,6 +639,14 @@ func toggle_learncade() -> void:
 	message_timer = 2.0
 	if mode == "Learncade":
 		build_learn_pillars()
+
+func cycle_lesson() -> void:
+	lesson_index = (lesson_index + 1) % LESSONS.size()
+	question_index = 0
+	if mode == "Learncade":
+		build_learn_pillars()
+	message = "Fach " + String(LESSONS[lesson_index])
+	message_timer = 2.0
 
 func cycle_weapon(step := 1) -> void:
 	weapon_index = (weapon_index + step + WEAPON_ORDER.size()) % WEAPON_ORDER.size()
@@ -519,6 +673,8 @@ func _unhandled_input(event) -> void:
 				reset_game()
 			KEY_L:
 				toggle_learncade()
+			KEY_F, KEY_TAB:
+				cycle_lesson()
 			KEY_C:
 				cycle_weapon(1)
 			KEY_1:
@@ -550,6 +706,9 @@ func _gui_input(event) -> void:
 			if event.index == touch_pointer:
 				touch_pointer = -1
 				touch_axis = Vector2.ZERO
+			if active_touch_buttons.has(event.index):
+				touch_button_state[active_touch_buttons[event.index]] = false
+				active_touch_buttons.erase(event.index)
 	elif event is InputEventScreenDrag:
 		if event.index == touch_pointer:
 			var origin := Vector2(100.0, size.y - 100.0)
@@ -558,6 +717,8 @@ func _gui_input(event) -> void:
 				touch_axis = touch_axis.normalized()
 
 func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
+	if not should_show_touch_controls():
+		return
 	if pos.x < size.x * 0.42 and pos.y > size.y * 0.56:
 		touch_pointer = pointer_id
 		var origin := Vector2(100.0, size.y - 100.0)
@@ -567,6 +728,8 @@ func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
 		return
 	for name in touch_buttons.keys():
 		if touch_buttons[name].has_point(pos):
+			active_touch_buttons[pointer_id] = name
+			touch_button_state[name] = true
 			if name == "fire":
 				aim_world = screen_to_world(Vector2(size.x * 0.5, size.y * 0.5))
 				fire_current_weapon()
@@ -574,6 +737,8 @@ func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
 				cycle_weapon(1)
 			elif name == "learn":
 				toggle_learncade()
+			elif name == "subject":
+				cycle_lesson()
 
 func point_outside(pos: Vector2) -> bool:
 	return pos.x < -60.0 or pos.y < -60.0 or pos.x > ARENA_W + 60.0 or pos.y > ARENA_H + 60.0
@@ -642,11 +807,12 @@ func draw_world() -> void:
 			draw_rect(Rect2(pp - Vector2(30, 22), Vector2(60, 44)), pickup.color, false, 3.0)
 			draw_text_at(pp + Vector2(-24, 5), String(pickup.label), Color(1.0, 1.0, 1.0), 12)
 	if mode == "Learncade":
-		var task = LEARN_TASKS[question_index % LEARN_TASKS.size()]
+		var task := current_task()
 		for pillar in learn_pillars:
 			var lp := world_to_screen(Vector2(pillar.pos))
 			draw_circle(lp, 44.0, Color(0.18, 0.34, 0.72, 0.52))
-			draw_arc(lp, 50.0, 0.0, TAU, 34, Color(0.55, 0.8, 1.0), 4.0)
+			var ring := Color(0.95, 0.52, 1.0) if bool(pillar.get("repeat", false)) else Color(0.55, 0.8, 1.0)
+			draw_arc(lp, 50.0, 0.0, TAU, 34, ring, 4.0)
 			draw_text_at(lp + Vector2(-34, 5), String(pillar.option), Color(1.0, 1.0, 1.0), 13)
 		draw_text_at(Vector2(size.x * 0.33, 42), String(task.prompt), Color(0.75, 0.94, 1.0), 16)
 
@@ -656,6 +822,11 @@ func draw_entities() -> void:
 		draw_circle(p, float(e.radius) + 7.0, Color(e.color, 0.18))
 		if String(e.kind) == "brute":
 			draw_rect(Rect2(p - Vector2(float(e.radius), float(e.radius)), Vector2(float(e.radius) * 2.0, float(e.radius) * 2.0)), e.color)
+		elif String(e.kind) == "boss":
+			draw_regular_polygon(p, float(e.radius), 8, e.color, float(e.phase))
+			draw_arc(p, float(e.radius) + 11.0, -PI * 0.5, PI * 1.5, 54, Color(1.0, 0.65, 0.9), 4.0)
+		elif String(e.kind) == "sniper":
+			draw_regular_polygon(p, float(e.radius), 4, e.color, float(e.phase))
 		elif String(e.kind) == "drone":
 			draw_regular_polygon(p, float(e.radius), 3, e.color, float(e.phase))
 		else:
@@ -695,18 +866,27 @@ func draw_effects() -> void:
 		draw_circle(world_to_screen(Vector2(part.pos)), float(part.size), part.color)
 
 func draw_hud() -> void:
-	draw_rect(Rect2(Vector2(10, 10), Vector2(330, 112)), Color(0.0, 0.0, 0.0, 0.58))
-	draw_text_at(Vector2(20, 30), "FASKA ARSENAL - GODOT 4", Color(1.0, 0.9, 0.28), 18)
+	var hud_w := minf(390.0, size.x - 20.0)
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 134)), Color(0.0, 0.0, 0.0, 0.58))
+	draw_text_at(Vector2(20, 30), "FASKA ARSENAL PRO", Color(1.0, 0.9, 0.28), 18)
 	draw_bar(Vector2(20, 48), "HP", float(player.hp), 160.0, Color(0.32, 1.0, 0.5))
 	draw_bar(Vector2(20, 70), "ARMOR", float(player.armor), 120.0, Color(0.25, 0.72, 1.0))
 	draw_bar(Vector2(20, 92), "HEAT", float(player.heat), 100.0, Color(1.0, 0.43, 0.2))
 	draw_text_at(Vector2(20, 116), "Score " + str(score) + " Combo " + str(combo) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
-	draw_rect(Rect2(Vector2(size.x - 280, 10), Vector2(266, 92)), Color(0.0, 0.0, 0.0, 0.54))
-	draw_text_at(Vector2(size.x - 268, 32), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.94, 0.98, 1.0), 15)
-	draw_text_at(Vector2(size.x - 268, 54), "Rail " + str(player.rail) + "  Rocket " + str(player.rocket), Color(0.94, 0.98, 1.0), 14)
-	draw_text_at(Vector2(size.x - 268, 76), "Wave " + str(wave) + "  Kills " + str(stats.kills) + "  Nodes " + str(stats.nodes), Color(0.94, 0.98, 1.0), 14)
-	if float(player.quad) > 0.0:
-		draw_text_at(Vector2(size.x * 0.45, 34), "QUAD DAMAGE " + str(int(ceil(float(player.quad)))), Color(0.9, 0.55, 1.0), 18)
+	draw_text_at(Vector2(20, 136), "Fach " + String(LESSONS[lesson_index]) + "  Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + "  Wdh " + str(repeat_queue.size()), Color(0.78, 0.94, 1.0), 13)
+	var status_pos := Vector2(size.x * 0.46, 66)
+	if size.x < 760.0 or size.y > size.x * 1.15:
+		status_pos = Vector2(size.x * 0.39, 160)
+	if grace_timer > 0.0:
+		draw_text_at(status_pos, "STARTSCHUTZ " + str(int(ceil(grace_timer))), Color(0.64, 0.9, 1.0), 18)
+	if size.x > 760.0 and size.y <= size.x * 1.15:
+		draw_rect(Rect2(Vector2(size.x - 300, 10), Vector2(286, 112)), Color(0.0, 0.0, 0.0, 0.54))
+		draw_text_at(Vector2(size.x - 288, 32), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.94, 0.98, 1.0), 15)
+		draw_text_at(Vector2(size.x - 288, 54), "Rail " + str(player.rail) + "  Rocket " + str(player.rocket), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 288, 76), "Wave " + str(wave) + "  Kills " + str(stats.kills) + "  Nodes " + str(stats.nodes), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 288, 98), "Boss: jede 4. Welle", Color(0.98, 0.86, 0.42), 13)
+	elif float(player.quad) > 0.0:
+		draw_text_at(status_pos, "QUAD DAMAGE " + str(int(ceil(float(player.quad)))), Color(0.9, 0.55, 1.0), 18)
 
 func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color) -> void:
 	draw_text_at(pos, label, Color(0.73, 0.82, 0.93), 12)
@@ -726,20 +906,30 @@ func draw_messages() -> void:
 
 func draw_touch_controls() -> void:
 	touch_buttons.clear()
+	if not should_show_touch_controls():
+		return
 	var origin := Vector2(100, size.y - 100)
 	draw_arc(origin, 66, 0.0, TAU, 36, Color(0.6, 0.82, 1.0, 0.32), 3.0)
 	draw_circle(origin + touch_axis * 44.0, 23.0, Color(0.28, 0.72, 1.0, 0.42))
 	var buttons = [
-		["fire", "FIRE", Vector2(size.x - 92, size.y - 92)],
-		["weapon", "WPN", Vector2(size.x - 172, size.y - 132)],
-		["learn", "LERN", Vector2(size.x - 252, size.y - 92)]
+		["weapon", "WPN", Vector2(size.x - 172, size.y - 212)],
+		["subject", "FACH", Vector2(size.x - 92, size.y - 212)],
+		["boost", "BOOST", Vector2(size.x - 172, size.y - 152)],
+		["fire", "FIRE", Vector2(size.x - 92, size.y - 152)],
+		["learn", "LERN", Vector2(size.x - 92, size.y - 92)]
 	]
 	for item in buttons:
 		var rect := Rect2(item[2] - Vector2(35, 24), Vector2(70, 48))
 		touch_buttons[item[0]] = rect
-		draw_rect(rect, Color(0.02, 0.07, 0.13, 0.7))
+		var fill := Color(0.02, 0.07, 0.13, 0.7)
+		if bool(touch_button_state.get(item[0], false)):
+			fill = Color(0.22, 0.48, 0.82, 0.82)
+		draw_rect(rect, fill)
 		draw_rect(rect, Color(0.55, 0.78, 1.0, 0.55), false, 2.0)
 		draw_text_at(rect.position + Vector2(11, 31), item[1], Color(0.92, 0.97, 1.0), 12)
+
+func should_show_touch_controls() -> bool:
+	return size.x < 980.0 or size.y > size.x * 1.15
 
 func update_effects(delta: float) -> void:
 	message_timer = max(0.0, message_timer - delta)

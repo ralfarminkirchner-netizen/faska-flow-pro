@@ -3,7 +3,7 @@ extends Control
 const TILE_SIZE := 40.0
 const MAP_W := 38
 const MAP_H := 28
-const LEARN_GOAL := 4
+const LEARN_GOAL := 6
 
 const FLOOR := 0
 const WALL := 1
@@ -11,13 +11,17 @@ const WATER := 2
 const BRIDGE := 3
 const FLOWER := 4
 
-const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN"]
+const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 
 const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'mutig'?", "answers": ["Nomen", "Verb", "Adjektiv"], "correct": 2, "hint": "Mutig beschreibt, wie jemand ist."},
 	{"prompt": "Welche Wortart ist 'kaempfen'?", "answers": ["Verb", "Artikel", "Nomen"], "correct": 0, "hint": "Kaempfen ist etwas, das man tun kann."},
 	{"prompt": "Welche Wortart ist 'die'?", "answers": ["Adjektiv", "Artikel", "Verb"], "correct": 1, "hint": "Die steht vor einem Nomen."},
 	{"prompt": "Welche Wortart ist 'Burg'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 0, "hint": "Eine Burg ist ein Ding."},
+	{"prompt": "Welche Wortart ist 'unter'?", "answers": ["Praeposition", "Verb", "Nomen"], "correct": 0, "hint": "Unter zeigt einen Ort oder eine Lage."},
+	{"prompt": "Welche Wortart ist 'leise'?", "answers": ["Artikel", "Adjektiv", "Nomen"], "correct": 1, "hint": "Leise beschreibt, wie etwas klingt."},
+	{"prompt": "Welche Wortart ist 'wir'?", "answers": ["Pronomen", "Verb", "Artikel"], "correct": 0, "hint": "Wir steht fuer Personen."},
+	{"prompt": "Welche Wortart ist 'heute'?", "answers": ["Adverb", "Nomen", "Artikel"], "correct": 0, "hint": "Heute sagt, wann etwas passiert."},
 ]
 
 const QUESTIONS_MATH := [
@@ -25,6 +29,10 @@ const QUESTIONS_MATH := [
 	{"prompt": "Welche Zahl passt? 3 x 4", "answers": ["7", "12", "14"], "correct": 1, "hint": "Drei Vierergruppen."},
 	{"prompt": "Welche Zahl fehlt? 18 - ? = 10", "answers": ["6", "8", "9"], "correct": 1, "hint": "Von 18 bis 10 sind es 8."},
 	{"prompt": "Welche Zahl ist gerade?", "answers": ["15", "18", "21"], "correct": 1, "hint": "Gerade Zahlen lassen sich durch 2 teilen."},
+	{"prompt": "Welche Zahl passt? 6 x 7", "answers": ["36", "42", "48"], "correct": 1, "hint": "Sechs Siebener sind 42."},
+	{"prompt": "Was ist die Haelfte von 34?", "answers": ["16", "17", "18"], "correct": 1, "hint": "17 + 17 = 34."},
+	{"prompt": "Welche Zahl fehlt? ? + 9 = 25", "answers": ["14", "16", "18"], "correct": 1, "hint": "25 minus 9 ist 16."},
+	{"prompt": "Was ist 56 : 8?", "answers": ["6", "7", "9"], "correct": 1, "hint": "8 mal 7 ist 56."},
 ]
 
 const QUESTIONS_SENTENCE := [
@@ -32,6 +40,10 @@ const QUESTIONS_SENTENCE := [
 	{"prompt": "Welche Satzstelle ist das Subjekt? Luna findet den Stern.", "answers": ["Luna", "findet", "den Stern"], "correct": 0, "hint": "Wer findet den Stern?"},
 	{"prompt": "Welches Wort beendet den Satz sinnvoll? Die Bruecke ist ___.", "answers": ["springt", "stabil", "und"], "correct": 1, "hint": "Gesucht ist eine Eigenschaft."},
 	{"prompt": "Was ist das Prädikat? Bruno hebt den Schild.", "answers": ["Bruno", "hebt", "den Schild"], "correct": 1, "hint": "Was tut Bruno?"},
+	{"prompt": "Was ist das Objekt? Roni findet die Rune.", "answers": ["Roni", "findet", "die Rune"], "correct": 2, "hint": "Was findet Roni?"},
+	{"prompt": "Welche Satzstelle nennt den Ort? Am Tor wartet Lumi.", "answers": ["Am Tor", "wartet", "Lumi"], "correct": 0, "hint": "Wo wartet Lumi?"},
+	{"prompt": "Welches Satzzeichen passt? Hilfst du mir", "answers": [".", "?", ","], "correct": 1, "hint": "Es ist eine Frage."},
+	{"prompt": "Welcher Satz ist vollstaendig?", "answers": ["Der Wald dunkel.", "Der Wald rauscht.", "Der Wald und."], "correct": 1, "hint": "Subjekt und Praedikat sind da."},
 ]
 
 const QUESTIONS_READING := [
@@ -39,6 +51,28 @@ const QUESTIONS_READING := [
 	{"prompt": "Welches Wort reimt sich auf Wald?", "answers": ["kalt", "Wiese", "Turm"], "correct": 0, "hint": "Beide enden aehnlich."},
 	{"prompt": "Welches Wort beginnt wie Schwert?", "answers": ["Schule", "Tor", "Bach"], "correct": 0, "hint": "Hoere auf den Anfang: Sch."},
 	{"prompt": "Welche Anweisung passt? Gehe zum Tor.", "answers": ["Tor", "Wasser", "Blume"], "correct": 0, "hint": "Der Satz nennt den Zielort."},
+	{"prompt": "Lies genau: Nimm den goldenen Splitter.", "answers": ["Splitter", "Schild", "Bombe"], "correct": 0, "hint": "Der Satz nennt den Splitter."},
+	{"prompt": "Welches Wort hat zwei Silben?", "answers": ["Tor", "Luna", "Wald"], "correct": 1, "hint": "Lu-na."},
+	{"prompt": "Welches Wort beginnt mit Br?", "answers": ["Bruecke", "Blume", "Turm"], "correct": 0, "hint": "Br steht am Anfang."},
+	{"prompt": "Was passt zum Satz? Bruno schuetzt sich mit dem Schild.", "answers": ["Schild", "Schatz", "Schloss"], "correct": 0, "hint": "Der Satz nennt den Schild."},
+]
+
+const QUESTIONS_COMPOUND := [
+	{"prompt": "Welche zwei Woerter stecken in Waldtor?", "answers": ["Wald + Tor", "Wand + Tor", "Wald + Ton"], "correct": 0, "hint": "Das Tor steht im Wald."},
+	{"prompt": "Welches Kompositum passt: Stern + Splitter", "answers": ["Sternsplitter", "Splitternstern", "Sternlicht"], "correct": 0, "hint": "Der Splitter kommt vom Stern."},
+	{"prompt": "Was ist das Grundwort von Brueckenwaechter?", "answers": ["Bruecke", "Waechter", "Weg"], "correct": 1, "hint": "Das letzte Wort bestimmt die Sache."},
+	{"prompt": "Welches Wort ist kein Kompositum?", "answers": ["Baumhaus", "Wasserfall", "mutig"], "correct": 2, "hint": "Mutig ist eine Eigenschaft."},
+	{"prompt": "Welche Verbindung passt? Schild + Hand", "answers": ["Schildhand", "Handschild", "Schilder"], "correct": 0, "hint": "So kann eine Hand bezeichnet werden."},
+	{"prompt": "Welches Bestimmungswort hat Mondbruecke?", "answers": ["Mond", "Bruecke", "Mund"], "correct": 0, "hint": "Es beschreibt die Bruecke genauer."},
+]
+
+const QUESTIONS_ENGLISH := [
+	{"prompt": "Was heisst 'sword'?", "answers": ["Schwert", "Schild", "Tor"], "correct": 0, "hint": "Mit a sword greift man an."},
+	{"prompt": "Was heisst 'shield'?", "answers": ["Schild", "Splitter", "Wasser"], "correct": 0, "hint": "A shield schuetzt."},
+	{"prompt": "Was heisst 'forest'?", "answers": ["Wald", "Bruecke", "Burg"], "correct": 0, "hint": "Im forest stehen viele Baeume."},
+	{"prompt": "Welches Wort bedeutet 'Tor'?", "answers": ["gate", "coin", "heart"], "correct": 0, "hint": "Ein gate ist ein Durchgang."},
+	{"prompt": "Was heisst 'heart'?", "answers": ["Herz", "Schwert", "Weg"], "correct": 0, "hint": "A heart heilt dich."},
+	{"prompt": "Was heisst 'run'?", "answers": ["laufen", "lesen", "tragen"], "correct": 0, "hint": "Run passt zum Abenteuerlauf."},
 ]
 
 class TouchAdventureOverlay:
@@ -55,13 +89,15 @@ class TouchAdventureOverlay:
 	var _button_touches := {}
 
 	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	func _process(_delta: float) -> void:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
+		if not _should_show_touch():
+			return
 		if event is InputEventScreenTouch:
 			if event.pressed:
 				if event.position.x < size.x * 0.44:
@@ -84,8 +120,9 @@ class TouchAdventureOverlay:
 				_update_move(event.position)
 
 	func _update_move(pos: Vector2) -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
-		var radius := 112.0
+		var radius := 112.0 * ui
 		move_vector = (pos - center) / radius
 		if move_vector.length() > 1.0:
 			move_vector = move_vector.normalized()
@@ -122,14 +159,15 @@ class TouchAdventureOverlay:
 		return ""
 
 	func _stick_center() -> Vector2:
-		return Vector2(128.0, size.y - 240.0)
+		return Vector2(128.0 * _ui_scale(), size.y - 240.0 * _ui_scale())
 
 	func _buttons() -> Array:
-		var button_w := 112.0
-		var button_h := 82.0
-		var gap := 14.0
-		var cluster_x := size.x - (button_w * 2.0 + gap + 28.0)
-		var cluster_y := size.y - (button_h * 2.0 + gap + 126.0)
+		var ui := _ui_scale()
+		var button_w := 112.0 * ui
+		var button_h := 82.0 * ui
+		var gap := 14.0 * ui
+		var cluster_x := size.x - (button_w * 2.0 + gap + 28.0 * ui)
+		var cluster_y := size.y - (button_h * 2.0 + gap + 126.0 * ui)
 		return [
 			{"action": "learn", "label": "L\nLern", "rect": Rect2(Vector2(cluster_x, cluster_y - button_h - gap), Vector2(button_w, button_h))},
 			{"action": "subject", "label": "C\nFach", "rect": Rect2(Vector2(cluster_x + button_w + gap, cluster_y - button_h - gap), Vector2(button_w, button_h))},
@@ -147,23 +185,30 @@ class TouchAdventureOverlay:
 	func _should_show_touch() -> bool:
 		return size.x < 960.0 or size.y > size.x * 1.25
 
+	func _ui_scale() -> float:
+		if size.x <= 520.0 or size.y > size.x * 1.35:
+			return 1.12
+		return 1.0
+
 	func _draw_stick() -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
-		draw_circle(center, 112.0, Color(0.02, 0.05, 0.09, 0.48))
-		draw_arc(center, 112.0, 0.0, TAU, 34, Color(0.78, 0.88, 1.0, 0.5), 5.0)
-		draw_circle(center + move_vector * 58.0, 44.0, Color(0.93, 0.96, 1.0, 0.78))
+		draw_circle(center, 112.0 * ui, Color(0.02, 0.05, 0.09, 0.48))
+		draw_arc(center, 112.0 * ui, 0.0, TAU, 34, Color(0.78, 0.88, 1.0, 0.5), 5.0 * ui)
+		draw_circle(center + move_vector * 58.0 * ui, 44.0 * ui, Color(0.93, 0.96, 1.0, 0.78))
 
 	func _draw_buttons() -> void:
 		var font := get_theme_default_font()
+		var ui := _ui_scale()
 		for button in _buttons():
 			var rect: Rect2 = button["rect"]
 			var action: String = str(button["action"])
 			var active := (action == "sword" and sword_down) or (action == "shield" and shield_down) or (action == "dash" and dash_down) or (action == "bomb" and bomb_down) or (action == "learn" and learn_down) or (action == "subject" and subject_down)
 			draw_rect(rect, Color(0.02, 0.05, 0.09, 0.62), true)
-			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 5.0)
+			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 5.0 * ui)
 			var lines := str(button["label"]).split("\n")
 			for i in range(lines.size()):
-				draw_string(font, rect.position + Vector2(0.0, 32.0 + float(i) * 27.0), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 24, Color.html("#f8fafc"))
+				draw_string(font, rect.position + Vector2(0.0, (32.0 + float(i) * 27.0) * ui), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 24 * ui, Color.html("#f8fafc"))
 
 var tiles: Array = []
 var player_pos := Vector2(150.0, 150.0)
@@ -179,6 +224,7 @@ var bombs_left := 2
 var mode_learn := true
 var lesson_index := 0
 var question_index := 0
+var repeat_queue := []
 var learn_hits := 0
 var mistakes := 0
 var attack_timer := 0.0
@@ -229,6 +275,10 @@ func reset_game() -> void:
 	score = 0
 	shards = 0
 	bombs_left = 2
+	mode_learn = true
+	lesson_index = 0
+	question_index = 0
+	repeat_queue.clear()
 	learn_hits = 0
 	mistakes = 0
 	attack_timer = 0.0
@@ -297,9 +347,13 @@ func setup_shrines() -> void:
 	var cells: Array = [Vector2i(6, 23), Vector2i(19, 4), Vector2i(31, 22)]
 	for i in range(cells.size()):
 		var answers: Array = q["answers"]
-		shrines.append({"cell": cells[i], "label": answers[i], "index": i, "armed": true})
+		shrines.append({"cell": cells[i], "label": answers[i], "index": i, "armed": true, "repeat": q.get("repeat", false)})
 
 func current_question() -> Dictionary:
+	if repeat_queue.size() > 0:
+		var repeated: Dictionary = repeat_queue[0].duplicate(true)
+		repeated["repeat"] = true
+		return repeated
 	var bank: Array = QUESTIONS_WORD
 	var lesson := str(LESSONS[lesson_index])
 	if lesson == "MATHE":
@@ -308,11 +362,16 @@ func current_question() -> Dictionary:
 		bank = QUESTIONS_SENTENCE
 	elif lesson == "LESEN":
 		bank = QUESTIONS_READING
+	elif lesson == "KOMPOSITUM":
+		bank = QUESTIONS_COMPOUND
+	elif lesson == "ENGLISCH":
+		bank = QUESTIONS_ENGLISH
 	return bank[question_index % bank.size()]
 
 func cycle_lesson() -> void:
 	lesson_index = (lesson_index + 1) % LESSONS.size()
 	question_index = 0
+	repeat_queue.clear()
 	setup_shrines()
 	message = "Fach: %s. Schreine wurden neu gesetzt." % str(LESSONS[lesson_index])
 	message_timer = 2.0
@@ -601,12 +660,18 @@ func check_shrine_hit(hit_rect: Rect2) -> void:
 		if int(shrine["index"]) == int(q["correct"]):
 			shards = mini(3, shards + 1)
 			learn_hits += 1
-			score += 350
-			message = "Richtig: %s (%d/%d)." % [str(shrine["label"]), learn_hits, LEARN_GOAL]
+			var repeated := bool(q.get("repeat", false))
+			score += 440 if repeated else 350
+			_remove_repeat(q)
+			if repeated:
+				message = "Wiederholung geloest: %s (%d/%d)." % [str(shrine["label"]), learn_hits, LEARN_GOAL]
+			else:
+				message = "Richtig: %s (%d/%d)." % [str(shrine["label"]), learn_hits, LEARN_GOAL]
 			question_index += 1
 			setup_shrines()
 		else:
 			mistakes += 1
+			_queue_repeat(q)
 			hurt_player(1, "Falscher Schrein. Tipp: %s" % str(q["hint"]))
 			setup_shrines()
 		message_timer = 2.4
@@ -654,9 +719,10 @@ func hurt_player(amount: int, text: String) -> void:
 
 func update_camera() -> void:
 	var world_size: Vector2 = Vector2(float(MAP_W) * TILE_SIZE, float(MAP_H) * TILE_SIZE)
-	var target: Vector2 = player_pos - size * 0.5
-	camera_pos.x = clampf(target.x, 0.0, maxf(0.0, world_size.x - size.x))
-	camera_pos.y = clampf(target.y, 0.0, maxf(0.0, world_size.y - size.y))
+	var visible_size: Vector2 = size / world_scale()
+	var target: Vector2 = player_pos - visible_size * 0.5
+	camera_pos.x = clampf(target.x, 0.0, maxf(0.0, world_size.x - visible_size.x))
+	camera_pos.y = clampf(target.y, 0.0, maxf(0.0, world_size.y - visible_size.y))
 
 func collides_world(pos: Vector2, radius: float) -> bool:
 	var samples: Array = [
@@ -697,14 +763,26 @@ func cell_world_rect(cell: Vector2i) -> Rect2:
 	return Rect2(Vector2(float(cell.x) * TILE_SIZE, float(cell.y) * TILE_SIZE), Vector2(TILE_SIZE, TILE_SIZE))
 
 func world_rect_to_screen(rect: Rect2) -> Rect2:
-	return Rect2(rect.position - camera_pos + world_offset(), rect.size)
+	var scale := world_scale()
+	return Rect2((rect.position - camera_pos) * scale + world_offset(), rect.size * scale)
 
 func world_pos_to_screen(pos: Vector2) -> Vector2:
-	return pos - camera_pos + world_offset()
+	return (pos - camera_pos) * world_scale() + world_offset()
+
+func world_scale() -> float:
+	if size.y > size.x * 1.25:
+		return 1.18
+	if size.x < 960.0:
+		return 1.08
+	return 1.0
 
 func world_offset() -> Vector2:
 	var world_size: Vector2 = Vector2(float(MAP_W) * TILE_SIZE, float(MAP_H) * TILE_SIZE)
-	return Vector2(maxf(0.0, (size.x - world_size.x) * 0.5), maxf(0.0, (size.y - world_size.y) * 0.5))
+	var scaled_world_size := world_size * world_scale()
+	var offset := Vector2(maxf(0.0, (size.x - scaled_world_size.x) * 0.5), maxf(0.0, (size.y - scaled_world_size.y) * 0.5))
+	if size.y > size.x * 1.25:
+		offset.y = minf(128.0, maxf(0.0, (size.y - scaled_world_size.y) * 0.22))
+	return offset
 
 func _draw() -> void:
 	draw_background()
@@ -727,10 +805,11 @@ func draw_background() -> void:
 		draw_rect(Rect2(0.0, float(y), size.x, 8.0), Color(1.0, 1.0, 1.0, shade), true)
 
 func draw_map() -> void:
+	var visible_size := size / world_scale()
 	var start_x: int = maxi(0, int(floor(camera_pos.x / TILE_SIZE)) - 1)
 	var start_y: int = maxi(0, int(floor(camera_pos.y / TILE_SIZE)) - 1)
-	var end_x: int = mini(MAP_W - 1, int(ceil((camera_pos.x + size.x) / TILE_SIZE)) + 1)
-	var end_y: int = mini(MAP_H - 1, int(ceil((camera_pos.y + size.y) / TILE_SIZE)) + 1)
+	var end_x: int = mini(MAP_W - 1, int(ceil((camera_pos.x + visible_size.x) / TILE_SIZE)) + 1)
+	var end_y: int = mini(MAP_H - 1, int(ceil((camera_pos.y + visible_size.y) / TILE_SIZE)) + 1)
 	for y in range(start_y, end_y + 1):
 		for x in range(start_x, end_x + 1):
 			var cell := Vector2i(x, y)
@@ -788,7 +867,8 @@ func draw_shrines() -> void:
 	for shrine in shrines:
 		var item: Dictionary = shrine
 		var rect: Rect2 = world_rect_to_screen(cell_world_rect(item["cell"]).grow(-6.0))
-		var color: Color = Color.html("#38bdf8") if bool(item["armed"]) else Color.html("#475569")
+		var is_repeat := bool(item.get("repeat", false))
+		var color: Color = (Color.html("#f0abfc") if is_repeat else Color.html("#38bdf8")) if bool(item["armed"]) else Color.html("#475569")
 		draw_rect(rect, Color(color.r, color.g, color.b, 0.35), true)
 		draw_arc(rect.get_center(), 22.0, 0.0, TAU, 5, color, 4.0)
 		draw_string(font, rect.position + Vector2(2.0, 29.0), str(item["label"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x - 4.0, 11, Color.html("#f8fafc"))
@@ -891,7 +971,7 @@ func draw_hud() -> void:
 	draw_rect(Rect2(12.0, 10.0, minf(size.x - 24.0, 690.0), 98.0), Color(0.02, 0.05, 0.09, 0.74), true)
 	draw_string(font, Vector2(24.0, 34.0), "FASKA ZELDA PRO - 16-BIT LERNWALD", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.html("#facc15"))
 	draw_string(font, Vector2(24.0, 59.0), "HP %d/%d  Ausdauer %d  Splitter %d/3  Bomben %d  Score %d" % [player_hp, player_max_hp, int(stamina), shards, bombs_left, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#f8fafc"))
-	draw_string(font, Vector2(24.0, 81.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(24.0, 81.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#cbd5e1"))
 	draw_string(font, Vector2(24.0, 101.0), "WASD bewegen  J Schwert  K Schild  Space Dash  B Bombe  L Lernen  C Fach", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
@@ -900,3 +980,24 @@ func draw_hud() -> void:
 	if message_timer > 0.0:
 		draw_rect(Rect2(12.0, size.y - 42.0, minf(size.x - 24.0, 720.0), 29.0), Color(0.02, 0.05, 0.09, 0.74), true)
 		draw_string(font, Vector2(24.0, size.y - 20.0), message, HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 696.0), 14, Color.html("#f8fafc"))
+
+func _question_id(question: Dictionary) -> String:
+	return "%s|%s" % [str(question.get("lesson", str(LESSONS[lesson_index]))), str(question.get("prompt", ""))]
+
+func _queue_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for item in repeat_queue:
+		if _question_id(item) == qid:
+			return
+	if repeat_queue.size() >= 6:
+		repeat_queue.pop_front()
+	var copy := question.duplicate(true)
+	copy["repeat"] = true
+	copy["lesson"] = str(LESSONS[lesson_index])
+	repeat_queue.append(copy)
+
+func _remove_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		if _question_id(repeat_queue[i]) == qid:
+			repeat_queue.remove_at(i)

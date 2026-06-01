@@ -1,6 +1,9 @@
 extends Control
 
-const QUESTION_BANK = [
+const LEARN_GOAL := 8
+const LESSONS := ["DEUTSCH", "MATHE", "SATZBAU", "LESEN", "KOMPOSITA", "ENGLISCH", "SACHKUNDE"]
+
+const QUESTIONS_DEUTSCH = [
 	{
 		"subject": "Deutsch",
 		"prompt": "Welche Wortart ist markiert?",
@@ -18,13 +21,32 @@ const QUESTION_BANK = [
 		"options": ["Nomen", "Adverb", "Verb"]
 	},
 	{
-		"subject": "Komposita",
-		"prompt": "Bilde das zusammengesetzte Wort.",
-		"sentence": "Tunnel + Karte",
-		"word": "Tunnel + Karte",
-		"answer": "Tunnelkarte",
-		"options": ["Kartentunnel", "Tunnelkarte", "Tunneltor"]
+		"subject": "Deutsch",
+		"prompt": "Welche Wortart ist markiert?",
+		"sentence": "Die Drohne ist schnell.",
+		"word": "schnell",
+		"answer": "Adjektiv",
+		"options": ["Verb", "Adjektiv", "Artikel"]
 	},
+	{
+		"subject": "Deutsch",
+		"prompt": "Welche Wortart ist markiert?",
+		"sentence": "Unter dem Tor leuchtet Erz.",
+		"word": "Unter",
+		"answer": "Praeposition",
+		"options": ["Praeposition", "Nomen", "Verb"]
+	},
+	{
+		"subject": "Deutsch",
+		"prompt": "Welche Wortart ist markiert?",
+		"sentence": "Der Kern und die Schleuse blinken.",
+		"word": "und",
+		"answer": "Konjunktion",
+		"options": ["Adjektiv", "Konjunktion", "Artikel"]
+	}
+]
+
+const QUESTIONS_MATH = [
 	{
 		"subject": "Mathe",
 		"prompt": "Welcher Schild-Code stimmt?",
@@ -34,6 +56,41 @@ const QUESTION_BANK = [
 		"options": ["9", "11", "12"]
 	},
 	{
+		"subject": "Mathe",
+		"prompt": "Welcher Energie-Code stimmt?",
+		"sentence": "8 + 7 = ?",
+		"word": "8 + 7",
+		"answer": "15",
+		"options": ["14", "15", "16"]
+	},
+	{
+		"subject": "Mathe",
+		"prompt": "Welcher Tor-Code stimmt?",
+		"sentence": "6 x 4 = ?",
+		"word": "6 x 4",
+		"answer": "24",
+		"options": ["20", "28", "24"]
+	},
+	{
+		"subject": "Mathe",
+		"prompt": "Welcher Reaktor-Code stimmt?",
+		"sentence": "36 : 6 = ?",
+		"word": "36 : 6",
+		"answer": "6",
+		"options": ["6", "7", "8"]
+	},
+	{
+		"subject": "Mathe",
+		"prompt": "Welche Zahl ist gerade?",
+		"sentence": "Waehle die gerade Zahl.",
+		"word": "gerade",
+		"answer": "28",
+		"options": ["17", "28", "35"]
+	}
+]
+
+const QUESTIONS_SATZBAU = [
+	{
 		"subject": "Satzbau",
 		"prompt": "Welches Wort passt in die Luecke?",
 		"sentence": "Der Pilot ___ die Rakete.",
@@ -42,12 +99,176 @@ const QUESTION_BANK = [
 		"options": ["unter", "startet", "schnell"]
 	},
 	{
+		"subject": "Satzbau",
+		"prompt": "Welches Wort passt in die Luecke?",
+		"sentence": "Die Station ___ im Nebel.",
+		"word": "___",
+		"answer": "liegt",
+		"options": ["liegt", "gelb", "weil"]
+	},
+	{
+		"subject": "Satzbau",
+		"prompt": "Welches Satzzeichen beendet den Satz?",
+		"sentence": "Der Tunnel ist offen",
+		"word": "Ende",
+		"answer": ".",
+		"options": [",", "?", "."]
+	},
+	{
+		"subject": "Satzbau",
+		"prompt": "Welches Wort verbindet den Grund?",
+		"sentence": "Wir landen, ___ der Schild leer ist.",
+		"word": "Grund",
+		"answer": "weil",
+		"options": ["schnell", "weil", "unter"]
+	}
+]
+
+const QUESTIONS_LESEN = [
+	{
+		"subject": "Lesen",
+		"prompt": "Lies genau.",
+		"sentence": "Der Pilot fliegt unter dem roten Ring.",
+		"word": "Wo fliegt er?",
+		"answer": "unter dem Ring",
+		"options": ["im Wasser", "unter dem Ring", "auf dem Berg"]
+	},
+	{
+		"subject": "Lesen",
+		"prompt": "Lies genau.",
+		"sentence": "Luna sammelt blaue Energie.",
+		"word": "Was sammelt Luna?",
+		"answer": "blaue Energie",
+		"options": ["rote Steine", "gelbe Muenzen", "blaue Energie"]
+	},
+	{
+		"subject": "Lesen",
+		"prompt": "Lies genau.",
+		"sentence": "Die Mine blinkt kurz vor dem Treffer.",
+		"word": "Wann blinkt die Mine?",
+		"answer": "kurz davor",
+		"options": ["kurz davor", "morgen", "nie"]
+	},
+	{
+		"subject": "Lesen",
+		"prompt": "Lies genau.",
+		"sentence": "Der blaue Tunnel fuehrt zur Station.",
+		"word": "Wohin fuehrt der Tunnel?",
+		"answer": "zur Station",
+		"options": ["zur Station", "zum Wald", "zum Meer"]
+	}
+]
+
+const QUESTIONS_KOMPOSITA = [
+	{
+		"subject": "Komposita",
+		"prompt": "Bilde das zusammengesetzte Wort.",
+		"sentence": "Tunnel + Karte",
+		"word": "Tunnel + Karte",
+		"answer": "Tunnelkarte",
+		"options": ["Kartentunnel", "Tunnelkarte", "Tunneltor"]
+	},
+	{
+		"subject": "Komposita",
+		"prompt": "Bilde das zusammengesetzte Wort.",
+		"sentence": "Raum + Schiff",
+		"word": "Raum + Schiff",
+		"answer": "Raumschiff",
+		"options": ["Schiffraum", "Raumschiff", "raeumlich"]
+	},
+	{
+		"subject": "Komposita",
+		"prompt": "Bilde das zusammengesetzte Wort.",
+		"sentence": "Stern + Tor",
+		"word": "Stern + Tor",
+		"answer": "Sterntor",
+		"options": ["Sterntor", "Torenstern", "sternig"]
+	},
+	{
+		"subject": "Komposita",
+		"prompt": "Bilde das zusammengesetzte Wort.",
+		"sentence": "Energie + Schild",
+		"word": "Energie + Schild",
+		"answer": "Energieschild",
+		"options": ["Schildenergie", "Energieschild", "energetisch"]
+	},
+	{
+		"subject": "Komposita",
+		"prompt": "Bilde das zusammengesetzte Wort.",
+		"sentence": "Laser + Strahl",
+		"word": "Laser + Strahl",
+		"answer": "Laserstrahl",
+		"options": ["Strahllaser", "Laserstrahl", "strahlig"]
+	}
+]
+
+const QUESTIONS_ENGLISCH = [
+	{
+		"subject": "Englisch",
+		"prompt": "Was heisst 'Tunnel' auf Englisch?",
+		"sentence": "Tunnel",
+		"word": "Tunnel",
+		"answer": "tunnel",
+		"options": ["tower", "tunnel", "table"]
+	},
+	{
+		"subject": "Englisch",
+		"prompt": "Was heisst 'Schild' auf Englisch?",
+		"sentence": "Schild",
+		"word": "Schild",
+		"answer": "shield",
+		"options": ["ship", "shell", "shield"]
+	},
+	{
+		"subject": "Englisch",
+		"prompt": "Was heisst 'fliegen' auf Englisch?",
+		"sentence": "fliegen",
+		"word": "fliegen",
+		"answer": "fly",
+		"options": ["fly", "drive", "read"]
+	},
+	{
+		"subject": "Englisch",
+		"prompt": "Was heisst 'schnell' auf Englisch?",
+		"sentence": "schnell",
+		"word": "schnell",
+		"answer": "fast",
+		"options": ["slow", "small", "fast"]
+	}
+]
+
+const QUESTIONS_SACHKUNDE = [
+	{
 		"subject": "Sachkunde",
 		"prompt": "Was liefert der Reaktor?",
 		"sentence": "Er treibt die Station an.",
 		"word": "Reaktor",
 		"answer": "Energie",
 		"options": ["Energie", "Schnee", "Sand"]
+	},
+	{
+		"subject": "Sachkunde",
+		"prompt": "Was schuetzt ein Raumschiff?",
+		"sentence": "Der Schild faengt Treffer ab.",
+		"word": "Schild",
+		"answer": "Treffer",
+		"options": ["Treffer", "Hausaufgaben", "Regen"]
+	},
+	{
+		"subject": "Sachkunde",
+		"prompt": "Was macht ein Radar?",
+		"sentence": "Radar findet Ziele im Raum.",
+		"word": "Radar",
+		"answer": "Ziele finden",
+		"options": ["Ziele finden", "Brot backen", "Wasser frieren"]
+	},
+	{
+		"subject": "Sachkunde",
+		"prompt": "Wozu dienen Solarzellen?",
+		"sentence": "Sie wandeln Licht in Strom.",
+		"word": "Solarzellen",
+		"answer": "Strom erzeugen",
+		"options": ["Strom erzeugen", "Tore bemalen", "Steine essen"]
 	}
 ]
 
@@ -99,9 +320,24 @@ var entities := []
 var particles := []
 var floating_text := []
 var touch_buttons := {}
+var touch_button_state := {
+	"fire": false,
+	"boost": false,
+	"missile": false,
+	"pulse": false,
+	"weapon": false,
+	"learn": false,
+	"subject": false
+}
+var active_touch_buttons := {}
 var touch_axis := Vector2.ZERO
 var touch_pointer := -1
+var mouse_touch_active := ""
 var mode := "Normal"
+var lesson_index := 0
+var correct_gates := 0
+var mistakes := 0
+var repeat_queue: Array = []
 var current_weapon := "laser"
 var weapon_index := 0
 var fire_cooldown := 0.0
@@ -121,7 +357,7 @@ func _ready() -> void:
 	rng.seed = 64023
 	font = get_theme_default_font()
 	focus_mode = Control.FOCUS_ALL
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	grab_focus()
 	reset_game()
 
@@ -148,9 +384,17 @@ func reset_game() -> void:
 	entities.clear()
 	particles.clear()
 	floating_text.clear()
+	active_touch_buttons.clear()
+	for button_name in touch_button_state.keys():
+		touch_button_state[button_name] = false
 	touch_axis = Vector2.ZERO
 	touch_pointer = -1
+	mouse_touch_active = ""
 	mode = "Normal"
+	lesson_index = 0
+	correct_gates = 0
+	mistakes = 0
+	repeat_queue.clear()
 	current_weapon = "laser"
 	weapon_index = 0
 	fire_cooldown = 0.0
@@ -208,15 +452,15 @@ func handle_continuous_input(delta: float) -> void:
 	if Input.is_key_pressed(KEY_E):
 		roll_input += 1.0
 	player.roll = lerp(float(player.roll), roll_input * 0.72 - float(player.vx) * 0.22, min(1.0, delta * 5.0))
-	if (Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE)) and phase == "run":
+	if (Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE) or is_touch_down("fire")) and phase == "run":
 		fire_weapon()
-	if Input.is_key_pressed(KEY_SHIFT) and phase == "run":
+	if boost_pressed() and phase == "run":
 		player.heat = min(100.0, float(player.heat) + delta * 12.0)
 
 func update_run(delta: float) -> void:
 	fire_cooldown = max(0.0, fire_cooldown - delta)
 	player.heat = max(0.0, float(player.heat) - delta * 25.0)
-	var boosted := Input.is_key_pressed(KEY_SHIFT) and float(player.heat) < 96.0
+	var boosted := boost_pressed() and float(player.heat) < 96.0
 	var speed := BOOST_SPEED if boosted else BASE_SPEED
 	distance += speed * delta
 	spawn_timer -= delta
@@ -287,8 +531,7 @@ func spawn_pickup(z_value: float) -> void:
 	})
 
 func spawn_learn_gate(z_value: float) -> void:
-	var question = QUESTION_BANK[question_index % QUESTION_BANK.size()]
-	question_index += 1
+	var question := current_question()
 	entities.append({
 		"kind": "gate",
 		"x": 0.0,
@@ -297,7 +540,7 @@ func spawn_learn_gate(z_value: float) -> void:
 		"radius": 0.55,
 		"question": question
 	})
-	message = String(question.prompt) + "  " + String(question.sentence)
+	message = "%s: %s  %s" % [String(question.get("subject", LESSONS[lesson_index])), String(question.prompt), String(question.sentence)]
 	message_timer = 5.0
 
 func spawn_boss() -> void:
@@ -404,13 +647,23 @@ func resolve_gate(gate) -> void:
 			lane_index = i
 	var chosen := String(question.options[lane_index])
 	if chosen == String(question.answer):
+		var repeated := bool(question.get("repeat", false))
 		player.gates += 1
-		player.score += 520
+		correct_gates += 1
+		player.score += 760 if repeated else 520
 		player.shield = min(100.0, float(player.shield) + 10.0)
 		player.combo += 2
-		add_text("RICHTIG: " + chosen, Color(0.47, 1.0, 0.58))
-		message = "Richtig: " + chosen
+		_remove_repeat(question)
+		question_index = (question_index + 1) % question_bank().size()
+		var ok_text := ("WDH OK: " + chosen) if repeated else ("RICHTIG: " + chosen)
+		add_text(ok_text, Color(0.47, 1.0, 0.58))
+		message = ("Wiederholung geloest: " + chosen) if repeated else ("Richtig: " + chosen)
+		if correct_gates > 0 and correct_gates % LEARN_GOAL == 0:
+			player.score += 1300
+			add_text("LERNZIEL +" + str(LEARN_GOAL), Color(1.0, 0.9, 0.26))
 	else:
+		mistakes += 1
+		_queue_repeat(question)
 		damage_player(12.0, "Falsch: " + chosen)
 		message = "Falsch: " + chosen + " / richtig: " + String(question.answer)
 	message_timer = 3.0
@@ -588,8 +841,76 @@ func cycle_weapon() -> void:
 func toggle_learncade() -> void:
 	mode = "Learncade" if mode == "Normal" else "Normal"
 	gate_timer = 1.2 if mode == "Learncade" else 8.0
-	message = "Mode " + mode
+	if mode == "Learncade":
+		message = "Learncade: " + LESSONS[lesson_index] + " - richtige Antwortspur treffen"
+	else:
+		message = "Normalmodus: Kaempfen, Ringe, Bosskern."
 	message_timer = 2.0
+
+func cycle_lesson() -> void:
+	lesson_index = (lesson_index + 1) % LESSONS.size()
+	question_index = 0
+	gate_timer = 0.8
+	mode = "Learncade"
+	message = "Fach: " + LESSONS[lesson_index] + " - Fehler bleiben als Wdh-Gates."
+	message_timer = 2.6
+
+func question_bank() -> Array:
+	match LESSONS[lesson_index]:
+		"MATHE":
+			return QUESTIONS_MATH
+		"SATZBAU":
+			return QUESTIONS_SATZBAU
+		"LESEN":
+			return QUESTIONS_LESEN
+		"KOMPOSITA":
+			return QUESTIONS_KOMPOSITA
+		"ENGLISCH":
+			return QUESTIONS_ENGLISCH
+		"SACHKUNDE":
+			return QUESTIONS_SACHKUNDE
+		_:
+			return QUESTIONS_DEUTSCH
+
+func current_question() -> Dictionary:
+	var lesson := String(LESSONS[lesson_index])
+	for entry in repeat_queue:
+		if String(entry.get("lesson", "")) == lesson:
+			var repeated_question: Dictionary = entry["question"]
+			return repeated_question
+	var bank := question_bank()
+	var q: Dictionary = bank[question_index % bank.size()].duplicate(true)
+	q["lesson"] = lesson
+	return q
+
+func _question_id(q: Dictionary) -> String:
+	return "%s::%s::%s" % [String(q.get("lesson", LESSONS[lesson_index])), String(q.get("prompt", "")), String(q.get("sentence", ""))]
+
+func _queue_repeat(q: Dictionary) -> void:
+	var copy := q.duplicate(true)
+	copy["lesson"] = String(q.get("lesson", LESSONS[lesson_index]))
+	copy["repeat"] = true
+	var id := _question_id(copy)
+	for entry in repeat_queue:
+		var stored_question: Dictionary = entry["question"]
+		if _question_id(stored_question) == id:
+			return
+	if repeat_queue.size() >= 10:
+		repeat_queue.pop_front()
+	repeat_queue.append({"lesson": copy["lesson"], "question": copy})
+
+func _remove_repeat(q: Dictionary) -> void:
+	var id := _question_id(q)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		var stored_question: Dictionary = repeat_queue[i]["question"]
+		if _question_id(stored_question) == id:
+			repeat_queue.remove_at(i)
+
+func boost_pressed() -> bool:
+	return Input.is_key_pressed(KEY_SHIFT) or is_touch_down("boost")
+
+func is_touch_down(name: String) -> bool:
+	return touch_button_state.has(name) and bool(touch_button_state[name])
 
 func _unhandled_input(event) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -604,8 +925,12 @@ func _unhandled_input(event) -> void:
 				pulse_clear()
 			KEY_C:
 				cycle_weapon()
+			KEY_F:
+				cycle_lesson()
 
 func _gui_input(event) -> void:
+	if not should_show_touch():
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			handle_touch_press(event.index, event.position)
@@ -613,28 +938,50 @@ func _gui_input(event) -> void:
 			if event.index == touch_pointer:
 				touch_pointer = -1
 				touch_axis = Vector2.ZERO
+			if active_touch_buttons.has(event.index):
+				var name := String(active_touch_buttons[event.index])
+				touch_button_state[name] = false
+				active_touch_buttons.erase(event.index)
 	elif event is InputEventScreenDrag:
 		if event.index == touch_pointer:
-			var origin := Vector2(96.0, size.y - 96.0)
-			touch_axis = (event.position - origin) / 72.0
+			var origin := touch_stick_center()
+			touch_axis = (event.position - origin) / (72.0 * touch_scale())
 			if touch_axis.length() > 1.0:
 				touch_axis = touch_axis.normalized()
-	elif event is InputEventMouseButton and event.pressed:
-		handle_touch_press(999, event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			handle_touch_press(999, event.position)
+		else:
+			if touch_pointer == 999:
+				touch_pointer = -1
+				touch_axis = Vector2.ZERO
+			if mouse_touch_active != "":
+				touch_button_state[mouse_touch_active] = false
+				mouse_touch_active = ""
+	elif event is InputEventMouseMotion and touch_pointer == 999:
+		var origin := touch_stick_center()
+		touch_axis = (event.position - origin) / (72.0 * touch_scale())
+		if touch_axis.length() > 1.0:
+			touch_axis = touch_axis.normalized()
 
 func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
-	if pos.x < size.x * 0.45 and pos.y > size.y * 0.56:
+	if pos.distance_to(touch_stick_center()) <= 88.0 * touch_scale():
 		touch_pointer = pointer_id
-		var origin := Vector2(96.0, size.y - 96.0)
-		touch_axis = (pos - origin) / 72.0
+		var origin := touch_stick_center()
+		touch_axis = (pos - origin) / (72.0 * touch_scale())
 		if touch_axis.length() > 1.0:
 			touch_axis = touch_axis.normalized()
 		return
-	for name in touch_buttons.keys():
-		if touch_buttons[name].has_point(pos):
-			if name == "fire":
-				fire_weapon()
-			elif name == "missile":
+	var rects := touch_button_rects()
+	for name in rects.keys():
+		var rect: Rect2 = rects[name]
+		if rect.has_point(pos):
+			touch_button_state[name] = true
+			if pointer_id == 999:
+				mouse_touch_active = name
+			else:
+				active_touch_buttons[pointer_id] = name
+			if name == "missile":
 				fire_missile()
 			elif name == "pulse":
 				pulse_clear()
@@ -642,6 +989,40 @@ func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
 				toggle_learncade()
 			elif name == "weapon":
 				cycle_weapon()
+			elif name == "subject":
+				cycle_lesson()
+
+func should_show_touch() -> bool:
+	return size.x <= 1100.0 or size.x < size.y
+
+func touch_scale() -> float:
+	if size.y > size.x * 1.15:
+		return clampf(size.x / 520.0, 1.08, 1.46)
+	return clampf(min(size.x, size.y) / 720.0, 0.72, 1.16)
+
+func touch_stick_center() -> Vector2:
+	var s := touch_scale()
+	return Vector2(98.0 * s, size.y - 104.0 * s)
+
+func touch_button_centers() -> Dictionary:
+	var s := touch_scale()
+	return {
+		"fire": Vector2(size.x - 92.0 * s, size.y - 104.0 * s),
+		"boost": Vector2(size.x - 92.0 * s, size.y - 194.0 * s),
+		"missile": Vector2(size.x - 180.0 * s, size.y - 104.0 * s),
+		"pulse": Vector2(size.x - 180.0 * s, size.y - 194.0 * s),
+		"weapon": Vector2(size.x - 268.0 * s, size.y - 104.0 * s),
+		"subject": Vector2(size.x - 268.0 * s, size.y - 194.0 * s),
+		"learn": Vector2(size.x - 180.0 * s, size.y - 284.0 * s),
+	}
+
+func touch_button_rects() -> Dictionary:
+	var s := touch_scale()
+	var rects := {}
+	for name in touch_button_centers().keys():
+		var center: Vector2 = touch_button_centers()[name]
+		rects[name] = Rect2(center - Vector2(34.0, 24.0) * s, Vector2(68.0, 48.0) * s)
+	return rects
 
 func project_point(x_value: float, y_value: float, z_value: float) -> Vector2:
 	var center := get_center()
@@ -768,12 +1149,12 @@ func draw_gate(gate) -> void:
 		var pos := project_point(lane, 0.0, float(gate.z))
 		var scale: float = clamp(620.0 / float(gate.z), 58.0, 190.0)
 		var rect := Rect2(pos - Vector2(scale * 0.56, scale * 0.38), Vector2(scale * 1.12, scale * 0.76))
-		var is_answer := String(question.options[i]) == String(question.answer)
 		var gate_color := Color(0.18, 0.36, 0.72, 0.72)
-		if is_answer:
-			gate_color = Color(0.2, 0.55, 0.32, 0.72)
+		var border_color := Color(0.7, 0.9, 1.0, 0.88)
+		if bool(question.get("repeat", false)):
+			border_color = Color(0.95, 0.52, 1.0, 0.92)
 		draw_rect(rect, gate_color)
-		draw_rect(rect, Color(0.7, 0.9, 1.0, 0.88), false, 2.0)
+		draw_rect(rect, border_color, false, 2.0)
 		draw_text(pos + Vector2(-scale * 0.43, 5.0), String(question.options[i]))
 
 func draw_shots() -> void:
@@ -800,47 +1181,67 @@ func draw_player_reticle() -> void:
 	draw_circle(ret, 4.0, Color(1.0, 0.94, 0.3))
 
 func draw_hud() -> void:
-	draw_rect(Rect2(Vector2(10, 10), Vector2(286, 104)), Color(0.0, 0.0, 0.0, 0.62))
-	draw_text(Vector2(18, 28), "FASKA DESCENT - GODOT 4", Color(1.0, 0.93, 0.32), 18)
-	draw_bar(Vector2(18, 42), "SHIELD", float(player.shield), 100.0, Color(0.28, 0.92, 1.0))
-	draw_bar(Vector2(18, 66), "HEAT", float(player.heat), 100.0, Color(1.0, 0.48, 0.2))
-	draw_text(Vector2(18, 102), "Score " + str(player.score) + "  Combo " + str(player.combo) + "  Mode " + mode, Color(0.86, 0.92, 1.0), 13)
-	draw_rect(Rect2(Vector2(size.x - 264.0, 10.0), Vector2(250.0, 82.0)), Color(0.0, 0.0, 0.0, 0.55))
-	draw_text(Vector2(size.x - 254.0, 30.0), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.95, 0.98, 1.0), 14)
-	draw_text(Vector2(size.x - 254.0, 52.0), "Missiles " + str(player.missiles) + "  Kills " + str(player.kills), Color(0.95, 0.98, 1.0), 14)
-	draw_text(Vector2(size.x - 254.0, 74.0), "Dist " + str(int(distance)) + "  Gates " + str(player.gates), Color(0.95, 0.98, 1.0), 14)
+	var compact := should_show_touch()
+	var ui := 1.42 if size.y > size.x * 1.15 else 1.0
+	var hud_w := minf(size.x - 20.0, 560.0 if compact else 530.0)
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, (132.0 if compact else 116.0) * ui)), Color(0.0, 0.0, 0.0, 0.62))
+	draw_text(Vector2(18, 28 * ui), "FASKA DESCENT PRO", Color(1.0, 0.93, 0.32), int(18 * ui))
+	draw_bar(Vector2(18, 42 * ui), "SHIELD", float(player.shield), 100.0, Color(0.28, 0.92, 1.0), ui)
+	draw_bar(Vector2(18, 66 * ui), "HEAT", float(player.heat), 100.0, Color(1.0, 0.48, 0.2), ui)
+	draw_text(Vector2(18, 101 * ui), "Score %s  Combo %s  Mode %s" % [str(player.score), str(player.combo), mode], Color(0.86, 0.92, 1.0), int(13 * ui))
+	draw_text(Vector2(18, 123 * ui), "Fach %s  Ziel %d/%d  Fehler %d  Wdh %d" % [LESSONS[lesson_index], correct_gates % LEARN_GOAL, LEARN_GOAL, mistakes, repeat_queue.size()], Color(0.72, 0.94, 1.0), int(12 * ui))
+	if not compact:
+		draw_rect(Rect2(Vector2(size.x - 312.0, 10.0), Vector2(298.0, 92.0)), Color(0.0, 0.0, 0.0, 0.55))
+		draw_text(Vector2(size.x - 302.0, 30.0), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.95, 0.98, 1.0), 14)
+		draw_text(Vector2(size.x - 302.0, 52.0), "Missiles " + str(player.missiles) + "  Kills " + str(player.kills), Color(0.95, 0.98, 1.0), 14)
+		draw_text(Vector2(size.x - 302.0, 74.0), "Dist " + str(int(distance)) + "  Gates " + str(player.gates), Color(0.95, 0.98, 1.0), 14)
+		draw_text(Vector2(size.x - 302.0, 96.0), "F Fach  C Waffe  L Learncade", Color(0.7, 0.8, 0.95), 12)
 	if mode == "Learncade":
-		draw_rect(Rect2(Vector2(size.x * 0.28, 12.0), Vector2(size.x * 0.44, 30.0)), Color(0.04, 0.08, 0.14, 0.82))
-		draw_text(Vector2(size.x * 0.29, 33.0), "Learncade aktiv: fliege durch die richtige Antwortspur", Color(0.72, 0.94, 1.0), 14)
+		var panel_y := 206.0 if size.y > size.x * 1.15 else (142.0 if compact else 116.0)
+		var panel_w := minf(size.x - 24.0, 720.0)
+		draw_rect(Rect2(Vector2(size.x * 0.5 - panel_w * 0.5, panel_y), Vector2(panel_w, 34.0)), Color(0.04, 0.08, 0.14, 0.82))
+		draw_text(Vector2(size.x * 0.5 - panel_w * 0.5 + 12.0, panel_y + 23.0), "Learncade: " + LESSONS[lesson_index] + " - fliege durch die richtige Antwortspur", Color(0.72, 0.94, 1.0), 14)
 
-func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color) -> void:
-	draw_text(pos, label, Color(0.75, 0.84, 0.94), 12)
-	draw_rect(Rect2(pos + Vector2(62, -11), Vector2(155, 9)), Color(0.08, 0.12, 0.18))
-	draw_rect(Rect2(pos + Vector2(62, -11), Vector2(155 * clamp(value / max_value, 0.0, 1.0), 9)), color)
+func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color, scale_factor: float = 1.0) -> void:
+	draw_text(pos, label, Color(0.75, 0.84, 0.94), int(12 * scale_factor))
+	draw_rect(Rect2(pos + Vector2(62, -11) * scale_factor, Vector2(155, 9) * scale_factor), Color(0.08, 0.12, 0.18))
+	draw_rect(Rect2(pos + Vector2(62, -11) * scale_factor, Vector2(155 * clamp(value / max_value, 0.0, 1.0), 9) * scale_factor), color)
 
 func draw_touch_controls() -> void:
 	touch_buttons.clear()
-	var left_center := Vector2(96.0, size.y - 96.0)
-	draw_arc(left_center, 64.0, 0.0, TAU, 40, Color(0.6, 0.8, 1.0, 0.28), 3.0)
-	draw_circle(left_center + touch_axis * 42.0, 22.0, Color(0.35, 0.75, 1.0, 0.38))
-	var labels = [
-		["fire", "FIRE", Vector2(size.x - 98.0, size.y - 102.0)],
-		["missile", "MISS", Vector2(size.x - 178.0, size.y - 92.0)],
-		["pulse", "PULSE", Vector2(size.x - 98.0, size.y - 182.0)],
-		["weapon", "WPN", Vector2(size.x - 178.0, size.y - 172.0)],
-		["learn", "LERN", Vector2(size.x - 258.0, size.y - 132.0)]
-	]
-	for item in labels:
-		var rect := Rect2(item[2] - Vector2(34, 24), Vector2(68, 48))
-		touch_buttons[item[0]] = rect
-		draw_rect(rect, Color(0.03, 0.08, 0.15, 0.68))
-		draw_rect(rect, Color(0.58, 0.78, 1.0, 0.52), false, 2.0)
-		draw_text(rect.position + Vector2(10, 31), item[1], Color(0.9, 0.96, 1.0), 12)
+	if not should_show_touch():
+		return
+	var s := touch_scale()
+	var left_center := touch_stick_center()
+	draw_arc(left_center, 64.0 * s, 0.0, TAU, 40, Color(0.6, 0.8, 1.0, 0.28), 3.0 * s)
+	draw_circle(left_center + touch_axis * 42.0 * s, 22.0 * s, Color(0.35, 0.75, 1.0, 0.58))
+	var labels := {
+		"fire": "FIRE",
+		"boost": "BST",
+		"missile": "MISS",
+		"pulse": "PULSE",
+		"weapon": "WPN",
+		"subject": "FACH",
+		"learn": "LERN"
+	}
+	var rects := touch_button_rects()
+	for name in rects.keys():
+		var rect: Rect2 = rects[name]
+		touch_buttons[name] = rect
+		var fill := Color(0.03, 0.08, 0.15, 0.68)
+		if is_touch_down(name):
+			fill = Color(0.15, 0.42, 0.86, 0.88)
+		draw_rect(rect, fill)
+		draw_rect(rect, Color(0.58, 0.78, 1.0, 0.52), false, 2.0 * s)
+		draw_text(rect.position + Vector2(8.0, 31.0) * s, labels[name], Color(0.9, 0.96, 1.0), max(9, int(12.0 * s)))
 
 func draw_messages() -> void:
 	if message_timer > 0.0:
-		draw_rect(Rect2(Vector2(size.x * 0.24, 52.0), Vector2(size.x * 0.52, 28.0)), Color(0.0, 0.0, 0.0, 0.66))
-		draw_text(Vector2(size.x * 0.25, 72.0), message, Color(0.96, 0.98, 1.0), 14)
+		var compact := should_show_touch()
+		var msg_w := minf(size.x - 24.0, 760.0)
+		var msg_y := 248.0 if size.y > size.x * 1.15 else (184.0 if compact else 52.0)
+		draw_rect(Rect2(Vector2(size.x * 0.5 - msg_w * 0.5, msg_y), Vector2(msg_w, 30.0)), Color(0.0, 0.0, 0.0, 0.66))
+		draw_text(Vector2(size.x * 0.5 - msg_w * 0.5 + 12.0, msg_y + 21.0), message, Color(0.96, 0.98, 1.0), 14)
 	for item in floating_text:
 		draw_text(item.pos, item.text, item.color, 16)
 	if phase == "over" or phase == "win":

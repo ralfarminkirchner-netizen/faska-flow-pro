@@ -37,7 +37,17 @@
     "godot:check:mansion": "godot --headless --path godot/faska-mansion --check-only --script res://scripts/main.gd",
     "godot:export:mansion": "mkdir -p public/godot/faska-mansion && godot --headless --path godot/faska-mansion --export-release Web ../../public/godot/faska-mansion/index.html && node scripts/patch-godot-html.mjs public/godot/faska-mansion/index.html",
     "godot:check:typehero": "godot --headless --path godot/faska-type-hero --check-only --script res://scripts/main.gd",
-    "godot:export:typehero": "mkdir -p public/godot/faska-type-hero && godot --headless --path godot/faska-type-hero --export-release Web ../../public/godot/faska-type-hero/index.html && node scripts/patch-godot-html.mjs public/godot/faska-type-hero/index.html"
+    "godot:export:typehero": "mkdir -p public/godot/faska-type-hero && godot --headless --path godot/faska-type-hero --export-release Web ../../public/godot/faska-type-hero/index.html && node scripts/patch-godot-html.mjs public/godot/faska-type-hero/index.html",
+    "godot:check:gadget": "godot --headless --path godot/faska-gadget-quest --check-only --script res://scripts/main.gd",
+    "godot:export:gadget": "mkdir -p public/godot/faska-gadget-quest && godot --headless --path godot/faska-gadget-quest --export-release Web ../../public/godot/faska-gadget-quest/index.html && node scripts/patch-godot-html.mjs public/godot/faska-gadget-quest/index.html",
+    "godot:check:sky": "godot --headless --path godot/faska-sky-rail --check-only --script res://scripts/main.gd",
+    "godot:export:sky": "mkdir -p public/godot/faska-sky-rail && godot --headless --path godot/faska-sky-rail --export-release Web ../../public/godot/faska-sky-rail/index.html && node scripts/patch-godot-html.mjs public/godot/faska-sky-rail/index.html",
+    "godot:check:brawler": "godot --headless --path godot/faska-brawler --check-only --script res://scripts/main.gd",
+    "godot:export:brawler": "mkdir -p public/godot/faska-brawler && godot --headless --path godot/faska-brawler --export-release Web ../../public/godot/faska-brawler/index.html && node scripts/patch-godot-html.mjs public/godot/faska-brawler/index.html",
+    "godot:check:invaders": "godot --headless --path godot/faska-invaders --check-only --script res://scripts/main.gd",
+    "godot:export:invaders": "mkdir -p public/godot/faska-invaders && godot --headless --path godot/faska-invaders --export-release Web ../../public/godot/faska-invaders/index.html && node scripts/patch-godot-html.mjs public/godot/faska-invaders/index.html",
+    "godot:check:pinball": "godot --headless --path godot/faska-pinball --check-only --script res://scripts/main.gd",
+    "godot:export:pinball": "mkdir -p public/godot/faska-pinball && godot --headless --path godot/faska-pinball --export-release Web ../../public/godot/faska-pinball/index.html && node scripts/patch-godot-html.mjs public/godot/faska-pinball/index.html"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

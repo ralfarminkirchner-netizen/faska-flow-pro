@@ -3,8 +3,8 @@ extends Control
 const STAGE_LEFT := 86.0
 const STAGE_RIGHT := 1194.0
 const GRAVITY := 1540.0
-const LEARN_GOAL := 5
-const LESSONS := ["WORTART", "MATHE", "SATZ", "ENGLISCH"]
+const LEARN_GOAL := 7
+const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 
 const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'mutig'?", "answers": ["Nomen", "Verb", "Adjektiv"], "correct": 2, "hint": "Mutig beschreibt eine Eigenschaft."},
@@ -12,6 +12,10 @@ const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'der'?", "answers": ["Adjektiv", "Artikel", "Verb"], "correct": 1, "hint": "Der steht vor einem Nomen."},
 	{"prompt": "Welche Wortart ist 'Arena'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 0, "hint": "Eine Arena ist ein Ort."},
 	{"prompt": "Welche Wortart ist 'schnell'?", "answers": ["Verb", "Adjektiv", "Nomen"], "correct": 1, "hint": "Schnell sagt, wie etwas passiert."},
+	{"prompt": "Welche Wortart ist 'gegen'?", "answers": ["Praeposition", "Verb", "Nomen"], "correct": 0, "hint": "Gegen zeigt eine Beziehung oder Richtung."},
+	{"prompt": "Welche Wortart ist 'wir'?", "answers": ["Pronomen", "Artikel", "Adjektiv"], "correct": 0, "hint": "Wir steht fuer Personen."},
+	{"prompt": "Welche Wortart ist 'heute'?", "answers": ["Adverb", "Nomen", "Verb"], "correct": 0, "hint": "Heute sagt, wann etwas passiert."},
+	{"prompt": "Welche Wortart ist 'blockt'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 1, "hint": "Blockt beschreibt eine Handlung."},
 ]
 
 const QUESTIONS_MATH := [
@@ -20,6 +24,10 @@ const QUESTIONS_MATH := [
 	{"prompt": "Welche Zahl fehlt? 6 x ? = 30", "answers": ["4", "5", "6"], "correct": 1, "hint": "Fuenf Sechser sind dreissig."},
 	{"prompt": "Was ist 42 - 18?", "answers": ["22", "24", "26"], "correct": 1, "hint": "Erst 42 - 20, dann 2 dazu."},
 	{"prompt": "Welche Zahl ist groesser als 3/4?", "answers": ["1/2", "2/3", "5/6"], "correct": 2, "hint": "5 von 6 Teilen ist sehr viel."},
+	{"prompt": "Was ist 7 x 8?", "answers": ["54", "56", "58"], "correct": 1, "hint": "Sieben Achter sind 56."},
+	{"prompt": "Welche Zahl fehlt? ? + 17 = 39", "answers": ["20", "22", "24"], "correct": 1, "hint": "39 minus 17 ist 22."},
+	{"prompt": "Was ist 72 : 9?", "answers": ["7", "8", "9"], "correct": 1, "hint": "9 mal 8 ist 72."},
+	{"prompt": "Welche Zahl ist ein Vielfaches von 6?", "answers": ["32", "36", "40"], "correct": 1, "hint": "6 mal 6 ist 36."},
 ]
 
 const QUESTIONS_SENTENCE := [
@@ -28,6 +36,28 @@ const QUESTIONS_SENTENCE := [
 	{"prompt": "Welches Wort passt? Der Kaempfer ___ aus.", "answers": ["weicht", "gruen", "die"], "correct": 0, "hint": "Gesucht ist ein Verb."},
 	{"prompt": "Welches Satzglied ist 'in der Arena'?", "answers": ["Ort", "Zeit", "Grund"], "correct": 0, "hint": "Es sagt, wo etwas passiert."},
 	{"prompt": "Welches Wort beendet den Satz sinnvoll? Der Schild ist ___.", "answers": ["stark", "rennt", "und"], "correct": 0, "hint": "Gesucht ist eine Eigenschaft."},
+	{"prompt": "Was ist das Objekt? Roni trifft den Kristall.", "answers": ["Roni", "trifft", "den Kristall"], "correct": 2, "hint": "Was trifft Roni?"},
+	{"prompt": "Welche Satzstelle nennt die Zeit? Nach dem Gong startet der Kampf.", "answers": ["Nach dem Gong", "startet", "der Kampf"], "correct": 0, "hint": "Wann startet der Kampf?"},
+	{"prompt": "Welches Satzzeichen passt? Blockst du", "answers": [".", "?", ","], "correct": 1, "hint": "Das ist eine Frage."},
+	{"prompt": "Welcher Satz ist vollstaendig?", "answers": ["Der Gegner stark.", "Der Gegner taumelt.", "Der Gegner und."], "correct": 1, "hint": "Subjekt und Praedikat sind vorhanden."},
+]
+
+const QUESTIONS_READING := [
+	{"prompt": "Lies genau: Triff den Schild-Kristall.", "answers": ["Schild", "Schatz", "Schule"], "correct": 0, "hint": "Der Satz nennt den Schild."},
+	{"prompt": "Welches Wort beginnt wie Schlag?", "answers": ["Schule", "Tor", "Kampf"], "correct": 0, "hint": "Beide beginnen mit Sch."},
+	{"prompt": "Welches Wort reimt sich auf Hieb?", "answers": ["lieb", "hoch", "schnell"], "correct": 0, "hint": "Beide enden auf -ieb."},
+	{"prompt": "Welches Wort hat zwei Silben?", "answers": ["Block", "Luna", "Tor"], "correct": 1, "hint": "Lu-na."},
+	{"prompt": "Welche Anweisung passt? Weiche nach links aus.", "answers": ["links", "rechts", "oben"], "correct": 0, "hint": "Die Richtung steht im Satz."},
+	{"prompt": "Welches Wort ist laenger?", "answers": ["Jab", "Supermeter", "Low"], "correct": 1, "hint": "Supermeter hat viel mehr Buchstaben."},
+]
+
+const QUESTIONS_COMPOUND := [
+	{"prompt": "Welche zwei Woerter stecken in Kampfarena?", "answers": ["Kampf + Arena", "Kamm + Arena", "Kampf + Arm"], "correct": 0, "hint": "Es ist eine Arena fuer den Kampf."},
+	{"prompt": "Welches Kompositum passt: Schild + Block", "answers": ["Schildblock", "Blockschild", "Schildblick"], "correct": 0, "hint": "Das passt zum Blocken."},
+	{"prompt": "Was ist das Grundwort von Trefferanzeige?", "answers": ["Treffer", "Anzeige", "zeigen"], "correct": 1, "hint": "Das letzte Wort bestimmt die Sache."},
+	{"prompt": "Welches Wort ist kein Kompositum?", "answers": ["Schwertgriff", "Arenator", "schnell"], "correct": 2, "hint": "Schnell ist eine Eigenschaft."},
+	{"prompt": "Welches Bestimmungswort hat Supermeter?", "answers": ["Super", "Meter", "mehr"], "correct": 0, "hint": "Super beschreibt den Meter genauer."},
+	{"prompt": "Welche Verbindung passt? Gegner + Druck", "answers": ["Gegnerdruck", "Druckgegner", "Gegendruck"], "correct": 0, "hint": "So nennt man Druck durch den Gegner."},
 ]
 
 const QUESTIONS_ENGLISH := [
@@ -36,6 +66,10 @@ const QUESTIONS_ENGLISH := [
 	{"prompt": "Was heisst 'stark'?", "answers": ["slow", "strong", "short"], "correct": 1, "hint": "Strong ist stark."},
 	{"prompt": "Was heisst 'Treffer'?", "answers": ["hit", "miss", "guard"], "correct": 0, "hint": "Hit steht auch bei Kombos."},
 	{"prompt": "Was heisst 'schnell'?", "answers": ["fast", "flat", "full"], "correct": 0, "hint": "Fast bedeutet schnell."},
+	{"prompt": "Was heisst 'kick'?", "answers": ["Tritt", "Schild", "Runde"], "correct": 0, "hint": "Kick ist ein Tritt."},
+	{"prompt": "Was heisst 'round'?", "answers": ["Runde", "Schlag", "links"], "correct": 0, "hint": "Eine Runde im Kampf."},
+	{"prompt": "Was heisst 'low'?", "answers": ["tief", "hoch", "laut"], "correct": 0, "hint": "Low attacks treffen unten."},
+	{"prompt": "Was heisst 'guard'?", "answers": ["blocken", "springen", "fallen"], "correct": 0, "hint": "Guard schuetzt dich."},
 ]
 
 class TouchFighterOverlay:
@@ -54,13 +88,15 @@ class TouchFighterOverlay:
 	var _button_touches := {}
 
 	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	func _process(_delta: float) -> void:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
+		if not _should_show():
+			return
 		if event is InputEventScreenTouch:
 			if event.pressed:
 				if event.position.x < size.x * 0.42:
@@ -83,12 +119,13 @@ class TouchFighterOverlay:
 				_update_move(event.position)
 
 	func _update_move(pos: Vector2) -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
 		var diff := pos.x - center.x
-		if absf(diff) < 18.0:
+		if absf(diff) < 18.0 * ui:
 			move_x = 0.0
 		else:
-			move_x = clampf(diff / 86.0, -1.0, 1.0)
+			move_x = clampf(diff / (86.0 * ui), -1.0, 1.0)
 
 	func _refresh_buttons() -> void:
 		guard_down = false
@@ -126,14 +163,15 @@ class TouchFighterOverlay:
 		return ""
 
 	func _stick_center() -> Vector2:
-		return Vector2(128.0, size.y - 196.0)
+		return Vector2(128.0 * _ui_scale(), size.y - 196.0 * _ui_scale())
 
 	func _buttons() -> Array:
-		var w := 92.0
-		var h := 66.0
-		var gap := 12.0
-		var x := size.x - (w * 3.0 + gap * 2.0 + 24.0)
-		var y := size.y - (h * 3.0 + gap * 2.0 + 108.0)
+		var ui := _ui_scale()
+		var w := 92.0 * ui
+		var h := 66.0 * ui
+		var gap := 12.0 * ui
+		var x := size.x - (w * 3.0 + gap * 2.0 + 24.0 * ui)
+		var y := size.y - (h * 3.0 + gap * 2.0 + 108.0 * ui)
 		return [
 			{"action": "learn", "label": "L\nLern", "rect": Rect2(Vector2(x, y), Vector2(w, h))},
 			{"action": "subject", "label": "C\nFach", "rect": Rect2(Vector2(x + w + gap, y), Vector2(w, h))},
@@ -146,33 +184,45 @@ class TouchFighterOverlay:
 		]
 
 	func _draw() -> void:
-		if size.x < 980.0 or size.y > size.x * 1.2:
-			_draw_stick()
-			_draw_buttons()
+		if not _should_show():
+			return
+		_draw_stick()
+		_draw_buttons()
+
+	func _should_show() -> bool:
+		return size.x < 980.0 or size.y > size.x * 1.2
+
+	func _ui_scale() -> float:
+		if size.x <= 520.0 or size.y > size.x * 1.35:
+			return 1.12
+		return 1.0
 
 	func _draw_stick() -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
-		draw_circle(center, 96.0, Color(0.02, 0.05, 0.09, 0.5))
-		draw_arc(center, 96.0, 0.0, TAU, 36, Color(0.78, 0.88, 1.0, 0.52), 5.0)
-		draw_circle(center + Vector2(move_x * 54.0, 0.0), 36.0, Color(0.93, 0.96, 1.0, 0.78))
+		draw_circle(center, 96.0 * ui, Color(0.02, 0.05, 0.09, 0.5))
+		draw_arc(center, 96.0 * ui, 0.0, TAU, 36, Color(0.78, 0.88, 1.0, 0.52), 5.0 * ui)
+		draw_circle(center + Vector2(move_x * 54.0 * ui, 0.0), 36.0 * ui, Color(0.93, 0.96, 1.0, 0.78))
 
 	func _draw_buttons() -> void:
 		var font := get_theme_default_font()
+		var ui := _ui_scale()
 		for button in _buttons():
 			var rect: Rect2 = button["rect"]
 			var action := str(button["action"])
 			var active := (action == "guard" and guard_down) or (action == "light" and light_down) or (action == "heavy" and heavy_down) or (action == "low" and low_down) or (action == "dash" and dash_down) or (action == "super" and super_down) or (action == "learn" and learn_down) or (action == "subject" and subject_down)
 			draw_rect(rect, Color(0.02, 0.05, 0.09, 0.66), true)
-			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 4.0)
+			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 4.0 * ui)
 			var lines := str(button["label"]).split("\n")
 			for i in range(lines.size()):
-				draw_string(font, rect.position + Vector2(0.0, 26.0 + float(i) * 22.0), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 19, Color.html("#f8fafc"))
+				draw_string(font, rect.position + Vector2(0.0, (26.0 + float(i) * 22.0) * ui), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 19 * ui, Color.html("#f8fafc"))
 
 var player: Dictionary = {}
 var rival: Dictionary = {}
 var mode_learn := true
 var lesson_index := 0
 var question_index := 0
+var repeat_queue := []
 var learn_hits := 0
 var mistakes := 0
 var answer_crystals: Array = []
@@ -201,10 +251,12 @@ func _ready() -> void:
 	reset_game()
 
 func reset_game() -> void:
-	player = make_fighter(Vector2(320.0, ground_y()), 1, Color.html("#facc15"), Color.html("#22d3ee"))
-	rival = make_fighter(Vector2(930.0, ground_y()), -1, Color.html("#ef4444"), Color.html("#7c3aed"))
+	player = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.28), ground_y()), 1, Color.html("#facc15"), Color.html("#22d3ee"))
+	rival = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.72), ground_y()), -1, Color.html("#ef4444"), Color.html("#7c3aed"))
 	mode_learn = true
+	lesson_index = 0
 	question_index = 0
+	repeat_queue.clear()
 	learn_hits = 0
 	mistakes = 0
 	score = 0
@@ -245,17 +297,29 @@ func setup_answers() -> void:
 	answer_crystals.clear()
 	var q: Dictionary = current_question()
 	var answers: Array = q["answers"]
-	var xs: Array = [360.0, 640.0, 920.0]
+	var xs: Array = [
+		lerpf(arena_left(), arena_right(), 0.28),
+		lerpf(arena_left(), arena_right(), 0.5),
+		lerpf(arena_left(), arena_right(), 0.72),
+	]
 	for i in range(answers.size()):
-		answer_crystals.append({"pos": Vector2(xs[i], ground_y() - 160.0), "label": answers[i], "index": i, "armed": true})
+		answer_crystals.append({"pos": Vector2(xs[i], ground_y() - 160.0), "label": answers[i], "index": i, "armed": true, "repeat": q.get("repeat", false)})
 
 func current_question() -> Dictionary:
+	if repeat_queue.size() > 0:
+		var repeated: Dictionary = repeat_queue[0].duplicate(true)
+		repeated["repeat"] = true
+		return repeated
 	var bank: Array = QUESTIONS_WORD
 	var lesson := str(LESSONS[lesson_index])
 	if lesson == "MATHE":
 		bank = QUESTIONS_MATH
 	elif lesson == "SATZ":
 		bank = QUESTIONS_SENTENCE
+	elif lesson == "LESEN":
+		bank = QUESTIONS_READING
+	elif lesson == "KOMPOSITUM":
+		bank = QUESTIONS_COMPOUND
 	elif lesson == "ENGLISCH":
 		bank = QUESTIONS_ENGLISH
 	return bank[question_index % bank.size()]
@@ -263,6 +327,7 @@ func current_question() -> Dictionary:
 func cycle_lesson() -> void:
 	lesson_index = (lesson_index + 1) % LESSONS.size()
 	question_index = 0
+	repeat_queue.clear()
 	setup_answers()
 	message = "Fach: %s. Neue Kristalle sind aktiv." % str(LESSONS[lesson_index])
 	message_timer = 2.0
@@ -470,7 +535,7 @@ func update_fighter(fighter: Dictionary, delta: float) -> Dictionary:
 	if pos.y >= ground_y():
 		pos.y = ground_y()
 		vel.y = 0.0
-	pos.x = clampf(pos.x, STAGE_LEFT + 32.0, STAGE_RIGHT - 32.0)
+	pos.x = clampf(pos.x, arena_left() + 32.0, arena_right() - 32.0)
 	fighter["pos"] = pos
 	fighter["vel"] = vel
 	return fighter
@@ -610,17 +675,23 @@ func update_answer_crystals() -> void:
 		answer_crystals[i] = crystal
 		player["attack_hit"] = true
 		if int(crystal["index"]) == int(q["correct"]):
+			var repeated := bool(q.get("repeat", false))
 			learn_hits += 1
 			player["super"] = minf(100.0, float(player["super"]) + 38.0)
 			rival["hp"] = maxi(0, int(rival["hp"]) - (9 + (3 if learn_hits >= LEARN_GOAL else 0)))
 			rival["hitstun"] = maxf(float(rival["hitstun"]), 0.38 if learn_hits >= LEARN_GOAL else 0.18)
 			rival["stamina"] = maxf(0.0, float(rival["stamina"]) - 24.0)
-			score += 420
-			message = "Richtig: %s (%d/%d), Guard-Break-Druck." % [str(crystal["label"]), learn_hits, LEARN_GOAL]
+			score += 520 if repeated else 420
+			_remove_repeat(q)
+			if repeated:
+				message = "Wiederholung geloest: %s (%d/%d)." % [str(crystal["label"]), learn_hits, LEARN_GOAL]
+			else:
+				message = "Richtig: %s (%d/%d), Guard-Break-Druck." % [str(crystal["label"]), learn_hits, LEARN_GOAL]
 			question_index += 1
 			setup_answers()
 		else:
 			mistakes += 1
+			_queue_repeat(q)
 			player["hp"] = maxi(0, int(player["hp"]) - 7)
 			player["hitstun"] = maxf(float(player["hitstun"]), 0.24)
 			message = "Falscher Kristall. Tipp: %s" % str(q["hint"])
@@ -650,7 +721,24 @@ func _draw() -> void:
 	draw_hud()
 
 func ground_y() -> float:
+	if size.y > size.x * 1.2:
+		return clampf(size.y * 0.58, 420.0, size.y - 360.0)
+	if size.x < 980.0:
+		return clampf(size.y * 0.68, 430.0, size.y - 150.0)
 	return clampf(size.y * 0.72, 540.0, size.y - 170.0)
+
+func is_mobile_layout() -> bool:
+	return size.x < 980.0 or size.y > size.x * 1.2
+
+func arena_left() -> float:
+	if is_mobile_layout():
+		return maxf(32.0, size.x * 0.08)
+	return STAGE_LEFT
+
+func arena_right() -> float:
+	if is_mobile_layout():
+		return maxf(arena_left() + 320.0, size.x - 32.0)
+	return minf(STAGE_RIGHT, size.x - 86.0)
 
 func screen_shake() -> Vector2:
 	if shake_timer <= 0.0:
@@ -665,7 +753,7 @@ func draw_background(offset: Vector2) -> void:
 		var x: float = float(i) * 82.0 - 60.0 + fmod(round_time * 9.0, 82.0)
 		draw_rect(Rect2(Vector2(x, 138.0), Vector2(42.0, 170.0)), Color(0.12, 0.16, 0.29, 0.7), true)
 	for i in range(7):
-		var cx := 130.0 + float(i) * 178.0
+		var cx := lerpf(arena_left(), arena_right(), (float(i) + 0.5) / 7.0)
 		draw_circle(Vector2(cx, ground_y() - 236.0 + sin(round_time + float(i)) * 5.0), 26.0, Color(0.98, 0.79, 0.2, 0.28))
 	for y in range(0, int(size.y), 30):
 		draw_line(Vector2(0.0, float(y)), Vector2(size.x, float(y)), Color(1.0, 1.0, 1.0, 0.024), 1.0)
@@ -674,13 +762,15 @@ func draw_background(offset: Vector2) -> void:
 
 func draw_stage(offset: Vector2) -> void:
 	var floor_y: float = ground_y() + offset.y
-	draw_rect(Rect2(Vector2(STAGE_LEFT + offset.x, floor_y), Vector2(STAGE_RIGHT - STAGE_LEFT, 36.0)), Color.html("#334155"), true)
-	draw_rect(Rect2(Vector2(STAGE_LEFT + offset.x, floor_y + 36.0), Vector2(STAGE_RIGHT - STAGE_LEFT, 120.0)), Color.html("#1e293b"), true)
-	draw_rect(Rect2(Vector2(STAGE_LEFT + offset.x, floor_y + 12.0), Vector2(STAGE_RIGHT - STAGE_LEFT, 8.0)), Color(1.0, 1.0, 1.0, 0.08), true)
+	var left := arena_left()
+	var right := arena_right()
+	draw_rect(Rect2(Vector2(left + offset.x, floor_y), Vector2(right - left, 36.0)), Color.html("#334155"), true)
+	draw_rect(Rect2(Vector2(left + offset.x, floor_y + 36.0), Vector2(right - left, 120.0)), Color.html("#1e293b"), true)
+	draw_rect(Rect2(Vector2(left + offset.x, floor_y + 12.0), Vector2(right - left, 8.0)), Color(1.0, 1.0, 1.0, 0.08), true)
 	for i in range(16):
-		var x: float = STAGE_LEFT + float(i) * 74.0 + offset.x
+		var x: float = left + float(i) * ((right - left) / 15.0) + offset.x
 		draw_line(Vector2(x, floor_y), Vector2(x + 42.0, floor_y + 150.0), Color(1.0, 1.0, 1.0, 0.07), 2.0)
-	draw_rect(Rect2(Vector2(STAGE_LEFT + offset.x, floor_y - 8.0), Vector2(STAGE_RIGHT - STAGE_LEFT, 8.0)), Color.html("#facc15"), true)
+	draw_rect(Rect2(Vector2(left + offset.x, floor_y - 8.0), Vector2(right - left, 8.0)), Color.html("#facc15"), true)
 
 func draw_answer_crystals(offset: Vector2) -> void:
 	if not mode_learn:
@@ -689,7 +779,8 @@ func draw_answer_crystals(offset: Vector2) -> void:
 	for answer in answer_crystals:
 		var item: Dictionary = answer
 		var pos: Vector2 = item["pos"] + offset
-		var color: Color = Color.html("#38bdf8") if bool(item["armed"]) else Color.html("#475569")
+		var is_repeat := bool(item.get("repeat", false))
+		var color: Color = (Color.html("#f0abfc") if is_repeat else Color.html("#38bdf8")) if bool(item["armed"]) else Color.html("#475569")
 		var points: PackedVector2Array = PackedVector2Array([
 			pos + Vector2(0.0, -28.0),
 			pos + Vector2(28.0, 0.0),
@@ -746,7 +837,7 @@ func draw_hud() -> void:
 	draw_string(font, Vector2(size.x * 0.5 - 45.0, 56.0), "%02d" % int(ceil(round_time)), HORIZONTAL_ALIGNMENT_CENTER, 90.0, 34, Color.html("#f8fafc"))
 	draw_string(font, Vector2(42.0, 84.0), "Super %d  Stamina %d" % [int(player["super"]), int(player["stamina"])], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
 	draw_string(font, Vector2(size.x - 278.0, 84.0), "CPU Super %d" % int(rival["super"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(size.x * 0.5 - 190.0, 88.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes], HORIZONTAL_ALIGNMENT_CENTER, 380.0, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(size.x * 0.5 - 190.0, 88.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_CENTER, 380.0, 13, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(Vector2(size.x * 0.5 - 330.0, 108.0), Vector2(660.0, 38.0)), Color(0.02, 0.05, 0.09, 0.76), true)
@@ -765,3 +856,24 @@ func draw_health_bar(pos: Vector2, width: float, fighter: Dictionary, left_to_ri
 		bar_pos.x = pos.x + width - filled
 	draw_rect(Rect2(bar_pos, Vector2(filled, 24.0)), Color.html("#22c55e") if ratio > 0.35 else Color.html("#ef4444"), true)
 	draw_rect(Rect2(pos, Vector2(width, 24.0)), Color(1.0, 1.0, 1.0, 0.24), false, 2.0)
+
+func _question_id(question: Dictionary) -> String:
+	return "%s|%s" % [str(question.get("lesson", str(LESSONS[lesson_index]))), str(question.get("prompt", ""))]
+
+func _queue_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for item in repeat_queue:
+		if _question_id(item) == qid:
+			return
+	if repeat_queue.size() >= 6:
+		repeat_queue.pop_front()
+	var copy := question.duplicate(true)
+	copy["repeat"] = true
+	copy["lesson"] = str(LESSONS[lesson_index])
+	repeat_queue.append(copy)
+
+func _remove_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		if _question_id(repeat_queue[i]) == qid:
+			repeat_queue.remove_at(i)

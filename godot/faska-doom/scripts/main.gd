@@ -23,8 +23,8 @@ const MAP_H := 16
 const FOV := 1.0471975512
 const RAY_COUNT := 192
 const MAX_DIST := 14.0
-const LEARN_GOAL := 5
-const LESSONS := ["WORTART", "MATHE", "SATZ", "ENGLISCH"]
+const LEARN_GOAL := 7
+const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 
 const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'finster'?", "answers": ["Nomen", "Verb", "Adjektiv"], "correct": 2, "hint": "Finster beschreibt, wie etwas ist."},
@@ -32,6 +32,8 @@ const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'ein'?", "answers": ["Adjektiv", "Artikel", "Verb"], "correct": 1, "hint": "Ein steht vor einem Nomen."},
 	{"prompt": "Welche Wortart ist 'Munition'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 0, "hint": "Munition ist ein Ding."},
 	{"prompt": "Welche Wortart ist 'schnell'?", "answers": ["Verb", "Adjektiv", "Nomen"], "correct": 1, "hint": "Schnell beschreibt eine Art."},
+	{"prompt": "Welche Wortart ist 'unter'?", "answers": ["Praeposition", "Nomen", "Verb"], "correct": 0, "hint": "Unter beschreibt eine Lage."},
+	{"prompt": "Welche Wortart ist 'und'?", "answers": ["Artikel", "Konjunktion", "Adjektiv"], "correct": 1, "hint": "Und verbindet Woerter oder Saetze."},
 ]
 
 const QUESTIONS_MATH := [
@@ -48,6 +50,23 @@ const QUESTIONS_SENTENCE := [
 	{"prompt": "Welches Wort passt? Der Gang ist ___.", "answers": ["dunkel", "rennt", "der"], "correct": 0, "hint": "Gesucht ist eine Eigenschaft."},
 	{"prompt": "Welche Satzstelle ist ein Objekt? Wir finden den Schluessel.", "answers": ["Wir", "finden", "den Schluessel"], "correct": 2, "hint": "Was finden wir?"},
 	{"prompt": "Welche Satzstelle ist ein Ort? Gegner warten im Korridor.", "answers": ["Gegner", "warten", "im Korridor"], "correct": 2, "hint": "Wo warten sie?"},
+	{"prompt": "Welches Wort verbindet den Grund? Wir warten, ___ die Tuer klemmt.", "answers": ["weil", "schnell", "unter"], "correct": 0, "hint": "Weil nennt einen Grund."},
+]
+
+const QUESTIONS_READING := [
+	{"prompt": "Lies: Der blaue Gang fuehrt zum Ausgang. Wohin fuehrt er?", "answers": ["zum Ausgang", "zum Wald", "ins Wasser"], "correct": 0, "hint": "Der Zielort steht am Satzende."},
+	{"prompt": "Lies: Lumi findet Munition neben der Tuer. Was findet Lumi?", "answers": ["Armor", "Munition", "einen Apfel"], "correct": 1, "hint": "Das gesuchte Ding steht direkt nach findet."},
+	{"prompt": "Lies: Der Imp wartet hinter der roten Wand. Wo wartet er?", "answers": ["hinter der Wand", "auf dem Dach", "im Taxi"], "correct": 0, "hint": "Achte auf die Ortsangabe."},
+	{"prompt": "Lies: Der Scout oeffnet die gelbe Schleuse. Was oeffnet er?", "answers": ["die Schleuse", "die Kiste", "das Fenster"], "correct": 0, "hint": "Das Objekt steht nach oeffnet."},
+	{"prompt": "Lies: Nach dem Schuss blinkt der Reaktor. Wann blinkt er?", "answers": ["vorher", "nach dem Schuss", "nie"], "correct": 1, "hint": "Die Zeitangabe steht am Anfang."},
+]
+
+const QUESTIONS_COMPOUND := [
+	{"prompt": "Bilde das Kompositum: Reaktor + Raum", "answers": ["Reaktorraum", "Raumreaktor", "reaktiv"], "correct": 0, "hint": "Der Raum gehoert zum Reaktor."},
+	{"prompt": "Bilde das Kompositum: Laser + Strahl", "answers": ["Strahllaser", "Laserstrahl", "lasern"], "correct": 1, "hint": "Ein Strahl aus Laserlicht."},
+	{"prompt": "Bilde das Kompositum: Schutz + Schild", "answers": ["Schildschutz", "Schutzschild", "schuetzen"], "correct": 1, "hint": "Ein Schild zum Schutz."},
+	{"prompt": "Bilde das Kompositum: Tuer + Code", "answers": ["Tuercode", "Codetuer", "codieren"], "correct": 0, "hint": "Der Code oeffnet die Tuer."},
+	{"prompt": "Bilde das Kompositum: Monster + Raum", "answers": ["Raummonster", "Monsterraum", "monsterhaft"], "correct": 1, "hint": "Ein Raum mit Monstern."},
 ]
 
 const QUESTIONS_ENGLISH := [
@@ -74,7 +93,7 @@ class TouchDoomOverlay:
 	var _last_look_x := 0.0
 
 	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	func _process(_delta: float) -> void:
@@ -82,6 +101,8 @@ class TouchDoomOverlay:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
+		if not _should_show():
+			return
 		if event is InputEventScreenTouch:
 			if event.pressed:
 				if event.position.x < size.x * 0.44:
@@ -164,10 +185,12 @@ class TouchDoomOverlay:
 		]
 
 	func _draw() -> void:
-		if size.x < 980.0 or size.y > size.x * 1.2:
+		if _should_show():
 			_draw_stick()
 			_draw_buttons()
-			draw_string(get_theme_default_font(), Vector2(size.x - 246.0, 54.0), "rechts ziehen: drehen", HORIZONTAL_ALIGNMENT_CENTER, 220.0, 14, Color(0.93, 0.96, 1.0, 0.62))
+
+	func _should_show() -> bool:
+		return size.x < 980.0 or size.y > size.x * 1.2
 
 	func _draw_stick() -> void:
 		var center := _stick_center()
@@ -202,6 +225,7 @@ var lesson_index := 0
 var question_index := 0
 var learn_hits := 0
 var mistakes := 0
+var repeat_queue: Array = []
 var shot_timer := 0.0
 var hurt_timer := 0.0
 var dash_timer := 0.0
@@ -223,7 +247,7 @@ var last_touch_learn := false
 var last_touch_subject := false
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	focus_mode = Control.FOCUS_ALL
 	grab_focus()
 	touch_overlay = TouchDoomOverlay.new()
@@ -246,6 +270,7 @@ func reset_game() -> void:
 	question_index = 0
 	learn_hits = 0
 	mistakes = 0
+	repeat_queue.clear()
 	shot_timer = 0.0
 	hurt_timer = 0.0
 	dash_timer = 0.0
@@ -299,18 +324,56 @@ func setup_terminals() -> void:
 	var answers: Array = q["answers"]
 	var positions: Array = [Vector2(13.5, 3.5), Vector2(2.5, 13.5), Vector2(6.5, 13.5)]
 	for i in range(answers.size()):
-		terminals.append({"pos": positions[i], "label": answers[i], "index": i, "armed": true})
+		terminals.append({"pos": positions[i], "label": answers[i], "index": i, "armed": true, "repeat": bool(q.get("repeat", false))})
 
-func current_question() -> Dictionary:
+func question_bank() -> Array:
 	var bank: Array = QUESTIONS_WORD
 	var lesson := str(LESSONS[lesson_index])
 	if lesson == "MATHE":
 		bank = QUESTIONS_MATH
 	elif lesson == "SATZ":
 		bank = QUESTIONS_SENTENCE
+	elif lesson == "LESEN":
+		bank = QUESTIONS_READING
+	elif lesson == "KOMPOSITUM":
+		bank = QUESTIONS_COMPOUND
 	elif lesson == "ENGLISCH":
 		bank = QUESTIONS_ENGLISH
-	return bank[question_index % bank.size()]
+	return bank
+
+func current_question() -> Dictionary:
+	var lesson := str(LESSONS[lesson_index])
+	for entry in repeat_queue:
+		if str(entry.get("lesson", "")) == lesson:
+			var repeated_question: Dictionary = entry["question"]
+			return repeated_question
+	var bank := question_bank()
+	var q: Dictionary = bank[question_index % bank.size()].duplicate(true)
+	q["lesson"] = lesson
+	return q
+
+func _question_id(q: Dictionary) -> String:
+	return "%s::%s" % [str(q.get("lesson", LESSONS[lesson_index])), str(q.get("prompt", ""))]
+
+func _queue_repeat(q: Dictionary) -> void:
+	var copy := q.duplicate(true)
+	copy["lesson"] = str(q.get("lesson", LESSONS[lesson_index]))
+	copy["repeat"] = true
+	var id := _question_id(copy)
+	for entry in repeat_queue:
+		var stored_question: Dictionary = entry["question"]
+		if _question_id(stored_question) == id:
+			return
+	if repeat_queue.size() >= 10:
+		repeat_queue.pop_front()
+	repeat_queue.append({"lesson": copy["lesson"], "question": copy})
+
+func _remove_repeat(q: Dictionary) -> void:
+	var id := _question_id(q)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		var stored_question: Dictionary = repeat_queue[i]["question"]
+		if _question_id(stored_question) == id:
+			repeat_queue.remove_at(i)
 
 func cycle_lesson() -> void:
 	lesson_index = (lesson_index + 1) % LESSONS.size()
@@ -558,19 +621,25 @@ func check_terminal_shot() -> void:
 		terminal["armed"] = false
 		terminals[i] = terminal
 		if int(terminal["index"]) == int(q["correct"]):
+			var repeated := bool(q.get("repeat", false))
 			learn_hits += 1
 			if learn_hits % 2 == 1:
 				reactor_keys = mini(2, reactor_keys + 1)
 			ammo += 12
 			armor = mini(100, armor + 8)
-			score += 700
-			message = "Richtig: %s (%d/%d). Reaktorzugang stabilisiert." % [str(terminal["label"]), learn_hits, LEARN_GOAL]
-			question_index += 1
+			score += 900 if repeated else 700
+			_remove_repeat(q)
+			if repeated:
+				message = "Wiederholung geloest: %s (%d/%d)." % [str(terminal["label"]), learn_hits, LEARN_GOAL]
+			else:
+				message = "Richtig: %s (%d/%d). Reaktorzugang stabilisiert." % [str(terminal["label"]), learn_hits, LEARN_GOAL]
+			question_index = (question_index + 1) % question_bank().size()
 			setup_terminals()
 		else:
 			mistakes += 1
+			_queue_repeat(q)
 			damage_player(12)
-			message = "Falsches Terminal. Tipp: %s" % str(q["hint"])
+			message = "Falsches Terminal. Aufgabe kommt wieder. Tipp: %s" % str(q["hint"])
 		message_timer = 2.0
 		break
 
@@ -709,7 +778,7 @@ func draw_sprites() -> void:
 		for terminal in terminals:
 			var term: Dictionary = terminal
 			if bool(term["armed"]):
-				sprites.append({"pos": term["pos"], "kind": "terminal", "label": str(term["label"]), "dist": player_pos.distance_to(term["pos"]), "enemy": false})
+				sprites.append({"pos": term["pos"], "kind": "terminal", "label": str(term["label"]), "repeat": bool(term.get("repeat", false)), "dist": player_pos.distance_to(term["pos"]), "enemy": false})
 	for enemy in enemies:
 		var foe: Dictionary = enemy
 		sprites.append({"pos": foe["pos"], "kind": str(foe["kind"]), "hp": int(foe["hp"]), "hit": float(foe["hit"]), "dist": player_pos.distance_to(foe["pos"]), "enemy": true})
@@ -755,7 +824,8 @@ func draw_sprite(sprite: Dictionary) -> void:
 	if kind == "terminal":
 		var rect_term := Rect2(center - Vector2(item_size * 1.25, item_size * 0.75), Vector2(item_size * 2.5, item_size * 1.5))
 		draw_rect(rect_term, Color(0.05, 0.2, 0.33, 0.88), true)
-		draw_rect(rect_term, Color.html("#38bdf8"), false, 2.0)
+		var border := Color.html("#f0abfc") if bool(sprite.get("repeat", false)) else Color.html("#38bdf8")
+		draw_rect(rect_term, border, false, 2.0)
 		draw_string(get_theme_default_font(), rect_term.position + Vector2(3.0, rect_term.size.y * 0.64), str(sprite["label"]), HORIZONTAL_ALIGNMENT_CENTER, rect_term.size.x - 6.0, max(8, int(item_size * 0.42)), Color.html("#f8fafc"))
 	else:
 		draw_rect(Rect2(center - Vector2(item_size * 0.5, item_size * 0.5), Vector2(item_size, item_size)), icon_color, true)
@@ -790,7 +860,7 @@ func draw_hud() -> void:
 	draw_string(font, Vector2(25.0, 40.0), "FASKA DOOM PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#facc15"))
 	draw_string(font, Vector2(25.0, 66.0), "HP %d  Armor %d  Ammo %d  Grenades %d" % [hp, armor, ammo, grenades], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))
 	draw_string(font, Vector2(25.0, 89.0), "Keys %d/2  Enemies %d  Score %d" % [reactor_keys, enemies.size(), score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(25.0, 110.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(25.0, 110.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(size.x * 0.5 - 305.0, 24.0, 610.0, 35.0), Color(0.02, 0.05, 0.09, 0.78), true)

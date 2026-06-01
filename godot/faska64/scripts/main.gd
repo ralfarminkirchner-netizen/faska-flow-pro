@@ -66,6 +66,138 @@ const LEARN_TASKS := [
 		"correct": 1,
 		"hint": "Die Reihe springt immer +2.",
 	},
+	{
+		"prompt": "Lesetor: Welches Wort beginnt mit Sch?",
+		"answers": ["Schule", "Sonne", "Lampe"],
+		"correct": 0,
+		"hint": "Sch klingt wie am Anfang von Schule.",
+	},
+	{
+		"prompt": "Wortarten-Gate: Welche Wortart ist 'Tisch'?",
+		"answers": ["Verb", "Nomen", "Adjektiv"],
+		"correct": 1,
+		"hint": "Ein Nomen ist ein Ding, ein Tier, ein Mensch oder ein Ort.",
+	},
+	{
+		"prompt": "Satzbruecke: Welches Wort schreibt man am Satzanfang gross?",
+		"answers": ["der", "Heute", "rennt"],
+		"correct": 1,
+		"hint": "Das erste Wort im Satz wird grossgeschrieben.",
+	},
+	{
+		"prompt": "Mathe-Ring: Was ist 9 - 4?",
+		"answers": ["4", "5", "6"],
+		"correct": 1,
+		"hint": "Zaehle von 9 vier Schritte zurueck.",
+	},
+	{
+		"prompt": "Komposita-Tor: Was passt zu 'Zahn'?",
+		"answers": ["buerste", "laufen", "blau"],
+		"correct": 0,
+		"hint": "Zahn + Buerste ergibt Zahnbuerste.",
+	},
+	{
+		"prompt": "Lesetor: Welches Wort hat zwei Silben?",
+		"answers": ["Ball", "Blume", "Stern"],
+		"correct": 1,
+		"hint": "Blu-me hat zwei Silben.",
+	},
+	{
+		"prompt": "Adjektiv-Tor: Welches Wort beschreibt eine Farbe?",
+		"answers": ["rennt", "blau", "Hund"],
+		"correct": 1,
+		"hint": "Blau beschreibt, wie etwas aussieht.",
+	},
+	{
+		"prompt": "Satzbruecke: Was fehlt? Ich ___ ein Buch.",
+		"answers": ["lese", "Buch", "gruen"],
+		"correct": 0,
+		"hint": "Gesucht ist die Taetigkeit.",
+	},
+	{
+		"prompt": "Mathe-Ring: Welche Zahl ist groesser als 14?",
+		"answers": ["12", "14", "17"],
+		"correct": 2,
+		"hint": "17 kommt nach 14.",
+	},
+	{
+		"prompt": "Lesetor: Was reimt sich auf 'Nase'?",
+		"answers": ["Hase", "Haus", "Nest"],
+		"correct": 0,
+		"hint": "Nase und Hase enden gleich.",
+	},
+	{
+		"prompt": "Wortarten-Gate: Welche Wortart ist 'klein'?",
+		"answers": ["Adjektiv", "Nomen", "Verb"],
+		"correct": 0,
+		"hint": "Klein beschreibt eine Eigenschaft.",
+	},
+	{
+		"prompt": "Satzbruecke: Welcher Satz ist vollstaendig?",
+		"answers": ["Der Ball rollt.", "Ball der.", "Rollt schnell."],
+		"correct": 0,
+		"hint": "Ein voller Satz sagt klar, wer etwas tut.",
+	},
+	{
+		"prompt": "Mathe-Ring: Was ist die Haelfte von 10?",
+		"answers": ["4", "5", "6"],
+		"correct": 1,
+		"hint": "Zwei gleiche Teile von 10 sind 5 und 5.",
+	},
+	{
+		"prompt": "Komposita-Tor: Was entsteht aus Regen + Bogen?",
+		"answers": ["Regenbogen", "Bogenregen", "Regentag"],
+		"correct": 0,
+		"hint": "Die Woerter werden direkt zusammengesetzt.",
+	},
+	{
+		"prompt": "Lesetor: Welches Wort endet mit -en?",
+		"answers": ["laufen", "Katze", "rot"],
+		"correct": 0,
+		"hint": "Laufen endet mit den Buchstaben e und n.",
+	},
+	{
+		"prompt": "Wortarten-Gate: Welche Wortart ist 'singt'?",
+		"answers": ["Adjektiv", "Verb", "Nomen"],
+		"correct": 1,
+		"hint": "Singt sagt, was jemand tut.",
+	},
+	{
+		"prompt": "Mathe-Ring: 3 + 3 + 3 = ?",
+		"answers": ["6", "9", "12"],
+		"correct": 1,
+		"hint": "Drei Dreier ergeben neun.",
+	},
+	{
+		"prompt": "Satzbruecke: Wo steht der Punkt?",
+		"answers": ["am Anfang", "am Ende", "in der Mitte"],
+		"correct": 1,
+		"hint": "Der Punkt schliesst den Satz ab.",
+	},
+	{
+		"prompt": "Englisch-Tor: Was heisst 'dog'?",
+		"answers": ["Hund", "Baum", "Haus"],
+		"correct": 0,
+		"hint": "Dog bedeutet Hund.",
+	},
+	{
+		"prompt": "Englisch-Tor: Was heisst 'red'?",
+		"answers": ["blau", "rot", "gelb"],
+		"correct": 1,
+		"hint": "Red ist rot.",
+	},
+	{
+		"prompt": "Lesetor: Welches Wort ist ein Tier?",
+		"answers": ["Tasse", "Maus", "rennen"],
+		"correct": 1,
+		"hint": "Eine Maus ist ein Tier.",
+	},
+	{
+		"prompt": "Mathe-Ring: Welche Zahl fehlt? 10, 20, __",
+		"answers": ["25", "30", "40"],
+		"correct": 1,
+		"hint": "Die Reihe springt immer +10.",
+	},
 ]
 
 class TouchOverlay:
@@ -85,10 +217,12 @@ class TouchOverlay:
 
 	func _ready() -> void:
 		set_anchors_preset(Control.PRESET_FULL_RECT)
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
+		if not _should_show_controls() and (event is InputEventMouseButton or event is InputEventMouseMotion):
+			return
 		if event is InputEventScreenTouch:
 			if event.pressed:
 				var picked_button := _button_at(event.position)
@@ -152,6 +286,10 @@ class TouchOverlay:
 			"learn": Vector2(size.x - 252.0, size.y - 58.0),
 		}
 
+	func _should_show_controls() -> bool:
+		var size := get_viewport_rect().size
+		return size.x < size.y or size.x <= 920.0 or size.y <= 620.0 or (DisplayServer.is_touchscreen_available() and size.x <= 1180.0)
+
 	func _is_on_stick(pos: Vector2) -> bool:
 		return pos.distance_to(_stick_center()) <= 86.0
 
@@ -167,6 +305,8 @@ class TouchOverlay:
 		queue_redraw()
 
 	func _draw() -> void:
+		if not _should_show_controls():
+			return
 		var font := get_theme_default_font()
 		var center := _stick_center()
 		draw_circle(center, 62.0, Color(0.02, 0.08, 0.13, 0.48))
@@ -275,10 +415,10 @@ func _build_scene() -> void:
 	var environment_node := WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.48, 0.78, 0.98)
+	environment.background_color = Color(0.42, 0.68, 0.86)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.78, 0.88, 1.0)
-	environment.ambient_light_energy = 0.82
+	environment.ambient_light_color = Color(0.70, 0.82, 0.94)
+	environment.ambient_light_energy = 0.70
 	environment.fog_enabled = true
 	environment.fog_light_color = Color(0.64, 0.82, 0.94)
 	environment.fog_density = 0.012
@@ -416,6 +556,12 @@ func _build_ui() -> void:
 	hud.add_theme_color_override("font_color", Color(0.93, 0.98, 1.0))
 	layer.add_child(hud)
 
+	var message_back := ColorRect.new()
+	message_back.color = Color(0.02, 0.04, 0.08, 0.54)
+	message_back.position = Vector2(410, 8)
+	message_back.size = Vector2(820, 86)
+	layer.add_child(message_back)
+
 	message_label = Label.new()
 	message_label.position = Vector2(430, 12)
 	message_label.size = Vector2(650, 96)
@@ -543,7 +689,18 @@ func _build_learn_gates() -> void:
 		ring_mesh.rotation_degrees.x = 90.0
 		ring_mesh.material_override = _mat(Color(0.28, 0.58, 1.0), true)
 		node.add_child(ring_mesh)
-		var label := _create_label("", node.position + Vector3(0.0, 1.15, 0.0), Color.WHITE)
+		var board := MeshInstance3D.new()
+		var board_mesh := BoxMesh.new()
+		board_mesh.size = Vector3(2.65, 0.08, 0.74)
+		board.mesh = board_mesh
+		board.position = Vector3(0.0, 1.25, -0.04)
+		board.material_override = _mat(Color(0.96, 0.98, 1.0), false)
+		node.add_child(board)
+		var label := _create_label("", node.position + Vector3(0.0, 1.78, 0.0), Color(0.02, 0.05, 0.10))
+		label.font_size = 92
+		label.outline_size = 14
+		label.outline_modulate = Color(1.0, 1.0, 1.0, 0.95)
+		label.no_depth_test = true
 		add_child(node)
 		gates.append({
 			"node": node,
@@ -584,7 +741,9 @@ func _create_label(text: String, pos: Vector3, color: Color) -> Label3D:
 	var label := Label3D.new()
 	label.text = text
 	label.position = pos
-	label.font_size = 36
+	label.font_size = 52
+	label.outline_size = 8
+	label.outline_modulate = Color(1.0, 1.0, 1.0, 0.82)
 	label.modulate = color
 	add_child(label)
 	labels_3d.append(label)
@@ -799,7 +958,19 @@ func _update_portal(delta: float) -> void:
 
 func _update_camera(delta: float) -> void:
 	var focus := player.global_position + Vector3(0.0, 1.35, 0.0)
-	var offset := Vector3(sin(camera_yaw) * 10.5, 6.4, cos(camera_yaw) * 10.5)
+	var viewport_size := get_viewport().get_visible_rect().size
+	var camera_distance := 8.4
+	var camera_height := 5.4
+	camera.fov = 64.0
+	if viewport_size.x < viewport_size.y:
+		camera_distance = 13.2
+		camera_height = 7.0
+		camera.fov = 82.0
+	elif viewport_size.x < 700.0:
+		camera_distance = 11.0
+		camera_height = 6.2
+		camera.fov = 76.0
+	var offset := Vector3(sin(camera_yaw) * camera_distance, camera_height, cos(camera_yaw) * camera_distance)
 	camera.global_position = camera.global_position.lerp(focus + offset, 1.0 - pow(0.001, delta))
 	camera.look_at(focus, Vector3.UP)
 
@@ -813,9 +984,10 @@ func _update_labels() -> void:
 
 func _setup_question() -> void:
 	var task: Dictionary = LEARN_TASKS[quiz_index % LEARN_TASKS.size()]
+	var prefixes := ["1", "2", "3"]
 	for gate in gates:
 		var label: Label3D = gate["label"]
-		label.text = task["answers"][gate["answer"]]
+		label.text = "%s  %s" % [prefixes[gate["answer"]], task["answers"][gate["answer"]]]
 	_update_message(0.0)
 
 func _update_hud() -> void:

@@ -1,15 +1,53 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function GodotGameEmbed({
   title,
+  subtitle,
   src,
   controls = 'WASD/Pfeile bewegen · J Angriff · K Block · Space Rolle · L Learncade',
+  fallbackPath,
+  fallbackLabel = '2D-Sicherheitsmodus',
 }) {
   const navigate = useNavigate();
+  const iframeRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  const [fallbackNotice, setFallbackNotice] = useState('');
   const [frameKey, setFrameKey] = useState(0);
   const frameSrc = useMemo(() => `${src}?run=${frameKey}`, [src, frameKey]);
+
+  useEffect(() => {
+    if (!fallbackPath) return undefined;
+
+    const slowTimer = window.setTimeout(() => {
+      setFallbackNotice('Godot laedt noch. Der 2D-Modus ist sofort spielbar.');
+    }, 18000);
+
+    const checkTimer = window.setInterval(() => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        if (!doc) return;
+        const notice = doc.querySelector('#status-notice');
+        const noticeText = notice?.textContent?.trim();
+        const noticeVisible = noticeText && window.getComputedStyle(notice).display !== 'none';
+        if (noticeVisible) {
+          setFallbackNotice(noticeText.includes('WebGL') ? 'Godot-WebGL ist in diesem Browser nicht verfuegbar.' : 'Godot konnte hier nicht starten.');
+          window.clearTimeout(slowTimer);
+        }
+        if (!doc.querySelector('#status')) {
+          setFallbackNotice('');
+          window.clearTimeout(slowTimer);
+        }
+      } catch {
+        // Same-origin access can fail briefly while the iframe is navigating.
+      }
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(slowTimer);
+      window.clearInterval(checkTimer);
+    };
+  }, [fallbackPath, frameSrc]);
 
   return (
     <div
@@ -46,12 +84,18 @@ export default function GodotGameEmbed({
               }}
             />
             <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 1 }}>{title}</div>
+            {subtitle && (
+              <div style={{ margin: '8px auto 0', maxWidth: 520, color: '#cbd5e1', fontSize: 13, lineHeight: 1.45 }}>
+                {subtitle}
+              </div>
+            )}
             <div style={{ marginTop: 7, color: '#94a3b8', fontSize: 13 }}>Godot 4 Web-Export wird geladen</div>
           </div>
         </div>
       )}
 
       <iframe
+        ref={iframeRef}
         key={frameKey}
         title={title}
         src={frameSrc}
@@ -66,6 +110,33 @@ export default function GodotGameEmbed({
           background: '#020617',
         }}
       />
+
+      {fallbackPath && fallbackNotice && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            zIndex: 5,
+            transform: 'translate(-50%, -50%)',
+            width: 'min(430px, calc(100vw - 28px))',
+            padding: 18,
+            background: 'rgba(2, 6, 23, .88)',
+            border: '1px solid rgba(248, 250, 252, .22)',
+            boxShadow: '8px 8px 0 rgba(0,0,0,.45)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 800, lineHeight: 1.45 }}>{fallbackNotice}</div>
+          <button
+            type="button"
+            onClick={() => navigate(fallbackPath)}
+            style={{ ...buttonStyle, width: 'auto', minWidth: 190, height: 44, marginTop: 14, padding: '0 16px', fontSize: 14 }}
+          >
+            {fallbackLabel}
+          </button>
+        </div>
+      )}
 
       <div
         style={{
@@ -85,24 +156,27 @@ export default function GodotGameEmbed({
 
         <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
           <button
+            className="godot-shell-button"
             type="button"
             aria-label="Neustart"
             title="Neustart"
             onClick={() => {
               setLoaded(false);
+              setFallbackNotice('');
               setFrameKey((value) => value + 1);
             }}
             style={buttonStyle}
           >
             ↻
           </button>
-          <button type="button" aria-label="Zurueck" title="Zurueck" onClick={() => navigate('/')} style={buttonStyle}>
+          <button className="godot-shell-button" type="button" aria-label="Zurueck" title="Zurueck" onClick={() => navigate('/')} style={buttonStyle}>
             ←
           </button>
         </div>
       </div>
 
       <div
+        className="godot-controls-bar"
         style={{
           position: 'absolute',
           left: '50%',
@@ -129,6 +203,12 @@ export default function GodotGameEmbed({
         @keyframes godot-spin { to { transform: rotate(360deg); } }
         @media (max-width: 760px) {
           iframe { height: 100dvh; }
+          .godot-controls-bar { display: none; }
+          .godot-shell-button {
+            width: 36px !important;
+            height: 36px !important;
+            font-size: 18px !important;
+          }
         }
       `}</style>
     </div>

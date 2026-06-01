@@ -10,13 +10,56 @@ const DRAG := 130.0
 const STEER := 2.75
 const TOTAL_LAPS := 3
 
-const LEARN_TASKS = [
+const LEARN_GOAL := 8
+const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
+
+const TASKS_WORD := [
 	{"prompt": "Welche Wortart ist 'schnell'?", "answer": "Adjektiv", "options": ["Nomen", "Verb", "Adjektiv"]},
-	{"prompt": "Was ist 8 + 9?", "answer": "17", "options": ["16", "17", "18"]},
-	{"prompt": "Was bedeutet 'fast'?", "answer": "schnell", "options": ["langsam", "schnell", "rund"]},
 	{"prompt": "Welches Wort ist ein Verb?", "answer": "driften", "options": ["driften", "Kurve", "rot"]},
+	{"prompt": "Welche Wortart ist 'unter'?", "answer": "Praeposition", "options": ["Praeposition", "Nomen", "Artikel"]},
+	{"prompt": "Welche Wortart ist 'und'?", "answer": "Konjunktion", "options": ["Adjektiv", "Konjunktion", "Verb"]},
+	{"prompt": "Welche Wortart ist 'Rennen'?", "answer": "Nomen", "options": ["Verb", "Nomen", "Adjektiv"]},
+	{"prompt": "Welche Wortart ist 'der'?", "answer": "Artikel", "options": ["Artikel", "Verb", "Nomen"]},
+]
+
+const TASKS_MATH := [
+	{"prompt": "Was ist 8 + 9?", "answer": "17", "options": ["16", "17", "18"]},
 	{"prompt": "5 x 6 = ?", "answer": "30", "options": ["25", "30", "35"]},
-	{"prompt": "Bilde das Kompositum: Renn + Strecke", "answer": "Rennstrecke", "options": ["Rennstrecke", "Streckenrenn", "Rennlicht"]}
+	{"prompt": "24 - 9 = ?", "answer": "15", "options": ["15", "13", "17"]},
+	{"prompt": "36 : 6 = ?", "answer": "6", "options": ["4", "7", "6"]},
+	{"prompt": "Welche Zahl ist gerade?", "answer": "28", "options": ["17", "28", "31"]},
+	{"prompt": "Welche Zahl ist groesser als 50?", "answer": "63", "options": ["49", "63", "38"]},
+]
+
+const TASKS_SENTENCE := [
+	{"prompt": "Der Kart ___ um die Kurve.", "answer": "driftet", "options": ["schnell", "driftet", "unter"]},
+	{"prompt": "Mira nimmt ___ Itembox.", "answer": "eine", "options": ["eine", "einen", "ein"]},
+	{"prompt": "Wir bremsen, ___ die Kurve eng ist.", "answer": "weil", "options": ["Auto", "weil", "gelb"]},
+	{"prompt": "Setze das Satzzeichen: Das Rennen startet", "answer": ".", "options": ["?", ",", "."]},
+	{"prompt": "Welches Wort verbindet zwei Satzteile?", "answer": "und", "options": ["und", "rot", "Strecke"]},
+]
+
+const TASKS_READING := [
+	{"prompt": "Lies: Der gelbe Kart sammelt eine Box. Was sammelt er?", "answer": "eine Box", "options": ["eine Box", "ein Haus", "einen Baum"]},
+	{"prompt": "Lies: Luna bremst vor der engen Kurve. Wann bremst sie?", "answer": "vor der Kurve", "options": ["nach dem Ziel", "vor der Kurve", "im Wasser"]},
+	{"prompt": "Lies: Der rote Rival faehrt links vorbei. Wo faehrt er?", "answer": "links", "options": ["rechts", "hinten", "links"]},
+	{"prompt": "Lies: Bruno nutzt den Turbo auf der Geraden. Was nutzt Bruno?", "answer": "Turbo", "options": ["Turbo", "Bremse", "Schirm"]},
+]
+
+const TASKS_COMPOUND := [
+	{"prompt": "Bilde das Kompositum: Renn + Strecke", "answer": "Rennstrecke", "options": ["Rennstrecke", "Streckenrenn", "Rennlicht"]},
+	{"prompt": "Bilde das Kompositum: Motor + Haube", "answer": "Motorhaube", "options": ["Haubenmotor", "Motorhaube", "motorisch"]},
+	{"prompt": "Bilde das Kompositum: Ziel + Linie", "answer": "Ziellinie", "options": ["Linienziel", "Ziellinie", "zielen"]},
+	{"prompt": "Bilde das Kompositum: Reifen + Spur", "answer": "Reifenspur", "options": ["Reifenspur", "Spurenreifen", "spurig"]},
+	{"prompt": "Bilde das Kompositum: Turbo + Start", "answer": "Turbostart", "options": ["Startturbo", "Turbostart", "starten"]},
+]
+
+const TASKS_ENGLISH := [
+	{"prompt": "Was bedeutet 'fast'?", "answer": "schnell", "options": ["langsam", "schnell", "rund"]},
+	{"prompt": "Was heisst 'Kurve' auf Englisch?", "answer": "curve", "options": ["coin", "curve", "car"]},
+	{"prompt": "Was heisst 'Rennen' auf Englisch?", "answer": "race", "options": ["road", "race", "read"]},
+	{"prompt": "Was heisst 'Bremse' auf Englisch?", "answer": "brake", "options": ["boost", "brake", "bridge"]},
+	{"prompt": "Was heisst 'links' auf Englisch?", "answer": "left", "options": ["right", "left", "late"]},
 ]
 
 var font
@@ -34,7 +77,21 @@ var camera := Vector2.ZERO
 var touch_axis := Vector2.ZERO
 var touch_pointer := -1
 var touch_buttons := {}
+var touch_button_state := {
+	"gas": false,
+	"brake": false,
+	"drift": false,
+	"item": false,
+	"learn": false,
+	"subject": false
+}
+var active_touch_buttons := {}
+var mouse_touch_active := ""
 var mode := "Normal"
+var lesson_index := 0
+var correct_gates := 0
+var mistakes := 0
+var repeat_queue: Array = []
 var phase := "race"
 var lap := 1
 var checkpoint := 0
@@ -53,7 +110,7 @@ var stats := {}
 func _ready() -> void:
 	rng.seed = 73241
 	font = get_theme_default_font()
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	focus_mode = Control.FOCUS_ALL
 	grab_focus()
 	reset_game()
@@ -80,7 +137,15 @@ func reset_game() -> void:
 	floaters.clear()
 	touch_axis = Vector2.ZERO
 	touch_pointer = -1
+	active_touch_buttons.clear()
+	mouse_touch_active = ""
+	for button_name in touch_button_state.keys():
+		touch_button_state[button_name] = false
 	mode = "Normal"
+	lesson_index = 0
+	correct_gates = 0
+	mistakes = 0
+	repeat_queue.clear()
 	phase = "race"
 	lap = 1
 	checkpoint = 0
@@ -114,13 +179,13 @@ func build_item_boxes() -> void:
 
 func build_learn_gates() -> void:
 	learn_gates.clear()
-	var task = LEARN_TASKS[question_index % LEARN_TASKS.size()]
-	var gate_progress := 0.18 + float(question_index % 4) * 0.18
+	var task := current_task()
+	var gate_progress := 0.18 + float((question_index + lesson_index) % 4) * 0.18
 	var center := sample_track(gate_progress)
 	var normal := track_normal(int(gate_progress * path.size()))
 	for i in range(3):
 		var lane := -1.0 + float(i)
-		learn_gates.append({"pos": center + normal * lane * 92.0, "label": String(task.options[i]), "answer": String(task.answer), "active": true})
+		learn_gates.append({"pos": center + normal * lane * 92.0, "label": String(task.options[i]), "answer": String(task.answer), "task": task, "active": true})
 
 func _process(delta: float) -> void:
 	if not has_focus():
@@ -156,9 +221,9 @@ func update_player(delta: float) -> void:
 	if abs(touch_axis.x) > 0.08:
 		steer_input += touch_axis.x
 	steer_input = clamp(steer_input, -1.0, 1.0)
-	var throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch_axis.y < -0.18
-	var brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)
-	var drifting := Input.is_key_pressed(KEY_SPACE)
+	var throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch_axis.y < -0.18 or is_touch_down("gas")
+	var brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch_axis.y > 0.35 or is_touch_down("brake")
+	var drifting := Input.is_key_pressed(KEY_SPACE) or is_touch_down("drift")
 	var speed: float = float(player.speed)
 	if throttle:
 		speed += ACCEL * delta
@@ -295,14 +360,23 @@ func update_hazards(delta: float) -> void:
 func update_learn_gates() -> void:
 	for gate in learn_gates:
 		if bool(gate.active) and Vector2(player.pos).distance_to(Vector2(gate.pos)) < 54.0:
+			var task: Dictionary = gate.get("task", current_task())
 			if String(gate.label) == String(gate.answer):
-				score += 650
+				var repeated := bool(task.get("repeat", false))
+				score += 900 if repeated else 650
 				stats.learn = int(stats.learn) + 1
+				correct_gates += 1
 				player.boost = max(float(player.boost), 1.4)
-				add_text("RICHTIG", Vector2(gate.pos), Color(0.35, 1.0, 0.55))
+				_remove_repeat(task)
+				add_text("WDH OK" if repeated else "RICHTIG", Vector2(gate.pos), Color(0.35, 1.0, 0.55))
+				if correct_gates > 0 and correct_gates % LEARN_GOAL == 0:
+					score += 1600
+					add_text("LERNZIEL", Vector2(gate.pos) + Vector2(0, -42), Color(1.0, 0.88, 0.24))
 			else:
 				player.speed = float(player.speed) * 0.45
 				combo = 0
+				mistakes += 1
+				_queue_repeat(task)
 				add_text("FALSCH", Vector2(gate.pos), Color(1.0, 0.22, 0.2))
 			question_index += 1
 			build_learn_gates()
@@ -310,10 +384,73 @@ func update_learn_gates() -> void:
 
 func toggle_learncade() -> void:
 	mode = "Learncade" if mode == "Normal" else "Normal"
-	message = "Learncade: fahre durch die richtige Antwort." if mode == "Learncade" else "Normalmodus aktiv."
+	if mode == "Learncade":
+		message = "Learncade: " + LESSONS[lesson_index] + " - fahre durch die richtige Antwort."
+	else:
+		message = "Normalmodus aktiv."
 	message_timer = 2.4
 	if mode == "Learncade":
 		build_learn_gates()
+
+func cycle_lesson() -> void:
+	lesson_index = (lesson_index + 1) % LESSONS.size()
+	question_index = 0
+	mode = "Learncade"
+	build_learn_gates()
+	message = "Fach: " + LESSONS[lesson_index] + " - falsche Tore kommen wieder."
+	message_timer = 2.5
+
+func task_bank() -> Array:
+	match LESSONS[lesson_index]:
+		"MATHE":
+			return TASKS_MATH
+		"SATZ":
+			return TASKS_SENTENCE
+		"LESEN":
+			return TASKS_READING
+		"KOMPOSITUM":
+			return TASKS_COMPOUND
+		"ENGLISCH":
+			return TASKS_ENGLISH
+		_:
+			return TASKS_WORD
+
+func current_task() -> Dictionary:
+	var lesson := String(LESSONS[lesson_index])
+	for entry in repeat_queue:
+		if String(entry.get("lesson", "")) == lesson:
+			var repeated_task: Dictionary = entry["task"]
+			return repeated_task
+	var bank := task_bank()
+	var task: Dictionary = bank[question_index % bank.size()].duplicate(true)
+	task["lesson"] = lesson
+	return task
+
+func _task_id(task: Dictionary) -> String:
+	return "%s::%s" % [String(task.get("lesson", LESSONS[lesson_index])), String(task.get("prompt", ""))]
+
+func _queue_repeat(task: Dictionary) -> void:
+	var copy := task.duplicate(true)
+	copy["lesson"] = String(task.get("lesson", LESSONS[lesson_index]))
+	copy["repeat"] = true
+	var id := _task_id(copy)
+	for entry in repeat_queue:
+		var stored_task: Dictionary = entry["task"]
+		if _task_id(stored_task) == id:
+			return
+	if repeat_queue.size() >= 10:
+		repeat_queue.pop_front()
+	repeat_queue.append({"lesson": copy["lesson"], "task": copy})
+
+func _remove_repeat(task: Dictionary) -> void:
+	var id := _task_id(task)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		var stored_task: Dictionary = repeat_queue[i]["task"]
+		if _task_id(stored_task) == id:
+			repeat_queue.remove_at(i)
+
+func is_touch_down(name: String) -> bool:
+	return touch_button_state.has(name) and bool(touch_button_state[name])
 
 func track_grip(pos: Vector2) -> float:
 	var d: float = distance_to_track(pos)
@@ -367,10 +504,14 @@ func _unhandled_input(event) -> void:
 				reset_game()
 			KEY_L:
 				toggle_learncade()
+			KEY_C:
+				cycle_lesson()
 			KEY_SHIFT, KEY_E, KEY_Q:
 				use_item()
 
 func _gui_input(event) -> void:
+	if not should_show_touch():
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			handle_touch_press(event.index, event.position)
@@ -378,29 +519,86 @@ func _gui_input(event) -> void:
 			if event.index == touch_pointer:
 				touch_pointer = -1
 				touch_axis = Vector2.ZERO
+			if active_touch_buttons.has(event.index):
+				var name := String(active_touch_buttons[event.index])
+				touch_button_state[name] = false
+				active_touch_buttons.erase(event.index)
 	elif event is InputEventScreenDrag:
 		if event.index == touch_pointer:
-			var origin := Vector2(100, size.y - 100)
-			touch_axis = (event.position - origin) / 76.0
+			var origin := touch_stick_center()
+			touch_axis = (event.position - origin) / (76.0 * touch_scale())
 			if touch_axis.length() > 1.0:
 				touch_axis = touch_axis.normalized()
-	elif event is InputEventMouseButton and event.pressed:
-		handle_touch_press(999, event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			handle_touch_press(999, event.position)
+		else:
+			if touch_pointer == 999:
+				touch_pointer = -1
+				touch_axis = Vector2.ZERO
+			if mouse_touch_active != "":
+				touch_button_state[mouse_touch_active] = false
+				mouse_touch_active = ""
+	elif event is InputEventMouseMotion and touch_pointer == 999:
+		var origin := touch_stick_center()
+		touch_axis = (event.position - origin) / (76.0 * touch_scale())
+		if touch_axis.length() > 1.0:
+			touch_axis = touch_axis.normalized()
 
 func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
-	if pos.x < size.x * 0.42 and pos.y > size.y * 0.56:
+	if pos.distance_to(touch_stick_center()) <= 92.0 * touch_scale():
 		touch_pointer = pointer_id
-		var origin := Vector2(100, size.y - 100)
-		touch_axis = (pos - origin) / 76.0
+		var origin := touch_stick_center()
+		touch_axis = (pos - origin) / (76.0 * touch_scale())
 		if touch_axis.length() > 1.0:
 			touch_axis = touch_axis.normalized()
 		return
-	for name in touch_buttons.keys():
-		if touch_buttons[name].has_point(pos):
+	var rects := touch_button_rects()
+	for name in rects.keys():
+		var rect: Rect2 = rects[name]
+		if rect.has_point(pos):
+			touch_button_state[name] = true
+			if pointer_id == 999:
+				mouse_touch_active = name
+			else:
+				active_touch_buttons[pointer_id] = name
 			if name == "item":
 				use_item()
 			elif name == "learn":
 				toggle_learncade()
+			elif name == "subject":
+				cycle_lesson()
+
+func should_show_touch() -> bool:
+	return size.x <= 1100.0 or size.x < size.y
+
+func touch_scale() -> float:
+	if size.y > size.x * 1.15:
+		return clampf(size.x / 520.0, 1.04, 1.42)
+	return clampf(min(size.x, size.y) / 720.0, 0.72, 1.16)
+
+func touch_stick_center() -> Vector2:
+	var s := touch_scale()
+	return Vector2(100.0 * s, size.y - 104.0 * s)
+
+func touch_button_centers() -> Dictionary:
+	var s := touch_scale()
+	return {
+		"gas": Vector2(size.x - 92.0 * s, size.y - 188.0 * s),
+		"brake": Vector2(size.x - 92.0 * s, size.y - 96.0 * s),
+		"drift": Vector2(size.x - 182.0 * s, size.y - 96.0 * s),
+		"item": Vector2(size.x - 182.0 * s, size.y - 188.0 * s),
+		"subject": Vector2(size.x - 272.0 * s, size.y - 96.0 * s),
+		"learn": Vector2(size.x - 272.0 * s, size.y - 188.0 * s),
+	}
+
+func touch_button_rects() -> Dictionary:
+	var s := touch_scale()
+	var rects := {}
+	for name in touch_button_centers().keys():
+		var center: Vector2 = touch_button_centers()[name]
+		rects[name] = Rect2(center - Vector2(36.0, 24.0) * s, Vector2(72.0, 48.0) * s)
+	return rects
 
 func world_to_screen(pos: Vector2) -> Vector2:
 	var offset := Vector2.ZERO
@@ -451,12 +649,15 @@ func draw_objects() -> void:
 		draw_circle(hp, 31.0, Color(0.02, 0.02, 0.025, 0.82))
 		draw_arc(hp, 31.0, 0.0, TAU, 28, Color(0.95, 0.75, 0.18, 0.6), 2.0)
 	if mode == "Learncade":
-		var task = LEARN_TASKS[question_index % LEARN_TASKS.size()]
-		draw_text_at(Vector2(size.x * 0.34, 34), String(task.prompt), Color(0.8, 0.95, 1.0), 16)
+		var task := current_task()
+		var panel_w := minf(size.x - 24.0, 720.0)
+		draw_rect(Rect2(Vector2(size.x * 0.5 - panel_w * 0.5, 144.0 if should_show_touch() else 12.0), Vector2(panel_w, 32.0)), Color(0.0, 0.0, 0.0, 0.62))
+		draw_text_at(Vector2(size.x * 0.5 - panel_w * 0.5 + 12.0, 166.0 if should_show_touch() else 34.0), "%s: %s" % [LESSONS[lesson_index], String(task.prompt)], Color(0.8, 0.95, 1.0), 16)
 		for gate in learn_gates:
 			var gp := world_to_screen(Vector2(gate.pos))
 			draw_circle(gp, 48.0, Color(0.12, 0.28, 0.65, 0.56))
-			draw_arc(gp, 52.0, 0.0, TAU, 34, Color(0.55, 0.82, 1.0), 4.0)
+			var border := Color(0.95, 0.52, 1.0) if bool(task.get("repeat", false)) else Color(0.55, 0.82, 1.0)
+			draw_arc(gp, 52.0, 0.0, TAU, 34, border, 4.0)
 			draw_text_at(gp + Vector2(-32, 5), String(gate.label), Color.WHITE, 13)
 
 func draw_karts() -> void:
@@ -483,42 +684,61 @@ func draw_effects() -> void:
 		draw_circle(world_to_screen(Vector2(part.pos)), float(part.size), part.color)
 
 func draw_hud() -> void:
-	draw_rect(Rect2(Vector2(10, 10), Vector2(340, 124)), Color(0.0, 0.0, 0.0, 0.6))
-	draw_text_at(Vector2(20, 31), "FASKA KART - GODOT 4", Color(1.0, 0.9, 0.25), 18)
-	draw_text_at(Vector2(20, 56), "Lap " + str(min(lap, TOTAL_LAPS)) + "/" + str(TOTAL_LAPS) + "  CP " + str(checkpoint + 1) + "/" + str(path.size()), Color(0.9, 0.96, 1.0), 14)
-	draw_bar(Vector2(20, 76), "SPEED", abs(float(player.speed)), MAX_SPEED + 220.0, Color(0.34, 0.85, 1.0))
-	draw_bar(Vector2(20, 98), "DRIFT", float(player.drift), 1.0, Color(1.0, 0.65, 0.18))
-	draw_text_at(Vector2(20, 124), "Score " + str(score) + "  Mode " + mode + "  Time " + format_time(race_time), Color(0.86, 0.92, 1.0), 13)
-	draw_rect(Rect2(Vector2(size.x - 270, 10), Vector2(256, 86)), Color(0.0, 0.0, 0.0, 0.56))
-	draw_text_at(Vector2(size.x - 258, 32), "Item " + String(item_slot).to_upper(), Color(0.94, 0.98, 1.0), 15)
-	draw_text_at(Vector2(size.x - 258, 55), "Coins " + str(player.coins) + "  Mini " + str(stats.drifts), Color(0.94, 0.98, 1.0), 14)
-	draw_text_at(Vector2(size.x - 258, 78), "Learn " + str(stats.learn) + "  Rockets " + str(stats.rockets), Color(0.94, 0.98, 1.0), 14)
+	var compact := should_show_touch()
+	var ui := 1.28 if size.y > size.x * 1.15 else 1.0
+	var hud_w := minf(size.x - 20.0, 520.0 if compact else 420.0)
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, (148.0 if compact else 142.0) * ui)), Color(0.0, 0.0, 0.0, 0.6))
+	draw_text_at(Vector2(20, 31 * ui), "FASKA KART PRO", Color(1.0, 0.9, 0.25), int(18 * ui))
+	draw_text_at(Vector2(20, 56 * ui), "Lap " + str(min(lap, TOTAL_LAPS)) + "/" + str(TOTAL_LAPS) + "  CP " + str(checkpoint + 1) + "/" + str(path.size()), Color(0.9, 0.96, 1.0), int(14 * ui))
+	draw_bar(Vector2(20, 76 * ui), "SPEED", abs(float(player.speed)), MAX_SPEED + 220.0, Color(0.34, 0.85, 1.0), ui)
+	draw_bar(Vector2(20, 98 * ui), "DRIFT", float(player.drift), 1.0, Color(1.0, 0.65, 0.18), ui)
+	draw_text_at(Vector2(20, 124 * ui), "Score %d  Mode %s  Time %s" % [score, mode, format_time(race_time)], Color(0.86, 0.92, 1.0), int(13 * ui))
+	draw_text_at(Vector2(20, 146 * ui), "Fach %s  Ziel %d/%d  Fehler %d  Wdh %d" % [LESSONS[lesson_index], correct_gates % LEARN_GOAL, LEARN_GOAL, mistakes, repeat_queue.size()], Color(0.72, 0.94, 1.0), int(12 * ui))
+	if not compact:
+		draw_rect(Rect2(Vector2(size.x - 306, 10), Vector2(292, 106)), Color(0.0, 0.0, 0.0, 0.56))
+		draw_text_at(Vector2(size.x - 294, 32), "Item " + String(item_slot).to_upper(), Color(0.94, 0.98, 1.0), 15)
+		draw_text_at(Vector2(size.x - 294, 55), "Coins " + str(player.coins) + "  Mini " + str(stats.drifts), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 294, 78), "Learn " + str(stats.learn) + "  Rockets " + str(stats.rockets), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 294, 101), "C Fach  E/Q/Shift Item", Color(0.74, 0.84, 0.96), 12)
 
-func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color) -> void:
-	draw_text_at(pos, label, Color(0.76, 0.84, 0.92), 12)
-	draw_rect(Rect2(pos + Vector2(72, -10), Vector2(170, 8)), Color(0.08, 0.08, 0.1))
-	draw_rect(Rect2(pos + Vector2(72, -10), Vector2(170 * clamp(value / max_value, 0.0, 1.0), 8)), color)
+func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color, scale_factor: float = 1.0) -> void:
+	draw_text_at(pos, label, Color(0.76, 0.84, 0.92), int(12 * scale_factor))
+	draw_rect(Rect2(pos + Vector2(72, -10) * scale_factor, Vector2(170, 8) * scale_factor), Color(0.08, 0.08, 0.1))
+	draw_rect(Rect2(pos + Vector2(72, -10) * scale_factor, Vector2(170 * clamp(value / max_value, 0.0, 1.0), 8) * scale_factor), color)
 
 func draw_touch_controls() -> void:
 	touch_buttons.clear()
-	var origin := Vector2(100, size.y - 100)
-	draw_arc(origin, 66.0, 0.0, TAU, 36, Color(0.6, 0.82, 1.0, 0.32), 3.0)
-	draw_circle(origin + touch_axis * 44.0, 23.0, Color(0.32, 0.75, 1.0, 0.42))
-	var buttons = [
-		["item", "ITEM", Vector2(size.x - 96, size.y - 96)],
-		["learn", "LERN", Vector2(size.x - 182, size.y - 96)]
-	]
-	for item in buttons:
-		var rect := Rect2(item[2] - Vector2(36, 24), Vector2(72, 48))
-		touch_buttons[item[0]] = rect
-		draw_rect(rect, Color(0.02, 0.07, 0.13, 0.72))
-		draw_rect(rect, Color(0.55, 0.78, 1.0, 0.55), false, 2.0)
-		draw_text_at(rect.position + Vector2(10, 31), item[1], Color(0.94, 0.98, 1.0), 12)
+	if not should_show_touch():
+		return
+	var s := touch_scale()
+	var origin := touch_stick_center()
+	draw_arc(origin, 66.0 * s, 0.0, TAU, 36, Color(0.6, 0.82, 1.0, 0.32), 3.0 * s)
+	draw_circle(origin + touch_axis * 44.0 * s, 23.0 * s, Color(0.32, 0.75, 1.0, 0.52))
+	var labels := {
+		"gas": "GAS",
+		"brake": "BRK",
+		"drift": "DRF",
+		"item": "ITEM",
+		"subject": "FACH",
+		"learn": "LERN"
+	}
+	var rects := touch_button_rects()
+	for name in rects.keys():
+		var rect: Rect2 = rects[name]
+		touch_buttons[name] = rect
+		var fill := Color(0.02, 0.07, 0.13, 0.72)
+		if is_touch_down(name):
+			fill = Color(0.16, 0.44, 0.88, 0.9)
+		draw_rect(rect, fill)
+		draw_rect(rect, Color(0.55, 0.78, 1.0, 0.55), false, 2.0 * s)
+		draw_text_at(rect.position + Vector2(8, 31) * s, labels[name], Color(0.94, 0.98, 1.0), max(9, int(12 * s)))
 
 func draw_messages() -> void:
 	if message_timer > 0.0:
-		draw_rect(Rect2(Vector2(size.x * 0.32, 12), Vector2(size.x * 0.36, 30)), Color(0.0, 0.0, 0.0, 0.62))
-		draw_text_at(Vector2(size.x * 0.33, 33), message, Color(0.95, 0.98, 1.0), 14)
+		var msg_w := minf(size.x - 24.0, 680.0)
+		var msg_y := 202.0 if should_show_touch() else (52.0 if mode == "Learncade" else 12.0)
+		draw_rect(Rect2(Vector2(size.x * 0.5 - msg_w * 0.5, msg_y), Vector2(msg_w, 30)), Color(0.0, 0.0, 0.0, 0.62))
+		draw_text_at(Vector2(size.x * 0.5 - msg_w * 0.5 + 12.0, msg_y + 21.0), message, Color(0.95, 0.98, 1.0), 14)
 	for text in floaters:
 		draw_text_at(world_to_screen(Vector2(text.pos)), String(text.text), text.color, 16)
 	if phase == "finish":

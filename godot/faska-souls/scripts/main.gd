@@ -185,6 +185,7 @@ var boss_phase_two := false
 var minions := []
 var particles := []
 var runes := []
+var encounter_started := false
 var learn_mode := true
 var lesson_index := 0
 var question_index := 0
@@ -228,6 +229,7 @@ func reset_game() -> void:
 	boss_swing = 0.0
 	boss_hit_done = false
 	boss_phase_two = false
+	encounter_started = false
 	learn_mode = true
 	lesson_index = 0
 	question_index = 0
@@ -235,7 +237,7 @@ func reset_game() -> void:
 	mistakes = 0
 	spawn_minions()
 	spawn_runes()
-	message = "Souls Pro: Rolle, Block, Konterfenster, Heilflaschen und Learncade-Runen."
+	message = "Souls Pro: Erst orientieren, dann bewegen oder angreifen, um den Kampf zu starten."
 	message_timer = 4.0
 
 func spawn_minions() -> void:
@@ -307,6 +309,8 @@ func _process(delta: float) -> void:
 		input_vec.y -= 1.0
 	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		input_vec.y += 1.0
+	if touch_overlay != null and touch_overlay.move_vector.length() > 0.05:
+		input_vec = touch_overlay.move_vector
 	if input_vec.length() > 0.0:
 		input_vec = input_vec.normalized()
 		facing = input_vec
@@ -314,6 +318,8 @@ func _process(delta: float) -> void:
 	update_touch_actions()
 
 	var blocking := (Input.is_key_pressed(KEY_K) or (touch_overlay != null and touch_overlay.block_down)) and stamina > 3.0 and roll_timer <= 0.0
+	if input_vec.length() > 0.0 or blocking:
+		encounter_started = true
 	if blocking:
 		stamina = max(0.0, stamina - 14.0 * delta)
 	else:
@@ -341,8 +347,9 @@ func _process(delta: float) -> void:
 	player_pos.x = clampf(player_pos.x, 62.0, ARENA_SIZE.x - 62.0)
 	player_pos.y = clampf(player_pos.y, 92.0, ARENA_SIZE.y - 74.0)
 
-	update_boss(delta, blocking)
-	update_minions(delta, blocking)
+	if encounter_started:
+		update_boss(delta, blocking)
+		update_minions(delta, blocking)
 	update_particles(delta)
 	queue_redraw()
 
@@ -373,6 +380,7 @@ func update_touch_actions() -> void:
 func start_attack() -> void:
 	if attack_cooldown > 0.0 or stamina < 12.0 or roll_timer > 0.0:
 		return
+	encounter_started = true
 	attack_timer = 0.18
 	attack_cooldown = 0.34
 	stamina -= 12.0
@@ -403,6 +411,7 @@ func start_attack() -> void:
 func start_roll() -> void:
 	if roll_cooldown > 0.0 or stamina < 22.0:
 		return
+	encounter_started = true
 	roll_dir = facing.normalized()
 	if roll_dir.length() <= 0.0:
 		roll_dir = Vector2(0.0, -1.0)
@@ -411,20 +420,38 @@ func start_roll() -> void:
 	invulnerable_timer = 0.32
 	stamina -= 22.0
 
+func drink_vial() -> void:
+	if vials <= 0 or player_hp >= PLAYER_MAX_HP or roll_timer > 0.0 or attack_timer > 0.0:
+		return
+	vials -= 1
+	player_hp = mini(PLAYER_MAX_HP, player_hp + 4)
+	stamina = minf(PLAYER_MAX_STAMINA, stamina + 18.0)
+	message = "Heilflasche. Timing behalten."
+	message_timer = 1.4
+	add_particles(player_pos, Color.html("#22c55e"), 14)
+
 func check_rune_hit(attack_center: Vector2) -> void:
+	var q := get_question()
 	for i in range(runes.size()):
 		var rune = runes[i]
 		if attack_center.distance_to(rune["pos"]) < 72.0:
 			rune["hit"] = 0.24
 			runes[i] = rune
-			if rune["index"] == current_question["correct"]:
-				boss_hp = max(0.0, boss_hp - 18.0)
+			if int(rune["index"]) == int(q["correct"]):
+				learn_hits += 1
+				boss_hp = max(0.0, boss_hp - (18.0 + float(learn_hits) * 1.2))
+				stamina = minf(PLAYER_MAX_STAMINA, stamina + 18.0)
+				if learn_hits % 3 == 0:
+					vials = mini(3, vials + 1)
 				score += 250
-				message = "Richtig: Verb. Der Boss verliert Fokus."
+				message = "Richtig: %s (%d/%d). Boss-Fokus bricht." % [str(rune["label"]), learn_hits, LEARN_GOAL]
+				question_index += 1
+				spawn_runes()
 				add_particles(rune["pos"], Color.html("#38bdf8"), 16)
 			else:
+				mistakes += 1
 				damage_player(1, false)
-				message = "Nicht diese Rune. Lies genau und versuch es wieder."
+				message = "Falsche Rune. Tipp: %s" % str(q["hint"])
 				add_particles(rune["pos"], Color.html("#ef4444"), 10)
 			message_timer = 2.6
 
@@ -559,7 +586,7 @@ func draw_player() -> void:
 	draw_rect(Rect2(player_pos + Vector2(4, -15), Vector2(3, 3)), Color.html("#020617"), true)
 	draw_rect(Rect2(player_pos + Vector2(-15, 19), Vector2(10, 6)), Color.html("#7c2d12"), true)
 	draw_rect(Rect2(player_pos + Vector2(5, 19), Vector2(10, 6)), Color.html("#7c2d12"), true)
-	if Input.is_key_pressed(KEY_K):
+	if Input.is_key_pressed(KEY_K) or (touch_overlay != null and touch_overlay.block_down):
 		draw_rect(Rect2(player_pos + facing * 22.0 + Vector2(-12, -12), Vector2(24, 26)), Color.html("#2563eb"), true)
 		draw_rect(Rect2(player_pos + facing * 22.0 + Vector2(-5, -4), Vector2(10, 9)), Color.html("#facc15"), true)
 	if attack_timer > 0.0:
@@ -606,7 +633,7 @@ func draw_runes() -> void:
 	for rune in runes:
 		var p: Vector2 = rune["pos"]
 		var active: bool = rune["hit"] > 0.0
-		var color: Color = Color.html("#38bdf8") if rune["index"] == current_question["correct"] else Color.html("#60a5fa")
+		var color: Color = Color.html("#38bdf8") if active else Color.html("#60a5fa")
 		var points := PackedVector2Array([p + Vector2(0, -34), p + Vector2(44, 0), p + Vector2(0, 34), p + Vector2(-44, 0)])
 		draw_polygon(points, PackedColorArray([Color(color.r, color.g, color.b, 0.58 if active else 0.28)]))
 		draw_arc(p, 46.0, 0.0, TAU, 4, color, 3.0)
@@ -626,11 +653,13 @@ func draw_hud() -> void:
 		draw_rect(Rect2(x, 18, 15, 15), c, true)
 	draw_rect(Rect2(20, 46, 210, 10), Color.html("#111827"), true)
 	draw_rect(Rect2(20, 46, 210.0 * stamina / PLAYER_MAX_STAMINA, 10), Color.html("#67e8f9"), true)
-	draw_string(font, Vector2(260, 28), "FASKA SOULS - GODOT 4", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#f8fafc"))
-	draw_string(font, Vector2(260, 56), "Score %d  Combo x%d  Mode %s" % [score, combo, "Learncade" if learn_mode else "Normal"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(260, 28), "FASKA SOULS PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#f8fafc"))
+	draw_string(font, Vector2(260, 56), "Score %d  Combo x%d  Vials %d  Mode %s" % [score, combo, vials, "Learncade" if learn_mode else "Normal"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(260, 78), "Fach %s  Lernziel %d/%d  Fehler %d" % [str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#fde68a"))
 	if learn_mode:
+		var q := get_question()
 		draw_rect(Rect2(size.x * 0.5 - 270.0, 78.0, 540.0, 58.0), Color(0.02, 0.05, 0.09, 0.76), true)
-		draw_string(font, Vector2(size.x * 0.5 - 230.0, 111.0), current_question["prompt"], HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.html("#f8fafc"))
+		draw_string(font, Vector2(size.x * 0.5 - 250.0, 111.0), str(q["prompt"]), HORIZONTAL_ALIGNMENT_CENTER, 500.0, 20, Color.html("#f8fafc"))
 	if message_timer > 0.0:
 		draw_rect(Rect2(20.0, size.y - 42.0, min(size.x - 40.0, 720.0), 28.0), Color(0.02, 0.05, 0.09, 0.74), true)
 		draw_string(font, Vector2(32.0, size.y - 21.0), message, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))

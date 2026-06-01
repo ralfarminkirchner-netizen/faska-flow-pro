@@ -6,8 +6,8 @@ const PLAYER_H := 56.0
 const GRAVITY := 1550.0
 const RUN_SPEED := 285.0
 const JUMP_SPEED := -620.0
-const LEARN_GOAL := 5
-const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN"]
+const LEARN_GOAL := 7
+const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 const GATE_BASES := [
 	Vector2(890.0, 365.0),
 	Vector2(1700.0, 390.0),
@@ -22,6 +22,11 @@ const QUESTIONS_WORD := [
 	{"prompt": "Welche Wortart ist 'die'?", "answers": ["Adjektiv", "Artikel", "Verb"], "correct": 1, "hint": "Die steht vor einem Nomen."},
 	{"prompt": "Welche Wortart ist 'Plattform'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 0, "hint": "Eine Plattform ist ein Ding."},
 	{"prompt": "Welche Wortart ist 'schnell'?", "answers": ["Verb", "Adjektiv", "Nomen"], "correct": 1, "hint": "Schnell sagt, wie etwas passiert."},
+	{"prompt": "Welche Wortart ist 'unter'?", "answers": ["Praeposition", "Nomen", "Verb"], "correct": 0, "hint": "Unter zeigt einen Ort oder eine Lage."},
+	{"prompt": "Welche Wortart ist 'aber'?", "answers": ["Konjunktion", "Adjektiv", "Artikel"], "correct": 0, "hint": "Aber verbindet Satzteile."},
+	{"prompt": "Welche Wortart ist 'wir'?", "answers": ["Pronomen", "Verb", "Nomen"], "correct": 0, "hint": "Wir steht fuer Personen."},
+	{"prompt": "Welche Wortart ist 'heute'?", "answers": ["Adverb", "Artikel", "Nomen"], "correct": 0, "hint": "Heute sagt, wann etwas passiert."},
+	{"prompt": "Welche Wortart ist 'leuchtet'?", "answers": ["Nomen", "Verb", "Artikel"], "correct": 1, "hint": "Leuchtet beschreibt eine Handlung."},
 ]
 
 const QUESTIONS_MATH := [
@@ -30,6 +35,11 @@ const QUESTIONS_MATH := [
 	{"prompt": "Was ist 4 x 7?", "answers": ["24", "28", "32"], "correct": 1, "hint": "Vier Siebener."},
 	{"prompt": "Welche Zahl fehlt? 30 - ? = 18", "answers": ["10", "12", "14"], "correct": 1, "hint": "Von 30 bis 18 sind es 12."},
 	{"prompt": "Was ist die Haelfte von 38?", "answers": ["18", "19", "20"], "correct": 1, "hint": "19 + 19 = 38."},
+	{"prompt": "Welche Zahl passt? 7 x 8", "answers": ["54", "56", "58"], "correct": 1, "hint": "Sieben Achter sind 56."},
+	{"prompt": "Welche Zahl ist ein Vielfaches von 5?", "answers": ["42", "45", "47"], "correct": 1, "hint": "Vielfache von 5 enden auf 0 oder 5."},
+	{"prompt": "Was ist 63 : 9?", "answers": ["6", "7", "8"], "correct": 1, "hint": "9 mal 7 ist 63."},
+	{"prompt": "Welche Zahl fehlt? ? + 17 = 40", "answers": ["21", "23", "27"], "correct": 1, "hint": "40 minus 17 ist 23."},
+	{"prompt": "Was ist ein Viertel von 20?", "answers": ["4", "5", "6"], "correct": 1, "hint": "20 in vier gleiche Teile."},
 ]
 
 const QUESTIONS_SENTENCE := [
@@ -38,6 +48,11 @@ const QUESTIONS_SENTENCE := [
 	{"prompt": "Welches Wort passt? Die Plattform ist ___.", "answers": ["stabil", "springt", "und"], "correct": 0, "hint": "Gesucht ist eine Eigenschaft."},
 	{"prompt": "Welche Satzstelle ist ein Ort? Wir landen auf der Bruecke.", "answers": ["Wir", "landen", "auf der Bruecke"], "correct": 2, "hint": "Wo landen wir?"},
 	{"prompt": "Welches Wort macht den Satz fertig? Der Held ___ hoch.", "answers": ["klettert", "blau", "der"], "correct": 0, "hint": "Gesucht ist ein Verb."},
+	{"prompt": "Was ist das Objekt? Mia sammelt die Rune.", "answers": ["Mia", "sammelt", "die Rune"], "correct": 2, "hint": "Was sammelt Mia?"},
+	{"prompt": "Welches Satzzeichen passt? Kommst du mit", "answers": [".", "?", ","], "correct": 1, "hint": "Es ist eine Frage."},
+	{"prompt": "Welche Satzstelle nennt die Zeit? Am Morgen startet Tom.", "answers": ["Am Morgen", "startet", "Tom"], "correct": 0, "hint": "Wann startet Tom?"},
+	{"prompt": "Welcher Satz ist vollstaendig?", "answers": ["Der Stern hell.", "Der Stern leuchtet.", "Der Stern und."], "correct": 1, "hint": "Er hat Subjekt und Praedikat."},
+	{"prompt": "Welches Bindewort passt? Ich springe, ___ du wartest.", "answers": ["weil", "der", "schnell"], "correct": 0, "hint": "Weil verbindet Satzteile."},
 ]
 
 const QUESTIONS_READING := [
@@ -46,6 +61,31 @@ const QUESTIONS_READING := [
 	{"prompt": "Welches Wort beginnt wie Grapple?", "answers": ["Gras", "Platz", "Ring"], "correct": 0, "hint": "Beide beginnen mit Gr."},
 	{"prompt": "Welche Anweisung passt? Nimm die Rune.", "answers": ["Rune", "Wasser", "Wolke"], "correct": 0, "hint": "Der Satz nennt die Rune."},
 	{"prompt": "Welches Wort ist laenger?", "answers": ["Tor", "Checkpoint", "Run"], "correct": 1, "hint": "Checkpoint hat mehr Buchstaben."},
+	{"prompt": "Lies genau: Laufe zur Bruecke.", "answers": ["Bruecke", "Blume", "Berg"], "correct": 0, "hint": "Gesucht ist das Wort aus dem Satz."},
+	{"prompt": "Welches Wort hat zwei Silben?", "answers": ["Tor", "Ninja", "Sprung"], "correct": 1, "hint": "Nin-ja."},
+	{"prompt": "Welches Wort ist zusammengesetzt?", "answers": ["Mondlicht", "rennen", "klein"], "correct": 0, "hint": "Mond und Licht."},
+	{"prompt": "Was passt zum Satz? Der Held findet den Schatz.", "answers": ["Schatz", "Schatten", "Schule"], "correct": 0, "hint": "Der Satz nennt den Schatz."},
+	{"prompt": "Welches Wort beginnt mit Sch?", "answers": ["Schwert", "Tor", "Rune"], "correct": 0, "hint": "Sch steht am Anfang."},
+]
+
+const QUESTIONS_COMPOUND := [
+	{"prompt": "Welche zwei Woerter stecken in Sonnenlicht?", "answers": ["Sonne + Licht", "Sohn + Licht", "Sonne + Lied"], "correct": 0, "hint": "Es geht um Licht der Sonne."},
+	{"prompt": "Welches Kompositum passt: Wasser + Fall", "answers": ["Wasserfall", "Wassertor", "Wasserlauf"], "correct": 0, "hint": "Wasser faellt nach unten."},
+	{"prompt": "Was bedeutet Sternentor?", "answers": ["Tor bei den Sternen", "kleiner Stern", "schneller Lauf"], "correct": 0, "hint": "Das Grundwort ist Tor."},
+	{"prompt": "Welches Wort ist kein Kompositum?", "answers": ["Baumhaus", "Federleicht", "rennen"], "correct": 2, "hint": "Rennen ist ein einfaches Verb."},
+	{"prompt": "Welches Grundwort hat Schneeball?", "answers": ["Schnee", "Ball", "Schne"], "correct": 1, "hint": "Das letzte Wort bestimmt die Sache."},
+	{"prompt": "Welche Verbindung passt? Mond + Stein", "answers": ["Mondstein", "Steinmond", "Mondlauf"], "correct": 0, "hint": "So entsteht ein Gegenstand."},
+	{"prompt": "Welches Bestimmungswort hat Waldweg?", "answers": ["Wald", "Weg", "Wall"], "correct": 0, "hint": "Es beschreibt den Weg genauer."},
+]
+
+const QUESTIONS_ENGLISH := [
+	{"prompt": "Was heisst 'jump'?", "answers": ["springen", "lesen", "tragen"], "correct": 0, "hint": "Jump macht man auf Plattformen."},
+	{"prompt": "Was heisst 'bridge'?", "answers": ["Bruecke", "Baum", "Bett"], "correct": 0, "hint": "Darueber kann man gehen."},
+	{"prompt": "Was heisst 'fast'?", "answers": ["schnell", "leise", "rund"], "correct": 0, "hint": "Fast ist das Gegenteil von slow."},
+	{"prompt": "Welches Wort bedeutet 'Schluessel'?", "answers": ["key", "coin", "door"], "correct": 0, "hint": "Mit a key oeffnet man etwas."},
+	{"prompt": "Was heisst 'run'?", "answers": ["laufen", "malen", "singen"], "correct": 0, "hint": "Run passt zum Parkour."},
+	{"prompt": "Welches Wort bedeutet 'Tor'?", "answers": ["gate", "rope", "stone"], "correct": 0, "hint": "Ein Gate ist ein Durchgang."},
+	{"prompt": "Was heisst 'correct'?", "answers": ["richtig", "falsch", "langsam"], "correct": 0, "hint": "Correct ist die richtige Antwort."},
 ]
 
 class TouchParkourOverlay:
@@ -62,13 +102,15 @@ class TouchParkourOverlay:
 	var _button_touches := {}
 
 	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	func _process(_delta: float) -> void:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
+		if not _should_show():
+			return
 		if event is InputEventScreenTouch:
 			if event.pressed:
 				if event.position.x < size.x * 0.44:
@@ -91,9 +133,10 @@ class TouchParkourOverlay:
 				_update_move(event.position)
 
 	func _update_move(pos: Vector2) -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
 		var diff := pos.x - center.x
-		move_x = 0.0 if absf(diff) < 18.0 else clampf(diff / 92.0, -1.0, 1.0)
+		move_x = 0.0 if absf(diff) < 18.0 * ui else clampf(diff / (92.0 * ui), -1.0, 1.0)
 
 	func _refresh_buttons() -> void:
 		jump_down = false
@@ -125,14 +168,15 @@ class TouchParkourOverlay:
 		return ""
 
 	func _stick_center() -> Vector2:
-		return Vector2(128.0, size.y - 220.0)
+		return Vector2(128.0 * _ui_scale(), size.y - 220.0 * _ui_scale())
 
 	func _buttons() -> Array:
-		var w := 98.0
-		var h := 70.0
-		var gap := 12.0
-		var x := size.x - (w * 2.0 + gap + 24.0)
-		var y := size.y - (h * 3.0 + gap * 2.0 + 110.0)
+		var ui := _ui_scale()
+		var w := 98.0 * ui
+		var h := 70.0 * ui
+		var gap := 12.0 * ui
+		var x := size.x - (w * 2.0 + gap + 24.0 * ui)
+		var y := size.y - (h * 3.0 + gap * 2.0 + 110.0 * ui)
 		return [
 			{"action": "learn", "label": "L\nLern", "rect": Rect2(Vector2(x, y), Vector2(w, h))},
 			{"action": "subject", "label": "C\nFach", "rect": Rect2(Vector2(x + w + gap, y), Vector2(w, h))},
@@ -142,28 +186,39 @@ class TouchParkourOverlay:
 			{"action": "attack", "label": "K\nHit", "rect": Rect2(Vector2(x + w + gap, y + (h + gap) * 2.0), Vector2(w, h))},
 		]
 
+	func _should_show() -> bool:
+		return size.x < 980.0 or size.y > size.x * 1.2
+
+	func _ui_scale() -> float:
+		if size.x <= 520.0 or size.y > size.x * 1.35:
+			return 1.18
+		return 1.0
+
 	func _draw() -> void:
-		if size.x < 980.0 or size.y > size.x * 1.2:
-			_draw_stick()
-			_draw_buttons()
+		if not _should_show():
+			return
+		_draw_stick()
+		_draw_buttons()
 
 	func _draw_stick() -> void:
+		var ui := _ui_scale()
 		var center := _stick_center()
-		draw_circle(center, 102.0, Color(0.02, 0.05, 0.09, 0.48))
-		draw_arc(center, 102.0, 0.0, TAU, 36, Color(0.78, 0.88, 1.0, 0.52), 5.0)
-		draw_circle(center + Vector2(move_x * 58.0, 0.0), 38.0, Color(0.93, 0.96, 1.0, 0.78))
+		draw_circle(center, 102.0 * ui, Color(0.02, 0.05, 0.09, 0.48))
+		draw_arc(center, 102.0 * ui, 0.0, TAU, 36, Color(0.78, 0.88, 1.0, 0.52), 5.0 * ui)
+		draw_circle(center + Vector2(move_x * 58.0 * ui, 0.0), 38.0 * ui, Color(0.93, 0.96, 1.0, 0.78))
 
 	func _draw_buttons() -> void:
 		var font := get_theme_default_font()
+		var ui := _ui_scale()
 		for button in _buttons():
 			var rect: Rect2 = button["rect"]
 			var action := str(button["action"])
 			var active := (action == "jump" and jump_down) or (action == "dash" and dash_down) or (action == "grapple" and grapple_down) or (action == "attack" and attack_down) or (action == "learn" and learn_down) or (action == "subject" and subject_down)
 			draw_rect(rect, Color(0.02, 0.05, 0.09, 0.66), true)
-			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 4.0)
+			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 4.0 * ui)
 			var lines := str(button["label"]).split("\n")
 			for i in range(lines.size()):
-				draw_string(font, rect.position + Vector2(0.0, 27.0 + float(i) * 23.0), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 20, Color.html("#f8fafc"))
+				draw_string(font, rect.position + Vector2(0.0, (27.0 + float(i) * 23.0) * ui), lines[i], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 20 * ui, Color.html("#f8fafc"))
 
 var platforms: Array = []
 var moving_platforms: Array = []
@@ -192,6 +247,7 @@ var checkpoint_index := 0
 var mode_learn := true
 var lesson_index := 0
 var question_index := 0
+var repeat_queue := []
 var learn_hits := 0
 var mistakes := 0
 var message := "Godot Parkour: Double-Jump, Dash, Grapple, Gegner-Stomps, Checkpoints und Gates."
@@ -238,6 +294,7 @@ func reset_game() -> void:
 	mode_learn = true
 	lesson_index = 0
 	question_index = 0
+	repeat_queue.clear()
 	learn_hits = 0
 	mistakes = 0
 	coyote_timer = 0.0
@@ -303,9 +360,13 @@ func setup_gates() -> void:
 	var base: Vector2 = GATE_BASES[mini(learn_hits, GATE_BASES.size() - 1)]
 	var xs: Array = [base.x - 130.0, base.x, base.x + 130.0]
 	for i in range(answers.size()):
-		gates.append({"rect": Rect2(xs[i], base.y, 105.0, 72.0), "label": answers[i], "index": i, "armed": true})
+		gates.append({"rect": Rect2(xs[i], base.y, 105.0, 72.0), "label": answers[i], "index": i, "armed": true, "repeat": q.get("repeat", false)})
 
 func current_question() -> Dictionary:
+	if repeat_queue.size() > 0:
+		var repeated: Dictionary = repeat_queue[0].duplicate(true)
+		repeated["repeat"] = true
+		return repeated
 	var bank: Array = QUESTIONS_WORD
 	var lesson := str(LESSONS[lesson_index])
 	if lesson == "MATHE":
@@ -314,11 +375,16 @@ func current_question() -> Dictionary:
 		bank = QUESTIONS_SENTENCE
 	elif lesson == "LESEN":
 		bank = QUESTIONS_READING
+	elif lesson == "KOMPOSITUM":
+		bank = QUESTIONS_COMPOUND
+	elif lesson == "ENGLISCH":
+		bank = QUESTIONS_ENGLISH
 	return bank[question_index % bank.size()]
 
 func cycle_lesson() -> void:
 	lesson_index = (lesson_index + 1) % LESSONS.size()
 	question_index = 0
+	repeat_queue.clear()
 	setup_gates()
 	message = "Fach: %s. Naechste Gates wurden neu gesetzt." % str(LESSONS[lesson_index])
 	message_timer = 2.0
@@ -615,15 +681,21 @@ func check_gates() -> void:
 			gates[i] = gate
 			if int(gate["index"]) == int(q["correct"]):
 				learn_hits += 1
-				score += 700
+				var repeated := bool(q.get("repeat", false))
+				score += 850 if repeated else 700
 				stamina = 100.0
 				dash_charges = 1
 				shard_count = mini(8, shard_count + 1)
-				message = "Richtiges Gate: %s (%d/%d)." % [str(gate["label"]), learn_hits, LEARN_GOAL]
+				_remove_repeat(q)
+				if repeated:
+					message = "Wiederholung geloest: %s (%d/%d)." % [str(gate["label"]), learn_hits, LEARN_GOAL]
+				else:
+					message = "Richtiges Gate: %s (%d/%d)." % [str(gate["label"]), learn_hits, LEARN_GOAL]
 				question_index += 1
 				setup_gates()
 			else:
 				mistakes += 1
+				_queue_repeat(q)
 				hurt_player("Falsches Gate. Tipp: %s" % str(q["hint"]))
 			message_timer = 2.0
 			return
@@ -671,11 +743,16 @@ func player_rect() -> Rect2:
 func update_camera() -> void:
 	camera_x = clampf(player_pos.x - size.x * 0.38, 0.0, maxf(0.0, WORLD_W - size.x))
 
+func world_y_offset() -> float:
+	if size.y > size.x * 1.2:
+		return minf(780.0, maxf(0.0, size.y - 720.0) * 0.32)
+	return 0.0
+
 func screen_pos(world: Vector2) -> Vector2:
-	return world - Vector2(camera_x, 0.0)
+	return world - Vector2(camera_x, 0.0) + Vector2(0.0, world_y_offset())
 
 func screen_rect(rect: Rect2) -> Rect2:
-	return Rect2(rect.position - Vector2(camera_x, 0.0), rect.size)
+	return Rect2(rect.position - Vector2(camera_x, 0.0) + Vector2(0.0, world_y_offset()), rect.size)
 
 func _draw() -> void:
 	draw_background()
@@ -686,15 +763,17 @@ func _draw() -> void:
 	draw_hud()
 
 func draw_background() -> void:
+	var y_offset := world_y_offset()
+	var horizon_y := y_offset + 720.0 * 0.55
 	draw_rect(Rect2(Vector2.ZERO, size), Color.html("#071421"), true)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, size.y * 0.55)), Color.html("#10446d"), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, minf(size.y, horizon_y))), Color.html("#10446d"), true)
 	for i in range(9):
 		var x: float = float(i) * 230.0 - fmod(camera_x * 0.18, 230.0)
-		draw_rect(Rect2(Vector2(x, size.y * 0.28 + sin(float(i)) * 18.0), Vector2(170.0, 150.0)), Color(0.09, 0.18, 0.24, 0.55), true)
+		draw_rect(Rect2(Vector2(x, y_offset + 720.0 * 0.28 + sin(float(i)) * 18.0), Vector2(170.0, 150.0)), Color(0.09, 0.18, 0.24, 0.55), true)
 	for i in range(18):
 		var x2: float = float(i) * 118.0 - fmod(camera_x * 0.42, 118.0)
-		draw_rect(Rect2(Vector2(x2, size.y * 0.52), Vector2(74.0, 8.0)), Color(0.76, 0.9, 1.0, 0.08), true)
-	draw_rect(Rect2(Vector2(0.0, size.y * 0.55), Vector2(size.x, size.y * 0.45)), Color.html("#0a2f2d"), true)
+		draw_rect(Rect2(Vector2(x2, y_offset + 720.0 * 0.52), Vector2(74.0, 8.0)), Color(0.76, 0.9, 1.0, 0.08), true)
+	draw_rect(Rect2(Vector2(0.0, horizon_y), Vector2(size.x, maxf(0.0, size.y - horizon_y))), Color.html("#0a2f2d"), true)
 
 func draw_level() -> void:
 	for p in platforms:
@@ -730,9 +809,10 @@ func draw_gates() -> void:
 		if not bool(item["armed"]):
 			continue
 		var r: Rect2 = screen_rect(item["rect"])
-		draw_rect(r, Color(0.05, 0.2, 0.33, 0.52), true)
-		draw_rect(r, Color.html("#38bdf8"), false, 3.0)
-		draw_rect(Rect2(r.position + Vector2(0.0, 0.0), Vector2(r.size.x, 9.0)), Color(0.56, 0.19, 1.0, 0.38), true)
+		var is_repeat := bool(item.get("repeat", false))
+		draw_rect(r, Color(0.05, 0.2, 0.33, 0.52) if not is_repeat else Color(0.23, 0.08, 0.35, 0.62), true)
+		draw_rect(r, Color.html("#38bdf8") if not is_repeat else Color.html("#f0abfc"), false, 3.0)
+		draw_rect(Rect2(r.position + Vector2(0.0, 0.0), Vector2(r.size.x, 9.0)), Color(0.56, 0.19, 1.0, 0.38) if not is_repeat else Color(0.98, 0.59, 1.0, 0.48), true)
 		draw_string(font, r.position + Vector2(4.0, r.size.y * 0.58), str(item["label"]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 8.0, 13, Color.html("#f8fafc"))
 
 func draw_portal() -> void:
@@ -794,7 +874,7 @@ func draw_hud() -> void:
 	draw_string(font, Vector2(25.0, 40.0), "FASKA PARKOUR PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#facc15"))
 	draw_string(font, Vector2(25.0, 66.0), "HP %d  Stamina %d  Runen %d/8  Score %d" % [hp, int(stamina), shard_count, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))
 	draw_string(font, Vector2(25.0, 89.0), "Jumps %d  Dash %d  Checkpoint %d/3  Mode %s" % [jumps_left, dash_charges, checkpoint_index, "Learncade" if mode_learn else "Normal"], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(25.0, 111.0), "Fach %s  Lernziel %d/%d  Fehler %d" % [str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(25.0, 111.0), "Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % [str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(size.x * 0.5 - 330.0, 28.0, 660.0, 38.0), Color(0.02, 0.05, 0.09, 0.76), true)
@@ -806,3 +886,24 @@ func draw_hud() -> void:
 	draw_rect(Rect2(size.x - 230.0, 18.0, 200.0 * clampf(player_pos.x / WORLD_W, 0.0, 1.0), 12.0), Color.html("#22c55e"), true)
 	draw_string(font, Vector2(size.x - 230.0, 52.0), "%d%% STRECKE" % int(player_pos.x / WORLD_W * 100.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color.html("#f8fafc"))
 	draw_string(font, Vector2(size.x * 0.5 - 330.0, size.y - 18.0), "A/D oder Touch-Stick laufen · W Jump · Space Dash · J Grapple · K Angriff · L Lernen · C Fach · R Neustart", HORIZONTAL_ALIGNMENT_CENTER, 660.0, 12, Color.html("#cbd5e1"))
+
+func _question_id(question: Dictionary) -> String:
+	return "%s|%s" % [str(question.get("lesson", str(LESSONS[lesson_index]))), str(question.get("prompt", ""))]
+
+func _queue_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for item in repeat_queue:
+		if _question_id(item) == qid:
+			return
+	if repeat_queue.size() >= 6:
+		repeat_queue.pop_front()
+	var copy := question.duplicate(true)
+	copy["repeat"] = true
+	copy["lesson"] = str(LESSONS[lesson_index])
+	repeat_queue.append(copy)
+
+func _remove_repeat(question: Dictionary) -> void:
+	var qid := _question_id(question)
+	for i in range(repeat_queue.size() - 1, -1, -1):
+		if _question_id(repeat_queue[i]) == qid:
+			repeat_queue.remove_at(i)

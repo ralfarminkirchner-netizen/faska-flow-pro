@@ -147,7 +147,7 @@ const GAMES = [
   {
     id: 'fighter',
     name: 'Faska Fighter Pro',
-    description: 'Godot-4-1v1-Fighter mit echter State-Machine, Blocken, Low/Mid-Mixups, Whiff-Punish, Jab/Kick/Low/Super, Hitstun, Pushback, Supermeter, CPU-Druck, Fehler-Wiederholung, Touchsteuerung und Learncade-Kristallen fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
+    description: 'Godot-4-1v1-Fighter mit Normalmodus zuerst, Best-of-3-Runden, Blocken, Guard-Breaks, Counter-Hits, Low/Mid-Mixups, Jab/Kick/Low/Super, Hitstun, Pushback, Supermeter, CPU-Druck, Touchsteuerung und zuschaltbaren Learncade-Kristallen!',
     emoji: '🥊',
     category: 'Fighting',
     gradient: 'linear-gradient(135deg, #e11d48, #7c2d12)',

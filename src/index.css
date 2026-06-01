@@ -110,16 +110,45 @@
 
   .joystick-zone {
     position: fixed;
-    bottom: 20px;
+    bottom: max(22px, env(safe-area-inset-bottom));
     z-index: 100;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    pointer-events: auto;
+  }
+
+  .joystick-look-zone {
+    position: fixed;
+    top: max(64px, env(safe-area-inset-top));
+    right: 0;
+    bottom: max(218px, calc(env(safe-area-inset-bottom) + 218px));
+    width: min(54vw, 460px);
+    z-index: 40;
+    touch-action: none;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .joystick-zone-left {
+    left: max(18px, env(safe-area-inset-left));
+  }
+
+  .joystick-zone-right {
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(28px, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(2, 64px);
+    gap: 12px;
+    align-items: center;
+    justify-items: center;
   }
 
   .joystick-base {
-    width: 120px;
-    height: 120px;
+    width: 126px;
+    height: 126px;
     border-radius: 50%;
     background: rgba(18, 18, 42, 0.7);
     backdrop-filter: blur(10px);
@@ -141,15 +170,15 @@
   }
 
   .action-btn {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     border: 2px solid rgba(124, 58, 237, 0.4);
     background: rgba(18, 18, 42, 0.7);
     backdrop-filter: blur(10px);
     color: white;
-    font-weight: 700;
-    font-size: 18px;
+    font-weight: 900;
+    font-size: 15px;
     font-family: var(--font-family-display);
     cursor: pointer;
     touch-action: none;
@@ -159,6 +188,9 @@
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
+    line-height: 1;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .action-btn:active, .action-btn.pressed {
@@ -175,6 +207,45 @@
   .action-btn-b {
     background: rgba(239, 68, 68, 0.3);
     border-color: rgba(239, 68, 68, 0.5);
+  }
+
+  .swarm-orchestrator canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    touch-action: none;
+  }
+
+  @media (max-width: 700px) {
+    .joystick-zone {
+      bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    .joystick-look-zone {
+      top: max(72px, env(safe-area-inset-top));
+      bottom: max(220px, calc(env(safe-area-inset-bottom) + 220px));
+      width: 58vw;
+    }
+
+    .joystick-zone-right {
+      bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    .joystick-base {
+      width: 112px;
+      height: 112px;
+    }
+
+    .joystick-zone-right {
+      grid-template-columns: repeat(2, 58px);
+      gap: 10px;
+    }
+
+    .action-btn {
+      width: 58px;
+      height: 58px;
+      font-size: 13px;
+    }
   }
 
   @keyframes fadeInUp {

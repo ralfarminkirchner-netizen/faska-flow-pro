@@ -10,6 +10,7 @@
  *   children                 — Extra HUD elements
  *   showLearncadeScore       — Show quiz score badge
  *   quizScore                — Learncade quiz points
+ *   showLives                — Show standard life hearts
  */
 export default function UIOverlay({
   score = 0,
@@ -24,9 +25,10 @@ export default function UIOverlay({
   children,
   showLearncadeScore = false,
   quizScore = 0,
+  showLives = true,
 }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
+    <div data-game-name={gameName} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
       {/* Top Bar */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
@@ -48,16 +50,18 @@ export default function UIOverlay({
               ⭐ {score.toLocaleString()}
             </span>
           </div>
-          <div style={{
-            background: 'rgba(10, 10, 26, 0.8)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 12, padding: '8px 12px',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            fontSize: 16,
-          }}>
-            {'❤️'.repeat(Math.max(0, lives))}
-            {'🖤'.repeat(Math.max(0, 3 - lives))}
-          </div>
+          {showLives && (
+            <div style={{
+              background: 'rgba(10, 10, 26, 0.8)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 12, padding: '8px 12px',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              fontSize: 16,
+            }}>
+              {'❤️'.repeat(Math.max(0, lives))}
+              {'🖤'.repeat(Math.max(0, 3 - lives))}
+            </div>
+          )}
           {level > 1 && (
             <div style={{
               background: 'rgba(10, 10, 26, 0.8)',

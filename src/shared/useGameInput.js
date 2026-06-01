@@ -43,6 +43,9 @@ export default function useGameInput(store) {
       if (e.key === 'e' || e.key === 'E') {
         store.getState().setAction('X', true);
       }
+      if (e.key === 'q' || e.key === 'Q') {
+        store.getState().setAction('Y', true);
+      }
       // Pause
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         store.getState().pauseGame();
@@ -61,6 +64,9 @@ export default function useGameInput(store) {
       }
       if (e.key === 'e' || e.key === 'E') {
         store.getState().setAction('X', false);
+      }
+      if (e.key === 'q' || e.key === 'Q') {
+        store.getState().setAction('Y', false);
       }
     };
 

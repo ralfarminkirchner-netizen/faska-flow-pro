@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * 
  * Props:
  *   onMove(dx, dy)    — Normalized direction [-1, 1]
+ *   onLook(dx, dy)    — Pointer delta for camera / aiming look
  *   onAction(name)    — 'A', 'B', 'X', 'Y' button pressed
  *   onActionUp(name)  — Button released
  *   buttons           — Array of button configs [{label, id, color}]
@@ -13,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  */
 export default function MobileJoystick({
   onMove,
+  onLook,
   onAction,
   onActionUp,
   buttons = [
@@ -21,53 +23,49 @@ export default function MobileJoystick({
   ],
   visible,
 }) {
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isTouchDevice] = useState(() => (
+    typeof window !== 'undefined' && (
+      'ontouchstart' in window || window.navigator.maxTouchPoints > 0
+    )
+  ));
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
   const [activeButtons, setActiveButtons] = useState(new Set());
   const baseRef = useRef(null);
-  const touchIdRef = useRef(null);
+  const joystickPointerIdRef = useRef(null);
+  const lookPointerIdRef = useRef(null);
+  const buttonPointersRef = useRef(new Map());
   const centerRef = useRef({ x: 0, y: 0 });
+  const lastLookPosRef = useRef({ x: 0, y: 0 });
   const moveIntervalRef = useRef(null);
   const lastDirRef = useRef({ dx: 0, dy: 0 });
-
-  useEffect(() => {
-    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    setIsTouchDevice(isTouch);
-  }, []);
 
   const show = visible !== undefined ? visible : isTouchDevice;
 
   const RADIUS = 45;
 
-  const handleJoystickStart = useCallback((e) => {
-    e.preventDefault();
+  const stopEvent = useCallback((e) => {
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
-    const touch = e.changedTouches?.[0] || e;
-    touchIdRef.current = touch.identifier ?? 'mouse';
-    const rect = baseRef.current.getBoundingClientRect();
-    centerRef.current = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
+  }, []);
 
-    // Start continuous movement reporting
-    if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
-    moveIntervalRef.current = setInterval(() => {
-      if (onMove && (lastDirRef.current.dx !== 0 || lastDirRef.current.dy !== 0)) {
-        onMove(lastDirRef.current.dx, lastDirRef.current.dy);
-      }
-    }, 16); // ~60fps
-  }, [onMove]);
+  const capturePointer = useCallback((target, pointerId) => {
+    try {
+      target.setPointerCapture?.(pointerId);
+    } catch {
+      // Synthetic tests and older browsers may not expose capturable pointers.
+    }
+  }, []);
 
-  const handleJoystickMove = useCallback((e) => {
-    e.preventDefault();
-    const touch = e.changedTouches
-      ? Array.from(e.changedTouches).find(t => t.identifier === touchIdRef.current)
-      : e;
-    if (!touch || !centerRef.current) return;
+  const releasePointer = useCallback((target, pointerId) => {
+    try {
+      target.releasePointerCapture?.(pointerId);
+    } catch {
+      // Pointer capture may already be gone after cancel/lostcapture.
+    }
+  }, []);
 
-    const clientX = touch.clientX ?? touch.pageX;
-    const clientY = touch.clientY ?? touch.pageY;
+  const updateJoystickFromPointer = useCallback((clientX, clientY) => {
+    if (!centerRef.current) return;
 
     let dx = clientX - centerRef.current.x;
     let dy = clientY - centerRef.current.y;
@@ -89,9 +87,39 @@ export default function MobileJoystick({
     }
   }, [onMove]);
 
+  const handleJoystickStart = useCallback((e) => {
+    stopEvent(e);
+    if (joystickPointerIdRef.current !== null) return;
+    joystickPointerIdRef.current = e.pointerId;
+    capturePointer(e.currentTarget, e.pointerId);
+
+    const rect = baseRef.current.getBoundingClientRect();
+    centerRef.current = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+    updateJoystickFromPointer(e.clientX, e.clientY);
+
+    // Start continuous movement reporting
+    if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
+    moveIntervalRef.current = setInterval(() => {
+      if (onMove && (lastDirRef.current.dx !== 0 || lastDirRef.current.dy !== 0)) {
+        onMove(lastDirRef.current.dx, lastDirRef.current.dy);
+      }
+    }, 16); // ~60fps
+  }, [capturePointer, onMove, stopEvent, updateJoystickFromPointer]);
+
+  const handleJoystickMove = useCallback((e) => {
+    stopEvent(e);
+    if (e.pointerId !== joystickPointerIdRef.current) return;
+    updateJoystickFromPointer(e.clientX, e.clientY);
+  }, [stopEvent, updateJoystickFromPointer]);
+
   const handleJoystickEnd = useCallback((e) => {
-    e.preventDefault();
-    touchIdRef.current = null;
+    stopEvent(e);
+    if (e.pointerId !== joystickPointerIdRef.current) return;
+    releasePointer(e.currentTarget, e.pointerId);
+    joystickPointerIdRef.current = null;
     setKnobPos({ x: 0, y: 0 });
     lastDirRef.current = { dx: 0, dy: 0 };
     if (onMove) onMove(0, 0);
@@ -99,7 +127,31 @@ export default function MobileJoystick({
       clearInterval(moveIntervalRef.current);
       moveIntervalRef.current = null;
     }
-  }, [onMove]);
+  }, [onMove, releasePointer, stopEvent]);
+
+  const handleLookStart = useCallback((e) => {
+    if (!onLook || lookPointerIdRef.current !== null) return;
+    stopEvent(e);
+    lookPointerIdRef.current = e.pointerId;
+    lastLookPosRef.current = { x: e.clientX, y: e.clientY };
+    capturePointer(e.currentTarget, e.pointerId);
+  }, [capturePointer, onLook, stopEvent]);
+
+  const handleLookMove = useCallback((e) => {
+    if (!onLook || e.pointerId !== lookPointerIdRef.current) return;
+    stopEvent(e);
+    const dx = e.clientX - lastLookPosRef.current.x;
+    const dy = e.clientY - lastLookPosRef.current.y;
+    lastLookPosRef.current = { x: e.clientX, y: e.clientY };
+    onLook(dx, dy);
+  }, [onLook, stopEvent]);
+
+  const handleLookEnd = useCallback((e) => {
+    if (e.pointerId !== lookPointerIdRef.current) return;
+    stopEvent(e);
+    releasePointer(e.currentTarget, e.pointerId);
+    lookPointerIdRef.current = null;
+  }, [releasePointer, stopEvent]);
 
   useEffect(() => {
     return () => {
@@ -108,38 +160,59 @@ export default function MobileJoystick({
   }, []);
 
   const handleButtonDown = useCallback((id) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopEvent(e);
+    capturePointer(e.currentTarget, e.pointerId);
+    const currentPointers = buttonPointersRef.current.get(id) ?? new Set();
+    const wasInactive = currentPointers.size === 0;
+    currentPointers.add(e.pointerId);
+    buttonPointersRef.current.set(id, currentPointers);
     setActiveButtons(prev => new Set(prev).add(id));
-    if (onAction) onAction(id);
-  }, [onAction]);
+    if (wasInactive && onAction) onAction(id);
+  }, [capturePointer, onAction, stopEvent]);
 
   const handleButtonUp = useCallback((id) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopEvent(e);
+    releasePointer(e.currentTarget, e.pointerId);
+    if (!buttonPointersRef.current.has(id)) return;
+    const currentPointers = buttonPointersRef.current.get(id);
+    currentPointers.delete(e.pointerId);
+    if (currentPointers.size > 0) {
+      buttonPointersRef.current.set(id, currentPointers);
+      return;
+    }
+    buttonPointersRef.current.delete(id);
     setActiveButtons(prev => {
       const next = new Set(prev);
       next.delete(id);
       return next;
     });
     if (onActionUp) onActionUp(id);
-  }, [onActionUp]);
+  }, [onActionUp, releasePointer, stopEvent]);
 
   if (!show) return null;
 
   return (
     <>
+      {onLook && (
+        <div
+          className="joystick-look-zone"
+          aria-label="Kamera drehen"
+          onPointerDown={handleLookStart}
+          onPointerMove={handleLookMove}
+          onPointerUp={handleLookEnd}
+          onPointerCancel={handleLookEnd}
+          onContextMenu={(e) => e.preventDefault()}
+        />
+      )}
+
       {/* Joystick — Left Side */}
       <div
-        className="joystick-zone"
-        style={{ left: 20 }}
-        onTouchStart={handleJoystickStart}
-        onTouchMove={handleJoystickMove}
-        onTouchEnd={handleJoystickEnd}
-        onTouchCancel={handleJoystickEnd}
+        className="joystick-zone joystick-zone-left"
         onPointerDown={handleJoystickStart}
         onPointerMove={handleJoystickMove}
         onPointerUp={handleJoystickEnd}
+        onPointerCancel={handleJoystickEnd}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div ref={baseRef} className="joystick-base">
           <div
@@ -161,21 +234,12 @@ export default function MobileJoystick({
 
       {/* Action Buttons — Right Side */}
       <div
-        className="joystick-zone"
-        style={{
-          right: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-          alignItems: 'center',
-        }}
+        className="joystick-zone joystick-zone-right"
+        onContextMenu={(e) => e.preventDefault()}
       >
-        {buttons.map((btn, i) => {
+        {buttons.map((btn) => {
           const isPressed = activeButtons.has(btn.id);
-          const angle = buttons.length > 2
-            ? (i / buttons.length) * Math.PI * 2 - Math.PI / 2
-            : 0;
-          
+
           return (
             <button
               key={btn.id}
@@ -189,11 +253,11 @@ export default function MobileJoystick({
                   ? `0 0 20px ${btn.color}66`
                   : 'none',
               }}
-              onTouchStart={handleButtonDown(btn.id)}
-              onTouchEnd={handleButtonUp(btn.id)}
-              onTouchCancel={handleButtonUp(btn.id)}
               onPointerDown={handleButtonDown(btn.id)}
               onPointerUp={handleButtonUp(btn.id)}
+              onPointerCancel={handleButtonUp(btn.id)}
+              onLostPointerCapture={handleButtonUp(btn.id)}
+              aria-label={btn.ariaLabel || btn.label}
             >
               {btn.label}
             </button>

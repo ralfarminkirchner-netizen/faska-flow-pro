@@ -91,11 +91,14 @@ export default function SwarmOrchestrator({
   gravity = [0, -9.81, 0],
   cameraProps = { position: [0, 5, 10], fov: 60 },
   children,
+  afterPhysics,
   onReset,
   canvasProps = {},
 }) {
+  const { style: canvasStyle = {}, ...restCanvasProps } = canvasProps;
+
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+    <div className="swarm-orchestrator" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       <PhysicsErrorBoundary onReset={onReset}>
         <Suspense fallback={<LoadingScreen gameName={gameName} />}>
           <Canvas
@@ -103,12 +106,20 @@ export default function SwarmOrchestrator({
             camera={cameraProps}
             gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
             dpr={[1, 2]}
-            style={{ background: '#0a0a1a' }}
-            {...canvasProps}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'block',
+              touchAction: 'none',
+              background: '#0a0a1a',
+              ...canvasStyle,
+            }}
+            {...restCanvasProps}
           >
             <Physics gravity={gravity} debug={false}>
               {children}
             </Physics>
+            {afterPhysics}
           </Canvas>
         </Suspense>
       </PhysicsErrorBoundary>

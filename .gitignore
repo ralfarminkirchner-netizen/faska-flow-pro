@@ -32,3 +32,13 @@ Thumbs.db
 
 # Gemini
 .gemini/
+
+# QA artifacts (screenshots, Chrome profiles)
+output/
+
+# Godot exported web builds — large binaries, regenerate via `npm run godot:export:*`
+public/godot/
+
+# Godot import cache
+.godot/
+godot/**/.godot/

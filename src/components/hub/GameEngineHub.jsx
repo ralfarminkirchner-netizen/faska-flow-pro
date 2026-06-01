@@ -1,66 +1,248 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const seededUnit = (index, salt) => {
+  const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+  return value - Math.floor(value);
+};
+
+const PARTICLES = Array.from({ length: 30 }, (_, index) => ({
+  width: seededUnit(index, 1) * 3 + 1,
+  height: seededUnit(index, 2) * 3 + 1,
+  opacity: seededUnit(index, 3) * 0.4 + 0.1,
+  left: `${seededUnit(index, 4) * 100}%`,
+  top: `${seededUnit(index, 5) * 100}%`,
+  duration: seededUnit(index, 6) * 10 + 10,
+  delay: seededUnit(index, 7) * 5,
+}));
 
 const GAMES = [
   {
     id: 'faska64',
-    name: 'Faska 64',
-    description: '3D Platformer — Springe durch bunte Welten und sammle Sterne!',
+    name: 'Faska 64 Pro',
+    description: 'Godot-4-Lernpark-Prototyp mit klarer 3D-Bewegung, Antwort-Toren direkt am Start, Wortarten-, Lese-, Satz-, Komposita-, Mathe- und Geo-Aufgaben, Wiederholung bei Fehlern, sichtbarem Lernziel und Abschluss-Tor!',
     emoji: '🏰',
     category: 'Action',
     gradient: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
     path: '/game/faska64',
+    engine: 'Godot 4',
   },
   {
     id: 'zelda',
-    name: 'Faska Zelda',
-    description: 'Top-Down Adventure — Erkunde Dungeons mit dem Schwert!',
+    name: 'Faska Zelda Pro',
+    description: 'Godot-4-16-Bit-Top-Down-Adventure im Lernwald mit Schwert, Schild, Dash, Bomben, Pixelwald, Gegner-KI, Torwaechter, Sternentor, Touchsteuerung und Learncade-Schreinen fuer Wortarten, Mathe, Satzbau und Lesen!',
     emoji: '⚔️',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #10b981, #059669)',
     path: '/game/zelda',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'temple-quest',
+    name: 'Faska Temple Quest Pro',
+    description: 'Dungeon-Adventure mit Werkzeug-Meisterung, aktiven Fallen, Truhen, bombbaren Geheimwaenden, Raumpruefungen, Siegel-Tueren, Hookshot-Raetseln, Bossphasen, Missionen und Learncade-Altaren!',
+    emoji: '🗝️',
+    category: 'Adventure',
+    gradient: 'linear-gradient(135deg, #0f766e, #facc15)',
+    path: '/game/temple-quest',
+  },
+  {
+    id: 'tactics',
+    name: 'Faska Tactics Pro',
+    description: 'Runden-Taktik mit Missionszielen, Kartenzielen, Fallen, Deckung, Hoehenvorteil, Flanken, Status-Effekten, Klassen-Fokus-Skills, Overwatch, Boss-Verstaerkung, Undo und Learncade-Zonen!',
+    emoji: '♟️',
+    category: 'Strategy',
+    gradient: 'linear-gradient(135deg, #1d4ed8, #14b8a6)',
+    path: '/game/tactics',
+  },
+  {
+    id: 'pinball',
+    name: 'Faska Pinball Pro',
+    description: 'Flipper-Arcade mit Skill-Shot, Dropbank, Ramp-/Orbit-Shots, Magnet-Lock, Wizard-Mode, Nudge/Tilt-Risiko, Jackpot, Multiball, Missionen und Learncade-Targets!',
+    emoji: '🎱',
+    category: 'Arcade',
+    gradient: 'linear-gradient(135deg, #0ea5e9, #a855f7)',
+    path: '/game/pinball',
+  },
+  {
+    id: 'bomb-maze',
+    name: 'Faska Bomb Maze Pro',
+    description: 'Godot-4-Grid-Bomber mit Kisten, Bombenradius, Gegner-Jagd, freigelegten Powerups, Raumfortschritt, Touchsteuerung und Learncade fuer Wortarten, Mathe und Satzbau-Antwortfelder!',
+    emoji: '💣',
+    category: 'Arcade',
+    gradient: 'linear-gradient(135deg, #f97316, #7c3aed)',
+    path: '/game/bomb-maze',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'trick-park',
+    name: 'Faska Trick Park Pro',
+    description: 'Skate-Combo-Spiel mit Park-Lines, Boost-Pads, beweglichen Hazards, Bail-Risiko, Special-Flow, Grinds, Manuals, Stars, erweiterten Missionen und Learncade-Gates!',
+    emoji: '🛹',
+    category: 'Sports',
+    gradient: 'linear-gradient(135deg, #22c55e, #facc15)',
+    path: '/game/trick-park',
   },
   {
     id: 'doom',
-    name: 'Faska Doom',
-    description: 'FPS Action — Kämpfe durch dunkle Korridore!',
+    name: 'Faska Doom Pro',
+    description: 'Godot-4-Raycaster-Shooter mit pseudo-3D-Korridoren, Waffenfeedback, Gegner-Jagd, Ammo/Armor/Keys, Granaten, Dash, Exit-Ziel, Minimap, Touch-Move/Look und Learncade-Terminals fuer Wortarten, Mathe, Satzbau und Englisch!',
     emoji: '🔫',
     category: 'Action',
     gradient: 'linear-gradient(135deg, #ef4444, #b91c1c)',
     path: '/game/doom',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'arsenal',
+    name: 'Faska Arsenal Pro',
+    description: 'Godot-4-Arena-Shooter mit Maus-Aim, Strafing, Pulse/Scatter/Rail/Rocket, Rocket-Impulse, Jump-Pads, Mega-/Quad-Pickups, Kontrollpunkten, Gegnerwellen und Learncade-Saeulen!',
+    emoji: '⚡',
+    category: 'Arena',
+    gradient: 'linear-gradient(135deg, #2563eb, #facc15)',
+    path: '/game/arsenal',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'descent',
+    name: 'Faska Descent Pro',
+    description: 'Godot-4-6DOF-Tunnel-Shooter mit freier X/Y-Fluglage, Roll-Gefuehl, Pulse Laser, Scatter, Rail Lance, Lock-on-Raketen, Shield-Pulse, Flow-Ringen, Bosskern und Learncade-Gates!',
+    emoji: '🛸',
+    category: 'Shooter',
+    gradient: 'linear-gradient(135deg, #0f172a, #0891b2)',
+    path: '/game/descent',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'sky-rail',
+    name: 'Faska Sky Rail Pro',
+    description: 'On-Rails-Shooter mit geladenen Multi-Lock-Salven, Wingman-Assist, Supply-Pods, Minen/Sturm/Turrets, Bossphasen, Apex-Ringen, Perfect-Evades, Nova-Burst, Missionen und Learncade-Gates!',
+    emoji: '🛩️',
+    category: 'Shooter',
+    gradient: 'linear-gradient(135deg, #0369a1, #22d3ee)',
+    path: '/game/sky-rail',
+  },
+  {
+    id: 'parkour',
+    name: 'Faska Parkour Pro',
+    description: "Godot-4-Jump'n'Run mit Kamera, Plattformkollision, Coyote-Jump, Double-Jump, Dash-Charges, Grapple-Punkten, Gegner-Stomps, Checkpoints, Touchsteuerung, Portalziel und Learncade-Gates fuer Wortarten, Mathe, Satzbau und Lesen!",
+    emoji: '🕹️',
+    category: 'Platformer',
+    gradient: 'linear-gradient(135deg, #0ea5e9, #22c55e)',
+    path: '/game/parkour',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'gadget-quest',
+    name: 'Faska Gadget Quest Pro',
+    description: 'Gadget-Platformer mit Upgrade-Stationen, Kisten, Gadget-Pruefungen, Overcharge, Hoverboots, Grapple, Blaster, Wrench und faecherflexiblen Learncade-Terminals!',
+    emoji: '🛠️',
+    category: 'Platformer',
+    gradient: 'linear-gradient(135deg, #2563eb, #f97316)',
+    path: '/game/gadget-quest',
+  },
+  {
+    id: 'fighter',
+    name: 'Faska Fighter Pro',
+    description: 'Godot-4-1v1-Fighter mit echter State-Machine, Blocken, Low/Mid-Mixups, Whiff-Punish, Jab/Kick/Low/Super, Hitstun, Pushback, Supermeter, CPU-Druck, Touchsteuerung und Learncade-Kristallen fuer Wortarten, Mathe, Satzbau und Englisch!',
+    emoji: '🥊',
+    category: 'Fighting',
+    gradient: 'linear-gradient(135deg, #e11d48, #7c2d12)',
+    path: '/game/fighter',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'brawler',
+    name: 'Faska Brawler Pro',
+    description: '2.5D Beat-em-up mit Kombos, Guard/Parry, Wuerfen, Waffen, zerstoerbaren Props, Lane-Kontrolle, Fernkampf-/Medic-Gegnern, Bossphasen, Super Arts, Missionen und Learncade-Stelen!',
+    emoji: '👊',
+    category: 'Fighting',
+    gradient: 'linear-gradient(135deg, #e11d48, #facc15)',
+    path: '/game/brawler',
+  },
+  {
+    id: 'souls',
+    name: 'Faska Souls Pro',
+    description: 'Godot-4-Bossarena mit Schildblock, Rollen-Iframes, Combo-Druck, Boss-Telegraphs, Minions, Stamina, Neustart und Learncade-Runen!',
+    emoji: '🛡️',
+    category: 'Soulslike',
+    gradient: 'linear-gradient(135deg, #111827, #991b1b)',
+    path: '/game/souls',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'night-hunt',
+    name: 'Faska Night Hunt Pro',
+    description: 'Godot-4-Nachtjagd mit schnellem Ausweichen, Rally-Heal, Blutfieber, Blutkugeln, Pistolen-Parry, Visceral-Fenstern, Trickwaffe, Fokus-Zauber, Blood Vials, Bosswellen und Learncade-Runen!',
+    emoji: '🌙',
+    category: 'Soulslike',
+    gradient: 'linear-gradient(135deg, #0f172a, #7c3aed)',
+    path: '/game/night-hunt',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'mansion',
+    name: 'Faska Mansion Pro',
+    description: 'Godot-4-Top-Down-Survival mit Villa, Safe-Rooms, Sichtkegel, Munition, Reload-Panik, Praezisionsschuessen, Dodges, Barrikaden, Fallen, Schluesseln, Beweisen, Exit-Ziel und Learncade-Siegeln!',
+    emoji: '🔦',
+    category: 'Horror',
+    gradient: 'linear-gradient(135deg, #111827, #581c87)',
+    path: '/game/mansion',
+    engine: 'Godot 4',
   },
   {
     id: 'kart',
-    name: 'Faska Kart',
-    description: '3D Rennen — Fahre gegen Gegner auf der Rennstrecke!',
+    name: 'Faska Kart Pro',
+    description: 'Godot-4-Arcade-Kart mit Rundkurs, Drift-Mini-Turbo, Rivalen, Itemboxen, Boost, Rocket, Shield, Oelspur, Checkpoints, Rundenzeit und Learncade-Antwortgates!',
     emoji: '🏎️',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
     path: '/game/kart',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'rally',
+    name: 'Faska Rally Pro',
+    description: 'Godot-4-Pseudo-3D-Rally mit Kurvenphysik, Grip, Boost, Schaden, Rivalen, Coins, Sektor-Gates, Etappenfortschritt und Learncade-Antwortspuren!',
+    emoji: '🏁',
+    category: 'Racing',
+    gradient: 'linear-gradient(135deg, #0ea5e9, #facc15)',
+    path: '/game/rally',
+    engine: 'Godot 4',
+  },
+  {
+    id: 'taxi-rush',
+    name: 'Faska Taxi Rush Pro',
+    description: 'Godot-4-Crazy-Taxi-Top-Down mit Drift-Boost, Verkehr, Wort-Fahrgaesten, falschen Ablieferungen, Route-Pfeil, Touchsteuerung sowie Learncade fuer Wortarten, Satzstellen und Lese-Orte!',
+    emoji: '🚕',
+    category: 'Racing',
+    gradient: 'linear-gradient(135deg, #facc15, #f97316)',
+    path: '/game/taxi-rush',
+    engine: 'Godot 4',
   },
   {
     id: 'epic-rpg',
-    name: 'Faska RPG',
-    description: 'Abenteuer mit Luna & Bruno — Kämpfe, sammle, level auf!',
+    name: 'Faska Bruno & Luna Quest Pro',
+    description: 'Top-Down-Action-RPG mit Bruno/Luna-Wechsel, Dash, Relikt-Upgrades, Energie-Spezialfaehigkeiten, Boss-Phasen, Minion-Wellen, feindlicher Magie, Beute, Missionen und Learncade-Schreinen!',
     emoji: '🐰',
     category: 'Adventure',
-    gradient: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+    gradient: 'linear-gradient(135deg, #22c55e, #a855f7)',
     path: '/game/epic-rpg',
     featured: true,
   },
   {
     id: 'space-odyssey',
-    name: 'Space Odyssey',
-    description: 'Erkunde den Weltraum — Besuche Planeten und sammle Sterne!',
+    name: 'Faska Star Odyssey Pro',
+    description: 'Freier Space-Run mit Flugphysik, Planetenroute, Rifts, Wurmloechern, EMP-Pulse, Capital-Ship, Drohnen, Asteroiden, Missionszielen und Learncade-Beacons!',
     emoji: '🚀',
     category: 'Adventure',
-    gradient: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+    gradient: 'linear-gradient(135deg, #0ea5e9, #7c3aed)',
     path: '/game/space-odyssey',
   },
   {
     id: 'snake',
-    name: 'Faska Snake',
-    description: 'Klassische Schlange in 3D — Wachse und überlebe!',
+    name: 'Faska Snake Arena Pro',
+    description: 'Arena-Snake mit Dash-Linien, Pulse-Welle, Rival-Schlangen, Guardian-Boss, Schockfeldern, Missionen, Magnet-Futter und faecherflexiblen Learncade-Antworten!',
     emoji: '🐍',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #22c55e, #16a34a)',
@@ -68,17 +250,17 @@ const GAMES = [
   },
   {
     id: 'moorhuhn',
-    name: 'Faska Moorhuhn',
-    description: 'Schießbude — Triff die Hühner für Punkte!',
-    emoji: '🐔',
+    name: 'Faska Target Rush',
+    description: 'Zielspiel mit Waffenwechsel, Powerschuss, Bosswellen, Schildzielen, Combo-Schuesse, Munition, Fever, Missionen und Learncade-Antwortziele!',
+    emoji: '🎯',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #f97316, #ea580c)',
     path: '/game/moorhuhn',
   },
   {
     id: 'blocks',
-    name: 'Faska Blocks',
-    description: 'Tetris in 3D — Räume Reihen für Highscores!',
+    name: 'Faska Blocks Pro',
+    description: 'Falling-Blocks-Pro mit Hold, Ghost, Combos, Bomb-/Laser-/Prisma-Steinen, Board-Blast, Garbage-Druck, Missionen und Learncade-Antwortzonen!',
     emoji: '🧱',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #ec4899, #db2777)',
@@ -86,8 +268,8 @@ const GAMES = [
   },
   {
     id: 'space-invaders',
-    name: 'Space Invaders',
-    description: 'Verteidige die Erde gegen Alien-Invasoren!',
+    name: 'Faska Invaders Pro',
+    description: 'Wellen-Shooter mit Bossen, Elite-Invadern, Deckungsbarrieren, Drohnen-Powerups, Charge-Shots, Heat-Management, Dash, Overdrive, Missionen und Learncade-Antwort-Invadern!',
     emoji: '👾',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
@@ -95,27 +277,54 @@ const GAMES = [
   },
   {
     id: 'micro-machines',
-    name: 'Micro Machines',
-    description: 'Winzige Autos auf riesigen Tischen — Top-Down Racing!',
-    emoji: '🚗',
+    name: 'Faska Micro Rally Pro',
+    description: 'Top-Down-Mini-Racer mit Drift-Boni, Windschatten, Items, Turbo-Pads, Boxenstopps, Gegnern, Powerups, Missionen und Learncade-Gates!',
+    emoji: '🏎️',
     category: 'Racing',
-    gradient: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+    gradient: 'linear-gradient(135deg, #f97316, #0ea5e9)',
     path: '/game/micro-machines',
+  },
+  {
+    id: 'math-defender',
+    name: 'Faska Math Defender',
+    description: 'NEU: Rette die Basis! Tippe das richtige Mathe-Ergebnis ein, um Orbitallaser auf herabfallende Asteroiden abzufeuern.',
+    emoji: '☄️',
+    category: 'Education',
+    gradient: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+    path: '/game/math-defender',
+    featured: true,
+  },
+  {
+    id: 'type-hero',
+    name: 'Faska Type Hero Pro',
+    description: 'Godot-4-Word-Blaster nach Typing-/Math-Blaster-Prinzip: fallende Wortkarten tippen, Wortarten-Ziele, Mathe-Ergebnisse, Lueckenwoerter, Prefix-Lock-on, Combo, Fehlerfeedback, Wiederholung und sichtbares Lernziel!',
+    emoji: '⌨️',
+    category: 'Education',
+    gradient: 'linear-gradient(135deg, #10b981, #3b82f6)',
+    path: '/game/type-hero',
+    featured: true,
+    engine: 'Godot 4',
+  },
+  {
+    id: 'geo-runner',
+    name: 'Faska Geo Runner',
+    description: 'NEU: 3D-Endless-Runner! Laufe durch das korrekte Tor mit der passenden Flagge zur gesuchten Hauptstadt oder dem Land.',
+    emoji: '🌍',
+    category: 'Education',
+    gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+    path: '/game/geo-runner',
+    featured: true,
   },
 ];
 
-const CATEGORIES = ['Alle', 'Action', 'Adventure', 'Arcade', 'Racing'];
+const CATEGORIES = ['Alle', 'Education', 'Action', 'Adventure', 'Arcade', 'Racing', 'Shooter', 'Arena', 'Platformer', 'Fighting', 'Soulslike', 'Horror', 'Strategy', 'Sports'];
 
 export default function GameEngineHub() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('Alle');
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredGame, setHoveredGame] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = true;
 
   const filteredGames = GAMES.filter(game => {
     const matchCategory = selectedCategory === 'Alle' || game.category === selectedCategory;
@@ -143,20 +352,20 @@ export default function GameEngineHub() {
 
       {/* Floating Particles */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-        {Array.from({ length: 30 }, (_, i) => (
+        {PARTICLES.map((particle, i) => (
           <div
             key={i}
             style={{
               position: 'absolute',
-              width: Math.random() * 3 + 1,
-              height: Math.random() * 3 + 1,
+              width: particle.width,
+              height: particle.height,
               borderRadius: '50%',
               background: i % 3 === 0 ? '#7c3aed' : i % 3 === 1 ? '#06b6d4' : '#a855f7',
-              opacity: Math.random() * 0.4 + 0.1,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float-particle ${Math.random() * 10 + 10}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 5}s`,
+              opacity: particle.opacity,
+              left: particle.left,
+              top: particle.top,
+              animation: `float-particle ${particle.duration}s ease-in-out infinite`,
+              animationDelay: `${particle.delay}s`,
             }}
           />
         ))}
@@ -188,7 +397,7 @@ export default function GameEngineHub() {
             WebkitTextFillColor: 'transparent',
             marginBottom: 12,
             lineHeight: 1.1,
-            letterSpacing: -1,
+            letterSpacing: 0,
           }}>
             FASKA FLOW
           </h1>
@@ -197,7 +406,7 @@ export default function GameEngineHub() {
             maxWidth: 500, margin: '0 auto',
             lineHeight: 1.6,
           }}>
-            Deine ultimative Gaming-Arcade — 11 Spiele mit Touchsteuerung & Learncade Education
+            Deine ultimative Gaming-Arcade — 28 Spiele mit Touchsteuerung & Learncade Education
           </p>
 
           {/* Characters */}
@@ -377,7 +586,7 @@ export default function GameEngineHub() {
                   fontSize: 12, color: '#64748b',
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
-                  📱 Touch Ready
+                  {game.engine ? `⚙️ ${game.engine}` : '📱 Touch Ready'}
                 </span>
               </div>
             </div>
@@ -401,8 +610,8 @@ export default function GameEngineHub() {
           color: '#475569', fontSize: 13,
           fontFamily: 'Outfit, sans-serif',
         }}>
-          <p>FASKA FLOW — Built with React Three Fiber & Rapier Physics</p>
-          <p style={{ marginTop: 4 }}>🎮 {GAMES.length} Games | 📱 Mobile Ready | 🧮 Learncade Education</p>
+          <p>FASKA FLOW — React Hub, Godot Web-Spielslots, React Three Fiber & Rapier</p>
+          <p style={{ marginTop: 4 }}>🎮 {GAMES.length} Games | ⚙️ Godot-Migration gestartet | 🧮 Learncade Education</p>
         </footer>
       </div>
 

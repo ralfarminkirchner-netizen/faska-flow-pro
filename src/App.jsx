@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 // Lazy-load all game engines for code splitting
 const GameEngineHub = lazy(() => import('./components/hub/GameEngineHub'));
 const FaskaSixtyFourSwarm = lazy(() => import('./components/games/engines/FaskaSixtyFourSwarm/FaskaSixtyFourSwarm'));
+const FaskaSixtyFourGodot = lazy(() => import('./components/games/godot/FaskaSixtyFourGodot'));
 const FaskaSnakeSwarm = lazy(() => import('./components/games/engines/FaskaSnakeSwarm/FaskaSnakeSwarm'));
 const FaskaMoorhuhnSwarm = lazy(() => import('./components/games/engines/FaskaMoorhuhnSwarm/FaskaMoorhuhnSwarm'));
 const FaskaBlocksSwarm = lazy(() => import('./components/games/engines/FaskaBlocksSwarm/FaskaBlocksSwarm'));
@@ -12,8 +13,42 @@ const FaskaMicroMachinesSwarm = lazy(() => import('./components/games/engines/Fa
 const FaskaSpaceOdysseySwarm = lazy(() => import('./components/games/engines/FaskaSpaceOdysseySwarm/FaskaSpaceOdysseySwarm'));
 const FaskaEpicRPGSwarm = lazy(() => import('./components/games/engines/FaskaEpicRPGSwarm/FaskaEpicRPGSwarm'));
 const FaskaDoomSwarm = lazy(() => import('./components/games/engines/FaskaDoomSwarm/FaskaDoomSwarm'));
+const FaskaDoomGodot = lazy(() => import('./components/games/godot/FaskaDoomGodot'));
 const FaskaZeldaSwarm = lazy(() => import('./components/games/engines/FaskaZeldaSwarm/FaskaZeldaSwarm'));
+const FaskaZeldaGodot = lazy(() => import('./components/games/godot/FaskaZeldaGodot'));
 const FaskaKartSwarm = lazy(() => import('./components/games/engines/FaskaKartSwarm/FaskaKartSwarm'));
+const FaskaKartGodot = lazy(() => import('./components/games/godot/FaskaKartGodot'));
+const FaskaTaxiRushSwarm = lazy(() => import('./components/games/engines/FaskaTaxiRushSwarm/FaskaTaxiRushSwarm'));
+const FaskaTaxiRushGodot = lazy(() => import('./components/games/godot/FaskaTaxiRushGodot'));
+const FaskaFighterSwarm = lazy(() => import('./components/games/engines/FaskaFighterSwarm/FaskaFighterSwarm'));
+const FaskaFighterGodot = lazy(() => import('./components/games/godot/FaskaFighterGodot'));
+const FaskaSoulsSwarm = lazy(() => import('./components/games/engines/FaskaSoulsSwarm/FaskaSoulsSwarm'));
+const FaskaSoulsGodot = lazy(() => import('./components/games/godot/FaskaSoulsGodot'));
+const FaskaDescentSwarm = lazy(() => import('./components/games/engines/FaskaDescentSwarm/FaskaDescentSwarm'));
+const FaskaDescentGodot = lazy(() => import('./components/games/godot/FaskaDescentGodot'));
+const FaskaParkourSwarm = lazy(() => import('./components/games/engines/FaskaParkourSwarm/FaskaParkourSwarm'));
+const FaskaParkourGodot = lazy(() => import('./components/games/godot/FaskaParkourGodot'));
+const FaskaMansionSwarm = lazy(() => import('./components/games/engines/FaskaMansionSwarm/FaskaMansionSwarm'));
+const FaskaMansionGodot = lazy(() => import('./components/games/godot/FaskaMansionGodot'));
+const FaskaRallySwarm = lazy(() => import('./components/games/engines/FaskaRallySwarm/FaskaRallySwarm'));
+const FaskaRallyGodot = lazy(() => import('./components/games/godot/FaskaRallyGodot'));
+const FaskaArsenalSwarm = lazy(() => import('./components/games/engines/FaskaArsenalSwarm/FaskaArsenalSwarm'));
+const FaskaArsenalGodot = lazy(() => import('./components/games/godot/FaskaArsenalGodot'));
+const FaskaGadgetQuestSwarm = lazy(() => import('./components/games/engines/FaskaGadgetQuestSwarm/FaskaGadgetQuestSwarm'));
+const FaskaTempleQuestSwarm = lazy(() => import('./components/games/engines/FaskaTempleQuestSwarm/FaskaTempleQuestSwarm'));
+const FaskaTacticsSwarm = lazy(() => import('./components/games/engines/FaskaTacticsSwarm/FaskaTacticsSwarm'));
+const FaskaPinballSwarm = lazy(() => import('./components/games/engines/FaskaPinballSwarm/FaskaPinballSwarm'));
+const FaskaNightHuntSwarm = lazy(() => import('./components/games/engines/FaskaNightHuntSwarm/FaskaNightHuntSwarm'));
+const FaskaNightHuntGodot = lazy(() => import('./components/games/godot/FaskaNightHuntGodot'));
+const FaskaSkyRailSwarm = lazy(() => import('./components/games/engines/FaskaSkyRailSwarm/FaskaSkyRailSwarm'));
+const FaskaTrickParkSwarm = lazy(() => import('./components/games/engines/FaskaTrickParkSwarm/FaskaTrickParkSwarm'));
+const FaskaBombMazeSwarm = lazy(() => import('./components/games/engines/FaskaBombMazeSwarm/FaskaBombMazeSwarm'));
+const FaskaBombMazeGodot = lazy(() => import('./components/games/godot/FaskaBombMazeGodot'));
+const FaskaBrawlerSwarm = lazy(() => import('./components/games/engines/FaskaBrawlerSwarm/FaskaBrawlerSwarm'));
+const FaskaMathDefenderSwarm = lazy(() => import('./components/games/engines/FaskaMathDefenderSwarm/FaskaMathDefenderSwarm'));
+const FaskaTypeHeroSwarm = lazy(() => import('./components/games/engines/FaskaTypeHeroSwarm/FaskaTypeHeroSwarm'));
+const FaskaTypeHeroGodot = lazy(() => import('./components/games/godot/FaskaTypeHeroGodot'));
+const FaskaGeoRunnerSwarm = lazy(() => import('./components/games/engines/FaskaGeoRunnerSwarm/FaskaGeoRunnerSwarm'));
 
 function LoadingFallback() {
   return (
@@ -45,7 +80,8 @@ export default function App() {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/" element={<GameEngineHub />} />
-        <Route path="/game/faska64" element={<FaskaSixtyFourSwarm />} />
+        <Route path="/game/faska64" element={<FaskaSixtyFourGodot />} />
+        <Route path="/game/faska64-react" element={<FaskaSixtyFourSwarm />} />
         <Route path="/game/snake" element={<FaskaSnakeSwarm />} />
         <Route path="/game/moorhuhn" element={<FaskaMoorhuhnSwarm />} />
         <Route path="/game/blocks" element={<FaskaBlocksSwarm />} />
@@ -53,9 +89,43 @@ export default function App() {
         <Route path="/game/micro-machines" element={<FaskaMicroMachinesSwarm />} />
         <Route path="/game/space-odyssey" element={<FaskaSpaceOdysseySwarm />} />
         <Route path="/game/epic-rpg" element={<FaskaEpicRPGSwarm />} />
-        <Route path="/game/doom" element={<FaskaDoomSwarm />} />
-        <Route path="/game/zelda" element={<FaskaZeldaSwarm />} />
-        <Route path="/game/kart" element={<FaskaKartSwarm />} />
+        <Route path="/game/doom" element={<FaskaDoomGodot />} />
+        <Route path="/game/doom-react" element={<FaskaDoomSwarm />} />
+        <Route path="/game/zelda" element={<FaskaZeldaGodot />} />
+        <Route path="/game/zelda-react" element={<FaskaZeldaSwarm />} />
+        <Route path="/game/kart" element={<FaskaKartGodot />} />
+        <Route path="/game/kart-react" element={<FaskaKartSwarm />} />
+        <Route path="/game/taxi-rush" element={<FaskaTaxiRushGodot />} />
+        <Route path="/game/taxi-rush-react" element={<FaskaTaxiRushSwarm />} />
+        <Route path="/game/fighter" element={<FaskaFighterGodot />} />
+        <Route path="/game/fighter-react" element={<FaskaFighterSwarm />} />
+        <Route path="/game/souls" element={<FaskaSoulsGodot />} />
+        <Route path="/game/souls-react" element={<FaskaSoulsSwarm />} />
+        <Route path="/game/descent" element={<FaskaDescentGodot />} />
+        <Route path="/game/descent-react" element={<FaskaDescentSwarm />} />
+        <Route path="/game/parkour" element={<FaskaParkourGodot />} />
+        <Route path="/game/parkour-react" element={<FaskaParkourSwarm />} />
+        <Route path="/game/mansion" element={<FaskaMansionGodot />} />
+        <Route path="/game/mansion-react" element={<FaskaMansionSwarm />} />
+        <Route path="/game/rally" element={<FaskaRallyGodot />} />
+        <Route path="/game/rally-react" element={<FaskaRallySwarm />} />
+        <Route path="/game/arsenal" element={<FaskaArsenalGodot />} />
+        <Route path="/game/arsenal-react" element={<FaskaArsenalSwarm />} />
+        <Route path="/game/gadget-quest" element={<FaskaGadgetQuestSwarm />} />
+        <Route path="/game/temple-quest" element={<FaskaTempleQuestSwarm />} />
+        <Route path="/game/tactics" element={<FaskaTacticsSwarm />} />
+        <Route path="/game/pinball" element={<FaskaPinballSwarm />} />
+        <Route path="/game/night-hunt" element={<FaskaNightHuntGodot />} />
+        <Route path="/game/night-hunt-react" element={<FaskaNightHuntSwarm />} />
+        <Route path="/game/sky-rail" element={<FaskaSkyRailSwarm />} />
+        <Route path="/game/trick-park" element={<FaskaTrickParkSwarm />} />
+        <Route path="/game/bomb-maze" element={<FaskaBombMazeGodot />} />
+        <Route path="/game/bomb-maze-react" element={<FaskaBombMazeSwarm />} />
+        <Route path="/game/brawler" element={<FaskaBrawlerSwarm />} />
+        <Route path="/game/math-defender" element={<FaskaMathDefenderSwarm />} />
+        <Route path="/game/type-hero" element={<FaskaTypeHeroGodot />} />
+        <Route path="/game/type-hero-react" element={<FaskaTypeHeroSwarm />} />
+        <Route path="/game/geo-runner" element={<FaskaGeoRunnerSwarm />} />
       </Routes>
     </Suspense>
   );

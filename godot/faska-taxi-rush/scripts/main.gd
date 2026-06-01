@@ -9,6 +9,14 @@ const ROAD_SPACING_Y := 235.0
 const ROAD_OFFSET_Y := 250.0
 const ROAD_HALF_WIDTH := 34.0
 
+const CONTRACTS := [
+	{"id": "standard", "label": "STANDARD", "time": 1.0, "tip": 1.0, "color": "#facc15", "goal": "schnell und sauber abliefern"},
+	{"id": "express", "label": "EXPRESS", "time": 0.74, "tip": 1.38, "color": "#ef4444", "goal": "mit viel Restzeit ankommen"},
+	{"id": "fragile", "label": "VORSICHT", "time": 1.08, "tip": 1.28, "color": "#a78bfa", "goal": "ohne neuen Schaden fahren"},
+	{"id": "flow", "label": "LINIE", "time": 0.95, "tip": 1.22, "color": "#22c55e", "goal": "Route-Gates mitnehmen"},
+	{"id": "stunt", "label": "STUNT", "time": 0.92, "tip": 1.34, "color": "#38bdf8", "goal": "driften oder knapp vorbeiziehen"},
+]
+
 const WORD_TASKS := [
 	{"word": "Hund", "kind": "Nomen", "role": "WER", "place": "Park", "sentence": "Der __ bellt laut.", "clue": "ein Tier im Park"},
 	{"word": "Schule", "kind": "Nomen", "role": "WER", "place": "Schule", "sentence": "Die __ beginnt um acht.", "clue": "ein Ort zum Lernen"},
@@ -191,12 +199,21 @@ var mode_learn := false
 var lesson_index := 0
 var passenger_onboard := false
 var current_task: Dictionary = {}
+var current_contract: Dictionary = {}
 var passenger_pos := Vector2.ZERO
 var destination: Dictionary = {}
 var repeat_queue := []
 var traffic := []
 var pickups := []
 var route_gates := []
+var route_gate_hits := 0
+var fare_start_damage := 0
+var fare_start_near_misses := 0
+var fare_start_route_hits := 0
+var fare_drift_points := 0
+var contract_successes := 0
+var contract_failures := 0
+var best_streak := 0
 var message := "FASKA Taxi: Fahrgaeste aufnehmen, driften, sauber abliefern."
 var message_timer := 4.0
 var camera := Vector2.ZERO
@@ -228,11 +245,23 @@ func reset_game() -> void:
 	damage = 0
 	crash_cooldown = 0.0
 	offroad_timer = 0.0
+	elapsed = 0.0
 	deliveries = 0
 	learn_hits = 0
 	mistakes = 0
+	mode_learn = false
+	lesson_index = 0
 	passenger_onboard = false
 	route_gates.clear()
+	route_gate_hits = 0
+	fare_start_damage = 0
+	fare_start_near_misses = 0
+	fare_start_route_hits = 0
+	fare_drift_points = 0
+	contract_successes = 0
+	contract_failures = 0
+	best_streak = 0
+	repeat_queue.clear()
 	spawn_passenger()
 	spawn_traffic()
 	spawn_pickups()
@@ -241,11 +270,18 @@ func reset_game() -> void:
 
 func spawn_passenger() -> void:
 	current_task = _next_task()
+	current_contract = _next_contract()
 	passenger_onboard = false
 	passenger_pos = random_road_point(190.0)
 	destination = _destination_for_task(current_task)
 	build_route_gates(passenger_pos)
-	fare_timer = 66.0
+	var ride_distance := passenger_pos.distance_to(Vector2(destination["pos"]))
+	var base_time := clampf(34.0 + ride_distance / 72.0, 48.0, 86.0)
+	fare_timer = clampf(base_time * float(current_contract.get("time", 1.0)), 30.0, 92.0)
+	fare_start_damage = damage
+	fare_start_near_misses = near_miss_total
+	fare_start_route_hits = route_gate_hits
+	fare_drift_points = 0
 
 func _next_task() -> Dictionary:
 	var lesson: String = String(LESSONS[lesson_index]) if mode_learn else "NORMAL"
@@ -261,6 +297,12 @@ func _next_task() -> Dictionary:
 	var task: Dictionary = pool[int(randi() % pool.size())].duplicate(true)
 	task["repeat"] = false
 	return task
+
+func _next_contract() -> Dictionary:
+	if mode_learn and learn_hits < 2:
+		return CONTRACTS[0].duplicate(true)
+	var index := int(randi() % CONTRACTS.size())
+	return CONTRACTS[index].duplicate(true)
 
 func _task_pool_for_lesson() -> Array:
 	if not mode_learn:
@@ -460,6 +502,11 @@ func update_car(delta: float) -> void:
 	else:
 		boost = min(100.0, boost + 10.5 * delta + drift * 0.08 * delta)
 	drift = absf(steer) * maxf(0.0, velocity.length() - 175.0) if handbrake else maxf(0.0, drift - 125.0 * delta)
+	if passenger_onboard and drift > 70.0:
+		var drift_gain := int(delta * drift * 0.24)
+		if drift_gain > 0:
+			fare_drift_points += drift_gain
+			score += mini(4, drift_gain)
 	car_pos += velocity * delta
 	car_pos.x = clampf(car_pos.x, 80.0, WORLD_SIZE.x - 80.0)
 	car_pos.y = clampf(car_pos.y, 90.0, WORLD_SIZE.y - 90.0)
@@ -534,6 +581,7 @@ func update_objectives(delta: float) -> void:
 	if fare_timer <= 0.0:
 		streak = 0
 		score = max(0, score - 120)
+		contract_failures += 1
 		mistakes += 1 if mode_learn else 0
 		_queue_repeat_current()
 		_set_message("Zu spaet. Neuer Fahrgast wartet.")
@@ -557,24 +605,34 @@ func update_objectives(delta: float) -> void:
 
 func _finish_delivery() -> void:
 	var time_bonus := int(maxf(0.0, fare_timer) * 4.0)
-	var drift_bonus := int(minf(250.0, drift))
+	var drift_bonus := int(minf(280.0, float(fare_drift_points) * 1.4))
 	var grade := delivery_grade()
-	score += 260 + time_bonus + drift_bonus + streak * 80 + grade_bonus_for(grade)
+	var contract_ok := contract_met()
+	var base_reward := 260 + time_bonus + drift_bonus + streak * 80 + grade_bonus_for(grade)
+	if contract_ok:
+		contract_successes += 1
+		base_reward += contract_bonus_for(grade)
+	else:
+		contract_failures += 1
+		base_reward = maxi(70, base_reward - 90)
+	score += int(float(base_reward) * float(current_contract.get("tip", 1.0)))
 	streak += 1
+	best_streak = maxi(best_streak, streak)
 	deliveries += 1
 	if mode_learn:
 		learn_hits += 1
 		if current_task.get("repeat", false):
 			score += 120
-		_set_message("%s-Rang: %s -> %s. Lernserie %d." % [grade, current_task["word"], destination["label"], learn_hits])
+		_set_message("%s %s: %s -> %s. Lernserie %d." % [contract_label(), grade, current_task["word"], destination["label"], learn_hits])
 	else:
-		_set_message("%s-Rang: %s abgeliefert nach %s. Serie x%d." % [grade, current_task["word"], destination["label"], streak])
+		_set_message("%s %s: %s nach %s. Serie x%d." % [contract_label(), grade, current_task["word"], destination["label"], streak])
 	spawn_passenger()
 
 func _wrong_delivery(dest: Dictionary) -> void:
 	score = max(0, score - 95)
 	streak = 0
 	mistakes += 1
+	contract_failures += 1
 	_queue_repeat_current()
 	damage = min(MAX_DAMAGE - 1, damage + 1)
 	fare_timer = maxf(14.0, fare_timer - 8.0)
@@ -594,6 +652,51 @@ func delivery_grade() -> String:
 	if fare_timer > 20.0:
 		return "B"
 	return "C"
+
+func contract_label() -> String:
+	return String(current_contract.get("label", "STANDARD"))
+
+func contract_color() -> Color:
+	return Color.html(String(current_contract.get("color", "#facc15")))
+
+func contract_met() -> bool:
+	var id := String(current_contract.get("id", "standard"))
+	match id:
+		"express":
+			return fare_timer >= 16.0
+		"fragile":
+			return damage <= fare_start_damage
+		"flow":
+			return route_gate_hits - fare_start_route_hits >= 3
+		"stunt":
+			return near_miss_total - fare_start_near_misses >= 2 or fare_drift_points >= 80
+		_:
+			return true
+
+func contract_bonus_for(grade: String) -> int:
+	var bonus := 220
+	match grade:
+		"S":
+			bonus += 260
+		"A":
+			bonus += 170
+		"B":
+			bonus += 90
+	return bonus
+
+func contract_progress_text() -> String:
+	var id := String(current_contract.get("id", "standard"))
+	match id:
+		"express":
+			return "Restzeit %ds / Ziel 16s" % int(fare_timer)
+		"fragile":
+			return "Schaden seit Start %d" % maxi(0, damage - fare_start_damage)
+		"flow":
+			return "Gates %d/3" % clampi(route_gate_hits - fare_start_route_hits, 0, 3)
+		"stunt":
+			return "Near %d/2 · Drift %d/80" % [clampi(near_miss_total - fare_start_near_misses, 0, 2), clampi(fare_drift_points, 0, 80)]
+		_:
+			return String(current_contract.get("goal", "schnell abliefern"))
 
 func grade_bonus_for(grade: String) -> int:
 	match grade:
@@ -664,6 +767,7 @@ func update_route_gates() -> void:
 			continue
 		if Vector2(gate["pos"]).distance_to(car_pos) < 62.0:
 			gate["taken"] = true
+			route_gate_hits += 1
 			if gate["kind"] == "time":
 				fare_timer = minf(76.0, fare_timer + 5.5)
 				score += 85
@@ -679,6 +783,7 @@ func world_to_screen(point: Vector2) -> Vector2:
 
 func _draw() -> void:
 	draw_city()
+	draw_landmarks()
 	draw_destinations()
 	draw_route_gates()
 	draw_pickups()
@@ -710,6 +815,30 @@ func draw_city() -> void:
 	for x in range(int(size.x / ROAD_SPACING_X) + 4):
 		var road_x := vertical_start + float(x) * ROAD_SPACING_X
 		draw_rect(Rect2(road_x - 25.0, 0.0, 50.0, size.y), Color.html("#2f343c"), true)
+
+func draw_landmarks() -> void:
+	var font := get_theme_default_font()
+	for dest in normal_destinations():
+		var p := world_to_screen(Vector2(dest["pos"]))
+		var label := String(dest["label"])
+		var color: Color = dest["color"]
+		if label == "Park":
+			draw_rect(Rect2(p + Vector2(-112, -80), Vector2(224, 160)), Color(0.08, 0.42, 0.18, 0.56), true)
+			for i in range(5):
+				draw_circle(p + Vector2(-70 + i * 36, -28 + sin(float(i)) * 18), 20.0, Color.html("#16a34a"))
+		elif label == "Bibliothek":
+			draw_rect(Rect2(p + Vector2(-118, -76), Vector2(236, 152)), Color(0.24, 0.18, 0.43, 0.62), true)
+			for i in range(4):
+				draw_rect(Rect2(p + Vector2(-82 + i * 44, -34), Vector2(22, 68)), Color(0.80, 0.72, 1.0, 0.24), true)
+		elif label == "Schule":
+			draw_rect(Rect2(p + Vector2(-120, -72), Vector2(240, 144)), Color(0.62, 0.42, 0.08, 0.54), true)
+			draw_polygon(PackedVector2Array([p + Vector2(-132, -72), p + Vector2(0, -128), p + Vector2(132, -72)]), PackedColorArray([Color(0.92, 0.66, 0.18, 0.52)]))
+		else:
+			draw_rect(Rect2(p + Vector2(-126, -62), Vector2(252, 124)), Color(0.05, 0.24, 0.39, 0.6), true)
+			for i in range(3):
+				draw_rect(Rect2(p + Vector2(-78 + i * 58, -92), Vector2(34, 44)), Color(0.56, 0.82, 1.0, 0.24), true)
+		draw_rect(Rect2(p + Vector2(-78, 50), Vector2(156, 26)), Color(0.02, 0.05, 0.09, 0.74), true)
+		draw_string(font, p + Vector2(-68, 69), label, HORIZONTAL_ALIGNMENT_CENTER, 136.0, 14, Color(color.r, color.g, color.b, 0.96))
 
 func draw_destinations() -> void:
 	var font := get_theme_default_font()
@@ -747,7 +876,9 @@ func draw_passenger() -> void:
 		return
 	var font := get_theme_default_font()
 	var p := world_to_screen(passenger_pos)
-	draw_circle(p, 34.0, Color.html("#f97316"))
+	var contract_c := contract_color()
+	draw_circle(p, 39.0, Color(contract_c.r, contract_c.g, contract_c.b, 0.26))
+	draw_circle(p, 30.0, contract_c)
 	draw_rect(Rect2(p + Vector2(-68, -62), Vector2(136, 27)), Color.html("#020617"), true)
 	var label: String = String(current_task["word"])
 	if current_task.get("repeat", false):
@@ -809,16 +940,20 @@ func draw_rotated_car(center: Vector2, angle: float, color: Color, taxi: bool) -
 
 func draw_hud() -> void:
 	var font := get_theme_default_font()
-	draw_rect(Rect2(12, 12, 610, 158), Color(0.02, 0.05, 0.09, 0.80), true)
+	var contract_c := contract_color()
+	draw_rect(Rect2(12, 12, 640, 182), Color(0.02, 0.05, 0.09, 0.82), true)
+	draw_rect(Rect2(12, 12, 640, 182), Color(contract_c.r, contract_c.g, contract_c.b, 0.22), false, 2.0)
 	draw_string(font, Vector2(26, 38), "FASKA TAXI RUSH PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#facc15"))
 	draw_string(font, Vector2(26, 66), "Score %d  Serie x%d  Schaden %d/%d  Zeit %ds" % [score, streak, damage, MAX_DAMAGE, int(fare_timer)], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.html("#f8fafc"))
 	draw_string(font, Vector2(26, 92), "Mode %s  Fach %s  Lernziel %d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", LESSONS[lesson_index], learn_hits, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(26, 118), "Near Miss x%d  Gesamt %d  Mission: %s" % [near_miss_chain, near_miss_total, mission_text()], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#bae6fd"))
-	draw_string(font, Vector2(26, 146), _objective_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#fde68a"))
-	draw_rect(Rect2(646, 22, 210, 14), Color.html("#111827"), true)
-	draw_rect(Rect2(646, 22, 210.0 * boost / 100.0, 14), Color.html("#22c55e"), true)
-	draw_string(font, Vector2(646, 58), "WASD/Pfeile  Space Drift  Shift Boost", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(646, 82), "L Learncade  C Fach  R Neustart", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#94a3b8"))
+	draw_string(font, Vector2(26, 118), "Auftrag %s: %s" % [contract_label(), contract_progress_text()], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, contract_c)
+	draw_string(font, Vector2(26, 144), "Near Miss x%d  Gesamt %d  Mission: %s" % [near_miss_chain, near_miss_total, mission_text()], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#bae6fd"))
+	draw_string(font, Vector2(26, 170), _objective_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#fde68a"))
+	draw_rect(Rect2(676, 22, 210, 14), Color.html("#111827"), true)
+	draw_rect(Rect2(676, 22, 210.0 * boost / 100.0, 14), Color.html("#22c55e"), true)
+	draw_string(font, Vector2(676, 58), "WASD/Pfeile  Space Drift  Shift Boost", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(676, 82), "L Learncade  C Fach  R Neustart", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#94a3b8"))
+	draw_string(font, Vector2(676, 106), "Vertraege %d✓/%d✕  Bestserie x%d" % [contract_successes, contract_failures, best_streak], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#94a3b8"))
 	if message_timer > 0.0:
 		draw_rect(Rect2(12.0, size.y - 46.0, min(size.x - 24.0, 860.0), 32.0), Color(0.02, 0.05, 0.09, 0.78), true)
 		draw_string(font, Vector2(24.0, size.y - 23.0), message, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))
@@ -874,8 +1009,8 @@ func _mode_message() -> String:
 
 func mission_text() -> String:
 	if mode_learn:
-		return "%d/5 richtige Lernfahrten, max. 2 Fehler" % learn_hits
-	return "%d/3 Fahrten, %d/6 Near-Misses" % [deliveries, near_miss_total]
+		return "%d/5 Lernfahrten, %d Vertrage, max. 2 Fehler" % [learn_hits, contract_successes]
+	return "%d/3 Fahrten, %d/6 Near-Misses, %d Vertrage" % [deliveries, near_miss_total, contract_successes]
 
 func _set_message(text: String) -> void:
 	message = text

@@ -1,8 +1,16 @@
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
-import useKartStore from './GameLogic';
+import useKartStore, {
+  KART_APEX_GATES,
+  KART_BOOST_PADS,
+  KART_HAZARD_ZONES,
+  KART_ITEM_BOXES,
+  KART_LEARN_GATE_POSITIONS,
+  KART_SHORTCUT_GATES,
+  KART_STATIC_OIL_SLICKS,
+} from './GameLogic';
 
 /**
  * World — Oval racetrack with barriers, boost pads, AI karts, trees, and decorations.
@@ -17,6 +25,72 @@ function generateOvalPoints(count, rx, rz) {
     points.push({ x: Math.sin(t) * rx, z: -Math.cos(t) * rz });
   }
   return points;
+}
+
+function seededUnit(index, salt = 0) {
+  const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function createLabelTexture(text, color = '#f8fafc', background = 'rgba(15, 23, 42, 0.88)') {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 192;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = background;
+  roundRect(ctx, 18, 22, 476, 148, 30);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(248, 250, 252, 0.62)';
+  ctx.lineWidth = 8;
+  roundRect(ctx, 18, 22, 476, 148, 30);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = '900 66px Outfit, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 96, 430);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function FloatingLabel({ text, color = '#f8fafc', background, position = [0, 0, 0], scale = [3.5, 1.3, 1] }) {
+  const labelRef = useRef();
+  const texture = useMemo(() => createLabelTexture(text, color, background), [text, color, background]);
+
+  useEffect(() => () => texture?.dispose(), [texture]);
+
+  useFrame(({ camera }) => {
+    if (labelRef.current) {
+      labelRef.current.lookAt(camera.position);
+    }
+  });
+
+  if (!texture) return null;
+
+  return (
+    <mesh ref={labelRef} position={position} scale={scale}>
+      <planeGeometry args={[1, 0.38]} />
+      <meshBasicMaterial map={texture} transparent depthWrite={false} />
+    </mesh>
+  );
 }
 
 // Track barrier segment
@@ -117,6 +191,203 @@ function BoostPad({ position }) {
   );
 }
 
+function ItemBox({ position, index }) {
+  const boxRef = useRef();
+
+  useFrame((state, dt) => {
+    if (!boxRef.current) return;
+    boxRef.current.rotation.y += dt * 1.8;
+    boxRef.current.position.y = 0.78 + Math.sin(state.clock.elapsedTime * 3 + index) * 0.12;
+  });
+
+  return (
+    <group position={position}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.15, 1.55, 24]} />
+        <meshStandardMaterial color="#a855f7" emissive="#7c3aed" emissiveIntensity={0.9} transparent opacity={0.58} />
+      </mesh>
+      <mesh ref={boxRef} position={[0, 0.78, 0]} castShadow>
+        <boxGeometry args={[1.05, 1.05, 1.05]} />
+        <meshStandardMaterial
+          color="#fde68a"
+          emissive="#f59e0b"
+          emissiveIntensity={0.78}
+          metalness={0.25}
+          roughness={0.32}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <FloatingLabel
+        text="ITEM"
+        color="#fef3c7"
+        background="rgba(91, 33, 182, 0.88)"
+        position={[0, 2.05, 0]}
+        scale={[2.45, 0.95, 1]}
+      />
+    </group>
+  );
+}
+
+function OilSlick({ position, dropped = false }) {
+  const ringRef = useRef();
+
+  useFrame((_, dt) => {
+    if (ringRef.current) ringRef.current.rotation.z += dt * 0.65;
+  });
+
+  return (
+    <group position={position}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1.15, 28]} />
+        <meshStandardMaterial color="#020617" roughness={0.34} transparent opacity={dropped ? 0.86 : 0.68} />
+      </mesh>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
+        <ringGeometry args={[1.18, 1.38, 28]} />
+        <meshStandardMaterial color="#94a3b8" emissive="#334155" emissiveIntensity={0.7} transparent opacity={0.52} />
+      </mesh>
+    </group>
+  );
+}
+
+function LearnGate({ position, label, lane }) {
+  const color = lane === 0 ? '#06b6d4' : lane < 0 ? '#f59e0b' : '#10b981';
+
+  return (
+    <group position={position}>
+      <mesh position={[-1.18, 1.12, 0]} castShadow>
+        <boxGeometry args={[0.2, 2.2, 0.2]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.75} />
+      </mesh>
+      <mesh position={[1.18, 1.12, 0]} castShadow>
+        <boxGeometry args={[0.2, 2.2, 0.2]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.75} />
+      </mesh>
+      <mesh position={[0, 2.25, 0]} castShadow>
+        <boxGeometry args={[2.6, 0.2, 0.24]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.95} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+        <planeGeometry args={[2.35, 2.35]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.42} transparent opacity={0.28} />
+      </mesh>
+      <FloatingLabel
+        text={label}
+        color="#ffffff"
+        background="rgba(15, 23, 42, 0.92)"
+        position={[0, 3.02, 0]}
+        scale={[3.25, 1.08, 1]}
+      />
+    </group>
+  );
+}
+
+function ApexGate({ gate }) {
+  const ringRef = useRef();
+  const beaconRef = useRef();
+  const color = gate.sector % 2 === 0 ? '#38bdf8' : '#facc15';
+
+  useFrame((state, dt) => {
+    if (ringRef.current) ringRef.current.rotation.z += dt * 0.7;
+    if (beaconRef.current) {
+      beaconRef.current.position.y = 1.55 + Math.sin(state.clock.elapsedTime * 3.8 + gate.sector) * 0.12;
+    }
+  });
+
+  return (
+    <group position={[gate.x, 0.07, gate.z]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.28, 1.76, 36]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.95} transparent opacity={0.68} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+        <circleGeometry args={[1.18, 28]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} transparent opacity={0.18} />
+      </mesh>
+      <mesh ref={beaconRef} position={[0, 1.55, 0]} castShadow>
+        <octahedronGeometry args={[0.35]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.8} roughness={0.24} />
+      </mesh>
+      <FloatingLabel
+        text={gate.label}
+        color="#020617"
+        background={gate.sector % 2 === 0 ? 'rgba(125, 211, 252, 0.88)' : 'rgba(254, 240, 138, 0.9)'}
+        position={[0, 2.24, 0]}
+        scale={[1.9, 0.72, 1]}
+      />
+    </group>
+  );
+}
+
+function ShortcutGate({ gate }) {
+  const ringRef = useRef();
+  const color = gate.sector % 2 === 0 ? '#22c55e' : '#f97316';
+
+  useFrame((state, dt) => {
+    if (!ringRef.current) return;
+    ringRef.current.rotation.z += dt * 1.15;
+    ringRef.current.position.y = 0.13 + Math.sin(state.clock.elapsedTime * 4.4 + gate.sector) * 0.035;
+  });
+
+  return (
+    <group position={[gate.x, 0.08, gate.z]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.05, 1.48, 32]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.25} transparent opacity={0.72} />
+      </mesh>
+      <mesh position={[-1.35, 0.72, 0]} castShadow>
+        <coneGeometry args={[0.34, 1.35, 6]} />
+        <meshStandardMaterial color="#f8fafc" emissive={color} emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[1.35, 0.72, 0]} castShadow>
+        <coneGeometry args={[0.34, 1.35, 6]} />
+        <meshStandardMaterial color="#f8fafc" emissive={color} emissiveIntensity={0.5} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, gate.sector * 0.55]} position={[0, 0.02, 0]}>
+        <planeGeometry args={[2.8, 0.42]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} transparent opacity={0.42} />
+      </mesh>
+      <FloatingLabel
+        text={gate.label}
+        color="#ffffff"
+        background="rgba(15, 23, 42, 0.9)"
+        position={[0, 2.2, 0]}
+        scale={[2.45, 0.86, 1]}
+      />
+    </group>
+  );
+}
+
+function HazardZone({ hazard }) {
+  const ringRef = useRef();
+
+  useFrame((state, dt) => {
+    if (!ringRef.current) return;
+    ringRef.current.rotation.z += dt * (hazard.type === 'spark' ? 1.8 : 0.55);
+    ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3.6) * 0.035);
+  });
+
+  return (
+    <group position={[hazard.x, 0.045, hazard.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[hazard.radius, 34]} />
+        <meshStandardMaterial color={hazard.color} emissive={hazard.color} emissiveIntensity={0.28} transparent opacity={0.38} roughness={0.88} />
+      </mesh>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <ringGeometry args={[hazard.radius * 0.72, hazard.radius * 0.95, 36]} />
+        <meshStandardMaterial color="#f8fafc" emissive={hazard.color} emissiveIntensity={0.8} transparent opacity={0.36} />
+      </mesh>
+      <FloatingLabel
+        text={hazard.label}
+        color="#ffffff"
+        background="rgba(2, 6, 23, 0.86)"
+        position={[0, 1.64, 0]}
+        scale={[2.2, 0.76, 1]}
+      />
+    </group>
+  );
+}
+
 // Finish line
 function FinishLine() {
   return (
@@ -132,31 +403,20 @@ function FinishLine() {
           />
         </mesh>
       ))}
-      {/* Finish arch */}
-      <mesh position={[-5, 2.5, 0]}>
-        <boxGeometry args={[0.3, 5, 0.3]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
+      <mesh position={[-5.9, 0.72, 0]} castShadow>
+        <boxGeometry args={[0.5, 1.4, 0.5]} />
+        <meshStandardMaterial color="#7c3aed" emissive="#4c1d95" emissiveIntensity={0.55} />
       </mesh>
-      <mesh position={[5, 2.5, 0]}>
-        <boxGeometry args={[0.3, 5, 0.3]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
-      </mesh>
-      <mesh position={[0, 5, 0]}>
-        <boxGeometry args={[10.6, 0.4, 0.4]} />
-        <meshStandardMaterial
-          color="#7c3aed"
-          emissive="#7c3aed"
-          emissiveIntensity={0.6}
-          metalness={0.7}
-          roughness={0.2}
-        />
+      <mesh position={[5.9, 0.72, 0]} castShadow>
+        <boxGeometry args={[0.5, 1.4, 0.5]} />
+        <meshStandardMaterial color="#7c3aed" emissive="#4c1d95" emissiveIntensity={0.55} />
       </mesh>
     </group>
   );
 }
 
 // Checkpoint marker (subtle)
-function CheckpointMarker({ position, index, isNext }) {
+function CheckpointMarker({ position, isNext }) {
   return (
     <mesh position={[position.x, 0.1, position.z]} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[1.5, 2, 16]} />
@@ -267,6 +527,16 @@ function TrackSurface() {
           opacity={0.5}
         />
       </mesh>
+      {KART_APEX_GATES.map((gate, index) => (
+        <mesh
+          key={`line-${gate.id}`}
+          rotation={[-Math.PI / 2, 0, index % 2 === 0 ? 0.42 : -0.38]}
+          position={[gate.x * 0.97, 0.035, gate.z * 0.97]}
+        >
+          <planeGeometry args={[3.8, 0.22]} />
+          <meshStandardMaterial color="#e2e8f0" emissive="#38bdf8" emissiveIntensity={0.28} transparent opacity={0.34} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -275,26 +545,33 @@ export default function World() {
   const checkpoints = useKartStore(s => s.checkpoints);
   const nextCheckpoint = useKartStore(s => s.nextCheckpoint);
   const aiKarts = useKartStore(s => s.aiKarts);
+  const mode = useKartStore(s => s.mode);
+  const learnGateCooldown = useKartStore(s => s.learnGateCooldown);
+  const learnGateTask = useKartStore(s => s.getCurrentLearnGate());
+  const droppedOils = useKartStore(s => s.droppedOils);
 
   // Tree positions around the track
   const trees = useMemo(() => {
     const t = [];
     for (let i = 0; i < 30; i++) {
       const angle = (i / 30) * Math.PI * 2;
-      const r = 28 + Math.random() * 8;
+      const r = 28 + seededUnit(i, 1) * 8;
       t.push([Math.sin(angle) * r, 0, -Math.cos(angle) * r]);
     }
     // Inner trees
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
-      const r = 5 + Math.random() * 4;
+      const r = 5 + seededUnit(i, 2) * 4;
       t.push([Math.sin(angle) * r, 0, -Math.cos(angle) * r]);
     }
     return t;
   }, []);
 
   return (
-    <group>
+    <>
+      <color attach="background" args={['#8bd3ff']} />
+      <fog attach="fog" args={['#87ceeb', 50, 120]} />
+      <group>
       {/* Lighting */}
       <ambientLight intensity={0.4} />
       <directionalLight
@@ -311,9 +588,6 @@ export default function World() {
         shadow-camera-far={100}
       />
       <hemisphereLight args={['#87ceeb', '#3d5c3a', 0.5]} />
-
-      {/* Sky color via fog */}
-      <fog attach="fog" args={['#87ceeb', 50, 120]} />
 
       {/* Ground */}
       <RigidBody type="fixed" colliders={false}>
@@ -334,8 +608,46 @@ export default function World() {
       <FinishLine />
 
       {/* Boost pads */}
-      <BoostPad position={[14, 0.05, 0]} />
-      <BoostPad position={[-14, 0.05, 0]} />
+      {KART_BOOST_PADS.map((pad, i) => (
+        <BoostPad key={`boost-${i}`} position={[pad.x, 0.05, pad.z]} />
+      ))}
+
+      {KART_ITEM_BOXES.map((box, i) => (
+        <ItemBox key={`item-${i}`} position={[box.x, 0, box.z]} index={i} />
+      ))}
+
+      {KART_STATIC_OIL_SLICKS.map((oil) => (
+        <OilSlick key={oil.id} position={[oil.x, 0.04, oil.z]} />
+      ))}
+
+      {KART_HAZARD_ZONES.map((hazard) => (
+        <HazardZone key={hazard.id} hazard={hazard} />
+      ))}
+
+      {droppedOils.map((oil) => (
+        <OilSlick key={oil.id} position={[oil.x, 0.055, oil.z]} dropped />
+      ))}
+
+      {KART_APEX_GATES.map((gate) => (
+        <ApexGate key={gate.id} gate={gate} />
+      ))}
+
+      {KART_SHORTCUT_GATES.map((gate) => (
+        <ShortcutGate key={gate.id} gate={gate} />
+      ))}
+
+      {mode === 'learn' && learnGateCooldown <= 0 && (
+        <group>
+          {KART_LEARN_GATE_POSITIONS.map((gate, i) => (
+            <LearnGate
+              key={`${learnGateTask.word}-${gate.lane}`}
+              position={[gate.x, 0, gate.z]}
+              label={learnGateTask.options[i]}
+              lane={gate.lane}
+            />
+          ))}
+        </group>
+      )}
 
       {/* Checkpoint markers */}
       {checkpoints.map((cp, i) => (
@@ -387,6 +699,7 @@ export default function World() {
         <sphereGeometry args={[6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial color="#15803d" roughness={0.9} />
       </mesh>
-    </group>
+      </group>
+    </>
   );
 }

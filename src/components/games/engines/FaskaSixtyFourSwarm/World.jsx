@@ -1,358 +1,542 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Sky, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import useFaskaSixtyFourStore from './GameLogic';
+import useFaskaSixtyFourStore, {
+  FASKA64_LAUNCH_PADS,
+} from './GameLogic';
 
-/**
- * Coin — A rotating golden torus that can be collected.
- */
-function Coin({ id, position }) {
+// ============================================================
+// InstancedCoins — All coins in ONE draw call via InstancedMesh
+// ============================================================
+function InstancedCoins({ particleRef, shake }) {
   const meshRef = useRef(null);
-  const collected = useFaskaSixtyFourStore(s => s.coins.find(c => c.id === id)?.collected);
-  const collectCoin = useFaskaSixtyFourStore(s => s.collectCoin);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const coins = useFaskaSixtyFourStore(s => s.coins);
   const playerPosition = useFaskaSixtyFourStore(s => s.playerPosition);
+  const collectCoin = useFaskaSixtyFourStore(s => s.collectCoin);
+  const coinCount = coins.length;
 
-  const material = useMemo(() => new THREE.MeshStandardMaterial({
+  // Gold emissive material — toneMapped=false for Bloom
+  const coinMat = useMemo(() => new THREE.MeshStandardMaterial({
     color: '#fbbf24',
     emissive: '#f59e0b',
-    emissiveIntensity: 0.8,
+    emissiveIntensity: 2.5,
     metalness: 0.9,
     roughness: 0.1,
+    toneMapped: false,
   }), []);
 
+  // Initialize instance transforms
+  useEffect(() => {
+    if (!meshRef.current) return;
+    coins.forEach((coin, i) => {
+      dummy.position.set(coin.pos[0], coin.pos[1], coin.pos[2]);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [coins, dummy]);
+
   useFrame((state) => {
-    if (collected || !meshRef.current) return;
+    if (!meshRef.current) return;
+    const t = state.clock.elapsedTime;
+    const px = playerPosition[0];
+    const py = playerPosition[1];
+    const pz = playerPosition[2];
 
-    // Rotate
-    meshRef.current.rotation.y = state.clock.elapsedTime * 3;
-    meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 2) * 0.1;
+    for (let i = 0; i < coinCount; i++) {
+      const coin = coins[i];
+      if (coin.collected) {
+        // Hide collected coins
+        dummy.position.set(0, -200, 0);
+        dummy.scale.setScalar(0);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        meshRef.current.setMatrixAt(i, dummy.matrix);
+        continue;
+      }
 
-    // Float up and down
-    meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.3;
+      // Animate: rotate + bob
+      const bobY = coin.pos[1] + Math.sin(t * 2.5 + coin.pos[0] * 0.7) * 0.25;
+      dummy.position.set(coin.pos[0], bobY, coin.pos[2]);
+      dummy.rotation.set(0, t * 3 + i * 0.5, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
 
-    // Check distance to player for collection
-    const dx = playerPosition[0] - position[0];
-    const dy = playerPosition[1] - position[1];
-    const dz = playerPosition[2] - position[2];
-    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      // Proximity collection check
+      const dx = px - coin.pos[0];
+      const dy = py - coin.pos[1];
+      const dz = pz - coin.pos[2];
+      const distSq = dx * dx + dy * dy + dz * dz;
 
-    if (dist < 1.8) {
-      collectCoin(id);
+      if (distSq < 3.2) { // ~1.8 radius squared
+        collectCoin(i);
+        // Emit gold particles
+        if (particleRef?.current) {
+          particleRef.current.emit(
+            { x: coin.pos[0], y: coin.pos[1], z: coin.pos[2] },
+            { x: 0, y: 1, z: 0 },
+            { count: 10, spread: 1.5, speed: 4, color: '#fbbf24' },
+          );
+        }
+        if (shake) shake(0.2, 100);
+      }
     }
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
-  if (collected) return null;
-
   return (
-    <group ref={meshRef} position={position}>
-      {/* Main coin torus */}
-      <mesh material={material} castShadow>
-        <torusGeometry args={[0.35, 0.1, 12, 24]} />
-      </mesh>
-      {/* Inner star shape */}
-      <mesh material={material}>
-        <octahedronGeometry args={[0.15, 0]} />
-      </mesh>
-      {/* Glow */}
-      <mesh>
-        <sphereGeometry args={[0.5, 8, 8]} />
-        <meshBasicMaterial color="#fbbf24" transparent opacity={0.1} />
-      </mesh>
-      {/* Point light for glow */}
-      <pointLight color="#fbbf24" intensity={0.5} distance={3} />
-    </group>
+    <instancedMesh ref={meshRef} args={[null, null, coinCount]} frustumCulled={false} castShadow>
+      <torusGeometry args={[0.3, 0.1, 8, 16]} />
+      <primitive object={coinMat} attach="material" />
+    </instancedMesh>
   );
 }
 
-/**
- * Platform — A static or moving colored platform block.
- */
-function Platform({ id, pos, size, color, type, moveAxis, moveRange, moveSpeed }) {
+// ============================================================
+// Platform — Static or bobbing platform with emissive edges
+// ============================================================
+function Platform({ pos, size, color, type, bobSpeed, bobRange }) {
   const rbRef = useRef(null);
-  const initialPos = useRef(pos);
+  const origin = useRef(pos);
 
-  const material = useMemo(() => new THREE.MeshStandardMaterial({
+  const mainMat = useMemo(() => new THREE.MeshStandardMaterial({
     color,
-    metalness: 0.1,
-    roughness: 0.6,
+    metalness: 0.15,
+    roughness: 0.55,
   }), [color]);
 
-  const topMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+  const edgeMat = useMemo(() => new THREE.MeshStandardMaterial({
     color,
     emissive: color,
-    emissiveIntensity: 0.15,
-    metalness: 0.2,
-    roughness: 0.5,
+    emissiveIntensity: 1.5,
+    toneMapped: false,
   }), [color]);
 
   useFrame((state) => {
-    if (type !== 'moving' || !rbRef.current) return;
-
+    if (type !== 'bobbing' || !rbRef.current) return;
     try {
-      const t = state.clock.elapsedTime * (moveSpeed || 1);
-      const offset = Math.sin(t) * (moveRange || 3);
-      const newPos = { x: initialPos.current[0], y: initialPos.current[1], z: initialPos.current[2] };
-
-      if (moveAxis === 'x') newPos.x += offset;
-      else if (moveAxis === 'y') newPos.y += offset;
-      else if (moveAxis === 'z') newPos.z += offset;
-
-      rbRef.current.setNextKinematicTranslation(newPos);
-    } catch (err) {
-      // Silently handle physics errors
+      const t = state.clock.elapsedTime * (bobSpeed || 0.6);
+      const offset = Math.sin(t) * (bobRange || 1.2);
+      rbRef.current.setNextKinematicTranslation({
+        x: origin.current[0],
+        y: origin.current[1] + offset,
+        z: origin.current[2],
+      });
+    } catch {
+      // silently handle physics errors
     }
   });
 
   return (
     <RigidBody
       ref={rbRef}
-      type={type === 'moving' ? 'kinematicPosition' : 'fixed'}
+      type={type === 'bobbing' ? 'kinematicPosition' : 'fixed'}
       position={pos}
       colliders={false}
     >
       <CuboidCollider args={[size[0] / 2, size[1] / 2, size[2] / 2]} />
 
-      {/* Main platform body */}
-      <mesh position={[0, 0, 0]} material={material} receiveShadow castShadow>
+      {/* Main body */}
+      <mesh material={mainMat} receiveShadow castShadow>
         <boxGeometry args={size} />
       </mesh>
 
-      {/* Top accent layer */}
-      <mesh position={[0, size[1] / 2 + 0.02, 0]} material={topMaterial} receiveShadow>
-        <boxGeometry args={[size[0] - 0.1, 0.05, size[2] - 0.1]} />
+      {/* Emissive top accent */}
+      <mesh position={[0, size[1] / 2 + 0.015, 0]} receiveShadow>
+        <boxGeometry args={[size[0] - 0.1, 0.03, size[2] - 0.1]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.6}
+          toneMapped={false}
+        />
       </mesh>
 
-      {/* Edge glow strips */}
-      <mesh position={[0, size[1] / 2 + 0.05, size[2] / 2 - 0.05]}>
-        <boxGeometry args={[size[0], 0.03, 0.03]} />
-        <meshBasicMaterial color={color} transparent opacity={0.6} />
+      {/* Front edge glow strip */}
+      <mesh position={[0, size[1] / 2 + 0.04, size[2] / 2 - 0.04]} material={edgeMat}>
+        <boxGeometry args={[size[0], 0.025, 0.025]} />
       </mesh>
-      <mesh position={[0, size[1] / 2 + 0.05, -(size[2] / 2 - 0.05)]}>
-        <boxGeometry args={[size[0], 0.03, 0.03]} />
-        <meshBasicMaterial color={color} transparent opacity={0.6} />
+      {/* Back edge glow strip */}
+      <mesh position={[0, size[1] / 2 + 0.04, -(size[2] / 2 - 0.04)]} material={edgeMat}>
+        <boxGeometry args={[size[0], 0.025, 0.025]} />
       </mesh>
     </RigidBody>
   );
 }
 
-/**
- * CoinParticles — Visual particle effects when coins are collected.
- */
-function CoinParticles() {
-  const particles = useFaskaSixtyFourStore(s => s.coinParticles);
-  const updateParticles = useFaskaSixtyFourStore(s => s.updateParticles);
+// ============================================================
+// InstancedTrees — All trees batched into instanced meshes
+// ============================================================
+const TREE_POSITIONS = [
+  [-5, 0, -5], [5, 0, -4], [-4, 0, 5], [6, 0, 6],
+  [-6, 0, 1], [4, 0, -6], [-2, 0, 6], [1, 0, -7],
+  [7, 0, 2], [-7, 0, -3],
+];
 
-  useFrame((_, delta) => {
-    updateParticles(delta);
-  });
+function InstancedTrees() {
+  const trunkRef = useRef(null);
+  const foliageRef = useRef(null);
+  const count = TREE_POSITIONS.length;
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useEffect(() => {
+    if (!trunkRef.current || !foliageRef.current) return;
+    TREE_POSITIONS.forEach((pos, i) => {
+      // Trunk
+      dummy.position.set(pos[0], 0.8, pos[2]);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      trunkRef.current.setMatrixAt(i, dummy.matrix);
+
+      // Foliage
+      dummy.position.set(pos[0], 2.5, pos[2]);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      foliageRef.current.setMatrixAt(i, dummy.matrix);
+    });
+    trunkRef.current.instanceMatrix.needsUpdate = true;
+    foliageRef.current.instanceMatrix.needsUpdate = true;
+  }, [dummy]);
 
   return (
-    <group>
-      {particles.map(p => (
-        <mesh key={p.id} position={p.pos}>
-          <octahedronGeometry args={[0.08, 0]} />
-          <meshBasicMaterial
-            color="#fbbf24"
-            transparent
-            opacity={Math.max(0, p.life)}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/**
- * Boundary walls — invisible walls to keep player in bounds.
- */
-function Boundaries() {
-  const wallSize = 40;
-  const wallHeight = 30;
-
-  return (
-    <group>
-      {/* North */}
-      <RigidBody type="fixed" position={[0, wallHeight / 2, -wallSize]} colliders={false}>
-        <CuboidCollider args={[wallSize, wallHeight, 0.5]} />
-      </RigidBody>
-      {/* South */}
-      <RigidBody type="fixed" position={[0, wallHeight / 2, wallSize]} colliders={false}>
-        <CuboidCollider args={[wallSize, wallHeight, 0.5]} />
-      </RigidBody>
-      {/* East */}
-      <RigidBody type="fixed" position={[wallSize, wallHeight / 2, 0]} colliders={false}>
-        <CuboidCollider args={[0.5, wallHeight, wallSize]} />
-      </RigidBody>
-      {/* West */}
-      <RigidBody type="fixed" position={[-wallSize, wallHeight / 2, 0]} colliders={false}>
-        <CuboidCollider args={[0.5, wallHeight, wallSize]} />
-      </RigidBody>
-    </group>
-  );
-}
-
-/**
- * Decorative trees made of geometry primitives.
- */
-function Tree({ position }) {
-  return (
-    <group position={position}>
-      {/* Trunk */}
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <cylinderGeometry args={[0.15, 0.2, 1.6, 8]} />
+    <>
+      {/* Trunks */}
+      <instancedMesh ref={trunkRef} args={[null, null, count]} castShadow>
+        <cylinderGeometry args={[0.12, 0.18, 1.6, 6]} />
         <meshStandardMaterial color="#92400e" roughness={0.9} />
-      </mesh>
-      {/* Foliage layers */}
-      <mesh position={[0, 2.0, 0]} castShadow>
-        <coneGeometry args={[0.9, 1.2, 8]} />
-        <meshStandardMaterial color="#16a34a" emissive="#15803d" emissiveIntensity={0.1} />
-      </mesh>
-      <mesh position={[0, 2.7, 0]} castShadow>
-        <coneGeometry args={[0.65, 1.0, 8]} />
-        <meshStandardMaterial color="#22c55e" emissive="#16a34a" emissiveIntensity={0.1} />
-      </mesh>
-      <mesh position={[0, 3.2, 0]} castShadow>
-        <coneGeometry args={[0.4, 0.8, 8]} />
-        <meshStandardMaterial color="#4ade80" emissive="#22c55e" emissiveIntensity={0.1} />
-      </mesh>
-    </group>
-  );
-}
+      </instancedMesh>
 
-/**
- * World — The 3D environment with ground, platforms, coins, decorations, and sky.
- */
-export default function World() {
-  const platforms = useFaskaSixtyFourStore(s => s.platforms);
-  const coins = useFaskaSixtyFourStore(s => s.coins);
-
-  // Tree positions
-  const treePositions = useMemo(() => [
-    [-4, 0, -4], [4, 0, -3], [-3, 0, 4], [5, 0, 5],
-    [-5, 0, 0], [3, 0, -5], [-2, 0, 5], [0, 0, -5.5],
-  ], []);
-
-  return (
-    <group>
-      {/* === Lighting === */}
-      <ambientLight intensity={0.5} color="#b4c5e4" />
-      <directionalLight
-        position={[20, 30, 15]}
-        intensity={1.5}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={80}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-        shadow-bias={-0.001}
-        color="#fff5e1"
-      />
-      <directionalLight position={[-10, 15, -10]} intensity={0.3} color="#a78bfa" />
-      <hemisphereLight args={['#87ceeb', '#4ade80', 0.4]} />
-
-      {/* === Sky & Atmosphere === */}
-      <Sky
-        sunPosition={[50, 30, 20]}
-        turbidity={6}
-        rayleigh={1.5}
-        mieCoefficient={0.005}
-        mieDirectionalG={0.8}
-      />
-      <Stars radius={100} depth={50} count={2000} factor={4} saturation={0.5} />
-      <fog attach="fog" args={['#b4d4e8', 30, 80]} />
-
-      {/* === Ground Plane (below the hub) === */}
-      <RigidBody type="fixed" position={[0, -2, 0]} colliders={false}>
-        <CuboidCollider args={[35, 1, 35]} />
-        <mesh receiveShadow>
-          <boxGeometry args={[70, 2, 70]} />
-          <meshStandardMaterial color="#22c55e" roughness={0.9} />
-        </mesh>
-        {/* Grass texture pattern */}
-        <mesh position={[0, 1.01, 0]} receiveShadow>
-          <planeGeometry args={[70, 70, 20, 20]} />
-          <meshStandardMaterial
-            color="#4ade80"
-            roughness={1}
-            transparent
-            opacity={0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      </RigidBody>
-
-      {/* === Water / Void below ground === */}
-      <mesh position={[0, -5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[200, 200]} />
+      {/* Foliage cones */}
+      <instancedMesh ref={foliageRef} args={[null, null, count]} castShadow>
+        <coneGeometry args={[0.85, 2.0, 6]} />
         <meshStandardMaterial
-          color="#1e40af"
-          emissive="#1d4ed8"
-          emissiveIntensity={0.2}
-          transparent
-          opacity={0.7}
-          metalness={0.8}
-          roughness={0.1}
+          color="#22c55e"
+          emissive="#16a34a"
+          emissiveIntensity={0.3}
         />
-      </mesh>
-
-      {/* === Platforms === */}
-      {platforms.map(plat => (
-        <Platform key={plat.id} {...plat} />
-      ))}
-
-      {/* === Coins === */}
-      {coins.map(coin => (
-        <Coin key={coin.id} id={coin.id} position={coin.pos} />
-      ))}
-
-      {/* === Decorative Trees on ground === */}
-      {treePositions.map((pos, i) => (
-        <Tree key={`tree_${i}`} position={pos} />
-      ))}
-
-      {/* === Coin Particles === */}
-      <CoinParticles />
-
-      {/* === Boundary Walls === */}
-      <Boundaries />
-
-      {/* === Decorative Floating Rings === */}
-      <FloatingRing position={[0, 18, 0]} color="#a78bfa" size={3} />
-      <FloatingRing position={[10, 12, -10]} color="#f472b6" size={2} />
-      <FloatingRing position={[-12, 15, 8]} color="#38bdf8" size={2.5} />
-    </group>
+      </instancedMesh>
+    </>
   );
 }
 
-/**
- * FloatingRing — Decorative rotating ring in the sky.
- */
+// ============================================================
+// FloatingRings — Decorative rotating torus shapes
+// ============================================================
 function FloatingRing({ position, color, size }) {
   const ref = useRef();
 
   useFrame((state) => {
     if (!ref.current) return;
-    ref.current.rotation.x = state.clock.elapsedTime * 0.3;
-    ref.current.rotation.z = state.clock.elapsedTime * 0.5;
+    ref.current.rotation.x = state.clock.elapsedTime * 0.4;
+    ref.current.rotation.z = state.clock.elapsedTime * 0.6;
+    ref.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8) * 0.5;
   });
 
   return (
     <mesh ref={ref} position={position}>
-      <torusGeometry args={[size, 0.08, 16, 32]} />
+      <torusGeometry args={[size, 0.07, 12, 24]} />
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={0.4}
+        emissiveIntensity={1.8}
         metalness={0.8}
-        roughness={0.2}
+        roughness={0.15}
         transparent
-        opacity={0.7}
+        opacity={0.75}
+        toneMapped={false}
       />
     </mesh>
+  );
+}
+
+function RedCoin({ coin, index }) {
+  const ref = useRef();
+  const redCoins = useFaskaSixtyFourStore(s => s.redCoins);
+  const collected = redCoins[index]?.collected;
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.rotation.y = state.clock.elapsedTime * 3.8 + index * 0.5;
+    ref.current.position.y = coin.pos[1] + Math.sin(state.clock.elapsedTime * 2.5 + index) * 0.16;
+  });
+
+  if (collected) return null;
+
+  return (
+    <group ref={ref} position={coin.pos}>
+      <mesh castShadow>
+        <torusGeometry args={[0.42, 0.13, 10, 24]} />
+        <meshStandardMaterial
+          color="#ef4444"
+          emissive="#dc2626"
+          emissiveIntensity={2.2}
+          metalness={0.82}
+          roughness={0.16}
+          toneMapped={false}
+        />
+      </mesh>
+      <pointLight color="#ef4444" intensity={0.8} distance={4} />
+    </group>
+  );
+}
+
+function LaunchPad({ pad, index }) {
+  const padRef = useRef();
+  const launchesHit = useFaskaSixtyFourStore(s => s.launchesHit);
+  const active = !launchesHit.includes(pad.id);
+
+  useFrame((state) => {
+    if (!padRef.current) return;
+    const pulse = 1 + Math.sin(state.clock.elapsedTime * 5 + index) * 0.08;
+    padRef.current.scale.set(pulse, 1, pulse);
+  });
+
+  return (
+    <group position={pad.pos} ref={padRef}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[1.28, 36]} />
+        <meshStandardMaterial
+          color={active ? '#38bdf8' : '#475569'}
+          emissive={active ? '#0891b2' : '#334155'}
+          emissiveIntensity={active ? 1.8 : 0.5}
+          transparent
+          opacity={0.82}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh position={[0, 0.24, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[0.42, 0.9, 4]} />
+        <meshStandardMaterial
+          color="#f8fafc"
+          emissive={active ? '#67e8f9' : '#64748b'}
+          emissiveIntensity={active ? 1.8 : 0.4}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function StuntRing({ ring, index }) {
+  const ref = useRef();
+  const stuntRings = useFaskaSixtyFourStore(s => s.stuntRings);
+  const passed = stuntRings[index]?.passed;
+  const color = ring.label === 'LEARN' ? '#22d3ee' : ring.label === 'DASH' ? '#a855f7' : '#fbbf24';
+
+  useFrame((state, dt) => {
+    if (!ref.current) return;
+    ref.current.rotation.y += dt * 0.8;
+    ref.current.position.y = ring.pos[1] + Math.sin(state.clock.elapsedTime * 1.7 + index) * 0.18;
+  });
+
+  return (
+    <group ref={ref} position={ring.pos}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[ring.radius, 0.08, 12, 48]} />
+        <meshStandardMaterial
+          color={passed ? '#64748b' : color}
+          emissive={passed ? '#334155' : color}
+          emissiveIntensity={passed ? 0.45 : 2.1}
+          transparent
+          opacity={passed ? 0.28 : 0.86}
+          toneMapped={false}
+        />
+      </mesh>
+      {!passed && (
+        <mesh>
+          <octahedronGeometry args={[0.22]} />
+          <meshStandardMaterial color="#ffffff" emissive={color} emissiveIntensity={2.2} toneMapped={false} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function StompEnemy({ enemy, index }) {
+  const ref = useRef();
+  const enemies = useFaskaSixtyFourStore(s => s.enemies);
+  const defeated = enemies[index]?.defeated;
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.position.y = enemy.pos[1] + Math.sin(state.clock.elapsedTime * 3.2 + index) * 0.12;
+    ref.current.rotation.y = Math.sin(state.clock.elapsedTime * 2 + index) * 0.35;
+  });
+
+  if (defeated) return null;
+
+  return (
+    <group ref={ref} position={enemy.pos}>
+      <mesh castShadow>
+        <sphereGeometry args={[0.55, 16, 12]} />
+        <meshStandardMaterial
+          color={enemy.color}
+          emissive={enemy.color}
+          emissiveIntensity={0.9}
+          roughness={0.35}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh position={[-0.18, 0.12, 0.45]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#f8fafc" emissive="#f8fafc" emissiveIntensity={1.2} />
+      </mesh>
+      <mesh position={[0.18, 0.12, 0.45]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#f8fafc" emissive="#f8fafc" emissiveIntensity={1.2} />
+      </mesh>
+      <mesh position={[0, 0.62, 0]} rotation={[0, 0, Math.PI]}>
+        <coneGeometry args={[0.2, 0.42, 8]} />
+        <meshStandardMaterial color="#fef08a" emissive="#facc15" emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ============================================================
+// Boundaries — Invisible walls
+// ============================================================
+function Boundaries() {
+  const s = 35;
+  const h = 25;
+  return (
+    <group>
+      <RigidBody type="fixed" position={[0, h / 2, -s]} colliders={false}>
+        <CuboidCollider args={[s, h, 0.5]} />
+      </RigidBody>
+      <RigidBody type="fixed" position={[0, h / 2, s]} colliders={false}>
+        <CuboidCollider args={[s, h, 0.5]} />
+      </RigidBody>
+      <RigidBody type="fixed" position={[s, h / 2, 0]} colliders={false}>
+        <CuboidCollider args={[0.5, h, s]} />
+      </RigidBody>
+      <RigidBody type="fixed" position={[-s, h / 2, 0]} colliders={false}>
+        <CuboidCollider args={[0.5, h, s]} />
+      </RigidBody>
+    </group>
+  );
+}
+
+// ============================================================
+// World — Main world component
+// ============================================================
+export default function World({ particleRef, shake }) {
+  const platforms = useFaskaSixtyFourStore(s => s.platforms);
+  const redCoins = useFaskaSixtyFourStore(s => s.redCoins);
+  const stuntRings = useFaskaSixtyFourStore(s => s.stuntRings);
+  const enemies = useFaskaSixtyFourStore(s => s.enemies);
+
+  return (
+    <group>
+      {/* === Lighting === */}
+      <ambientLight intensity={0.3} color="#b4c5e4" />
+      <directionalLight
+        position={[20, 30, 15]}
+        intensity={1.6}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-far={70}
+        shadow-camera-left={-35}
+        shadow-camera-right={35}
+        shadow-camera-top={35}
+        shadow-camera-bottom={-35}
+        shadow-bias={-0.001}
+        color="#fff5e1"
+      />
+      {/* Cool fill light */}
+      <directionalLight position={[-12, 15, -10]} intensity={0.25} color="#a78bfa" />
+      <hemisphereLight args={['#87ceeb', '#4ade80', 0.35]} />
+      {/* Colored accent point lights */}
+      <pointLight position={[0, 15, 0]} color="#a855f7" intensity={2} distance={30} />
+      <pointLight position={[10, 5, -10]} color="#06b6d4" intensity={1} distance={20} />
+
+      {/* === Sky & Stars === */}
+      <Sky
+        sunPosition={[50, 30, 20]}
+        turbidity={5}
+        rayleigh={1.5}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.8}
+      />
+      <Stars radius={120} depth={60} count={2500} factor={4} saturation={0.6} />
+      <fog attach="fog" args={['#b4d4e8', 35, 80]} />
+
+      {/* === Ground === */}
+      <RigidBody type="fixed" position={[0, -2, 0]} colliders={false}>
+        <CuboidCollider args={[30, 1, 30]} />
+        <mesh receiveShadow>
+          <boxGeometry args={[60, 2, 60]} />
+          <meshStandardMaterial color="#22c55e" roughness={0.85} />
+        </mesh>
+        {/* Subtle grid overlay */}
+        <mesh position={[0, 1.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <planeGeometry args={[60, 60, 30, 30]} />
+          <meshStandardMaterial
+            color="#4ade80"
+            roughness={1}
+            transparent
+            opacity={0.15}
+            wireframe
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </RigidBody>
+
+      {/* === Water void below === */}
+      <mesh position={[0, -6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[200, 200]} />
+        <meshStandardMaterial
+          color="#1e40af"
+          emissive="#2563eb"
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.65}
+          metalness={0.8}
+          roughness={0.1}
+          toneMapped={false}
+        />
+      </mesh>
+
+      {/* === Platforms === */}
+      {platforms.map(p => (
+        <Platform key={p.id} {...p} />
+      ))}
+
+      {/* === Instanced Coins (single draw call) === */}
+      <InstancedCoins particleRef={particleRef} shake={shake} />
+
+      {/* === Mission collectibles and interaction set pieces === */}
+      {redCoins.map((coin, index) => (
+        <RedCoin key={coin.id} coin={coin} index={index} />
+      ))}
+      {FASKA64_LAUNCH_PADS.map((pad, index) => (
+        <LaunchPad key={pad.id} pad={pad} index={index} />
+      ))}
+      {stuntRings.map((ring, index) => (
+        <StuntRing key={ring.id} ring={ring} index={index} />
+      ))}
+      {enemies.map((enemy, index) => (
+        <StompEnemy key={enemy.id} enemy={enemy} index={index} />
+      ))}
+
+      {/* === Instanced Trees === */}
+      <InstancedTrees />
+
+      {/* === Floating Decorative Rings === */}
+      <FloatingRing position={[0, 18, 0]} color="#a78bfa" size={3} />
+      <FloatingRing position={[10, 12, -10]} color="#f472b6" size={2} />
+      <FloatingRing position={[-12, 15, 8]} color="#38bdf8" size={2.5} />
+      <FloatingRing position={[5, 20, 5]} color="#fbbf24" size={1.5} />
+
+      {/* === Boundaries === */}
+      <Boundaries />
+    </group>
   );
 }

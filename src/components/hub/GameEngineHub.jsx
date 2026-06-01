@@ -207,7 +207,7 @@ const GAMES = [
   {
     id: 'rally',
     name: 'Faska Rally Pro',
-    description: 'Godot-4-Pseudo-3D-Rally nach Sega-Rally/OutRun-Prinzip mit Kurvenphysik, Rivalen, Sektor-Gates, Fehler-Wiederholung, Touchsteuerung und Learncade-Antwortspuren fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
+    description: 'Godot-4-Pseudo-3D-Rally nach Sega-Rally/OutRun-Prinzip mit grosser Fullscreen-Streckenprojektion, Driftwertung, Near-Miss-Boni, Ueberholungen, Boost-Pads, Oel/Matsch/Pylonen, Sektor-Splits, Touchsteuerung und Learncade-Antwortspuren fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
     emoji: '🏁',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #0ea5e9, #facc15)',

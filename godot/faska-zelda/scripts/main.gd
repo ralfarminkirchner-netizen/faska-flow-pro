@@ -10,6 +10,8 @@ const WALL := 1
 const WATER := 2
 const BRIDGE := 3
 const FLOWER := 4
+const PATH := 5
+const RUIN := 6
 
 const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 
@@ -220,8 +222,11 @@ var velocity := Vector2.ZERO
 var camera_pos := Vector2.ZERO
 var score := 0
 var shards := 0
+var keys := 0
+var opened_chests := 0
+var opened_doors := 0
 var bombs_left := 2
-var mode_learn := true
+var mode_learn := false
 var lesson_index := 0
 var question_index := 0
 var repeat_queue := []
@@ -243,8 +248,11 @@ var pickups: Array = []
 var bombs: Array = []
 var explosions: Array = []
 var shrines: Array = []
+var chests: Array = []
+var locked_doors: Array = []
 var exit_cell := Vector2i(MAP_W - 4, 3)
 var exit_open := false
+var walk_phase := 0.0
 var touch_overlay: TouchAdventureOverlay
 var last_touch_sword := false
 var last_touch_dash := false
@@ -274,8 +282,11 @@ func reset_game() -> void:
 	velocity = Vector2.ZERO
 	score = 0
 	shards = 0
+	keys = 0
+	opened_chests = 0
+	opened_doors = 0
 	bombs_left = 2
-	mode_learn = true
+	mode_learn = false
 	lesson_index = 0
 	question_index = 0
 	repeat_queue.clear()
@@ -292,10 +303,14 @@ func reset_game() -> void:
 	bombs.clear()
 	explosions.clear()
 	pickups.clear()
+	chests.clear()
+	locked_doors.clear()
 	spawn_objects()
 	spawn_enemies()
+	setup_chests()
+	setup_locked_doors()
 	setup_shrines()
-	message = "Zelda-Lernwald: Hiebe, Schild, Dash, Bomben und echte Schreine im Spielfeld."
+	message = "Normalmodus: Finde Schluessel, oeffne Tore, sammle 3 Splitter und besiege den Waechter."
 	message_timer = 4.0
 
 func make_tile(x: int, y: int) -> int:
@@ -306,12 +321,32 @@ func make_tile(x: int, y: int) -> int:
 		if x >= 12 and x <= 17:
 			return BRIDGE
 		return WATER
+	if is_ruin_cell(Vector2i(x, y)):
+		return RUIN
+	if is_path_cell(Vector2i(x, y)):
+		return PATH
 	if (x == 8 and y > 5 and y < 20) or (x == 25 and y > 3 and y < 22):
 		if y % 5 != 0:
 			return WALL
 	if (x * 11 + y * 7) % 29 == 0 and x > 5 and y > 4 and x < MAP_W - 5:
 		return FLOWER
 	return FLOOR
+
+func is_path_cell(cell: Vector2i) -> bool:
+	if cell.y == 6 and cell.x >= 3 and cell.x <= 31:
+		return true
+	if cell.x == 14 and cell.y >= 6 and cell.y <= 22:
+		return true
+	if cell.y == 20 and cell.x >= 6 and cell.x <= 34:
+		return true
+	if cell.x == 30 and cell.y >= 6 and cell.y <= 21:
+		return true
+	return false
+
+func is_ruin_cell(cell: Vector2i) -> bool:
+	var in_north_ruin := cell.x >= 27 and cell.x <= 35 and cell.y >= 3 and cell.y <= 9
+	var in_south_ruin := cell.x >= 20 and cell.x <= 26 and cell.y >= 17 and cell.y <= 23
+	return in_north_ruin or in_south_ruin
 
 func spawn_objects() -> void:
 	objects.clear()
@@ -324,6 +359,20 @@ func spawn_objects() -> void:
 		objects.append({"cell": cells[i], "type": "pot" if i % 2 == 0 else "bush", "hp": 1})
 	objects.append({"cell": Vector2i(18, 12), "type": "crystal", "hp": 2})
 	objects.append({"cell": Vector2i(19, 13), "type": "crystal", "hp": 2})
+
+func setup_chests() -> void:
+	chests.clear()
+	chests.append({"cell": Vector2i(6, 6), "reward": "key", "label": "K1", "opened": false})
+	chests.append({"cell": Vector2i(13, 9), "reward": "heart", "label": "HP", "opened": false})
+	chests.append({"cell": Vector2i(16, 16), "reward": "shard", "label": "S1", "opened": false})
+	chests.append({"cell": Vector2i(22, 7), "reward": "key", "label": "K2", "opened": false})
+	chests.append({"cell": Vector2i(23, 21), "reward": "bomb", "label": "B", "opened": false})
+	chests.append({"cell": Vector2i(31, 20), "reward": "shard", "label": "S2", "opened": false})
+
+func setup_locked_doors() -> void:
+	locked_doors.clear()
+	locked_doors.append({"id": "river", "cell": Vector2i(8, 10), "opened": false, "label": "K"})
+	locked_doors.append({"id": "boss", "cell": Vector2i(25, 5), "opened": false, "label": "BOSS"})
 
 func spawn_enemies() -> void:
 	enemies.clear()
@@ -402,6 +451,7 @@ func _process(delta: float) -> void:
 	tick_timers(delta)
 	update_touch_actions()
 	handle_player(delta)
+	update_locked_doors()
 	update_bombs(delta)
 	update_enemies(delta)
 	collect_pickups()
@@ -466,6 +516,9 @@ func handle_player(delta: float) -> void:
 	if input_dir.length() > 0.01:
 		input_dir = input_dir.normalized()
 		facing = input_dir
+		walk_phase += delta * (14.0 if dash_timer > 0.0 else 8.5)
+	else:
+		walk_phase = 0.0
 	var speed: float = 156.0
 	if shield_active:
 		speed = 82.0
@@ -514,6 +567,7 @@ func hit_attack() -> void:
 			else:
 				enemies[i] = enemy
 	hit_objects(hit_rect, 1)
+	hit_chests(hit_rect)
 	if mode_learn:
 		check_shrine_hit(hit_rect)
 
@@ -533,6 +587,63 @@ func place_bomb() -> void:
 	bombs.append({"cell": cell, "timer": 1.35})
 	message = "Bombe gelegt."
 	message_timer = 1.0
+
+func hit_chests(hit_rect: Rect2) -> void:
+	for i in range(chests.size()):
+		var chest: Dictionary = chests[i]
+		if bool(chest["opened"]):
+			continue
+		var rect: Rect2 = cell_world_rect(chest["cell"]).grow(-8.0)
+		if not hit_rect.intersects(rect):
+			continue
+		chest["opened"] = true
+		chests[i] = chest
+		opened_chests += 1
+		score += 140
+		var reward: String = str(chest["reward"])
+		if reward == "key":
+			keys += 1
+			message = "Kleiner Schluessel gefunden. Ein verriegeltes Tor kann jetzt aufgehen."
+		elif reward == "heart":
+			player_hp = mini(player_max_hp, player_hp + 2)
+			message = "Herz gefunden. HP aufgefuellt."
+		elif reward == "bomb":
+			bombs_left += 2
+			message = "Bombentasche gefunden. Zwei Bomben mehr."
+		else:
+			shards = mini(3, shards + 1)
+			message = "Sternsplitter gefunden (%d/3)." % shards
+		message_timer = 2.1
+
+func update_locked_doors() -> void:
+	for i in range(locked_doors.size()):
+		var door: Dictionary = locked_doors[i]
+		if bool(door["opened"]):
+			continue
+		var cell: Vector2i = door["cell"]
+		if player_pos.distance_to(cell_center(cell)) > 42.0:
+			continue
+		if keys <= 0:
+			message = "Verriegelt. Suche eine Truhe mit kleinem Schluessel."
+			message_timer = 1.1
+			continue
+		keys -= 1
+		opened_doors += 1
+		door["opened"] = true
+		locked_doors[i] = door
+		score += 220
+		if str(door["id"]) == "boss":
+			message = "Boss-Tor offen. Schild halten, dann zuschlagen."
+		else:
+			message = "Tor geoeffnet. Der Weg fuehrt tiefer in den Lernwald."
+		message_timer = 2.2
+
+func is_boss_door_open() -> bool:
+	for door in locked_doors:
+		var item: Dictionary = door
+		if str(item["id"]) == "boss":
+			return bool(item["opened"])
+	return false
 
 func update_bombs(delta: float) -> void:
 	for i in range(bombs.size() - 1, -1, -1):
@@ -567,6 +678,7 @@ func explode_bomb(bomb: Dictionary) -> void:
 			rects.append(cell_world_rect(cell).grow(-4.0))
 	for rect in rects:
 		hit_objects(rect, 2)
+		hit_chests(rect)
 		for i in range(enemies.size() - 1, -1, -1):
 			var enemy: Dictionary = enemies[i]
 			if rect.has_point(enemy["pos"]):
@@ -584,12 +696,17 @@ func update_enemies(delta: float) -> void:
 	for i in range(enemies.size()):
 		var enemy: Dictionary = enemies[i]
 		var pos: Vector2 = enemy["pos"]
+		var kind: String = str(enemy["kind"])
+		if kind == "guardian" and not is_boss_door_open():
+			enemy["timer"] = float(enemy["timer"]) + delta
+			enemies[i] = enemy
+			continue
 		var to_player: Vector2 = player_pos - pos
 		var distance: float = to_player.length()
 		var speed: float = 54.0
-		if str(enemy["kind"]) == "soldier":
+		if kind == "soldier":
 			speed = 68.0
-		elif str(enemy["kind"]) == "guardian":
+		elif kind == "guardian":
 			speed = 42.0
 		var dir := Vector2.ZERO
 		if distance < 270.0 and distance > 4.0:
@@ -610,7 +727,7 @@ func update_enemies(delta: float) -> void:
 				message = "Geblockt."
 				message_timer = 0.8
 			else:
-				hurt_player(1 if str(enemy["kind"]) != "guardian" else 2, "Treffer.")
+				hurt_player(1 if kind != "guardian" else 2, "Treffer.")
 		enemies[i] = enemy
 
 func defeat_enemy(enemy: Dictionary) -> void:
@@ -739,6 +856,20 @@ func collides_world(pos: Vector2, radius: float) -> bool:
 		var rect: Rect2 = cell_world_rect(item["cell"]).grow(-10.0)
 		if rect.has_point(pos):
 			return true
+	for chest in chests:
+		var chest_item: Dictionary = chest
+		if bool(chest_item["opened"]):
+			continue
+		var chest_rect: Rect2 = cell_world_rect(chest_item["cell"]).grow(-10.0)
+		if chest_rect.has_point(pos):
+			return true
+	for door in locked_doors:
+		var door_item: Dictionary = door
+		if bool(door_item["opened"]):
+			continue
+		var door_rect: Rect2 = cell_world_rect(door_item["cell"]).grow(-4.0)
+		if door_rect.has_point(pos):
+			return true
 	return false
 
 func is_solid_tile(cell: Vector2i) -> bool:
@@ -789,6 +920,8 @@ func _draw() -> void:
 	draw_map()
 	draw_exit()
 	draw_objects()
+	draw_chests()
+	draw_locked_doors()
 	draw_shrines()
 	draw_bombs()
 	draw_explosions()
@@ -828,6 +961,16 @@ func draw_map() -> void:
 				draw_rect(rect, Color.html("#7c4a16"), true)
 				draw_rect(Rect2(rect.position + Vector2(0.0, 8.0), Vector2(rect.size.x, 4.0)), Color.html("#b7791f"), true)
 				draw_rect(Rect2(rect.position + Vector2(0.0, 26.0), Vector2(rect.size.x, 4.0)), Color.html("#b7791f"), true)
+			elif tile == PATH:
+				draw_rect(rect, Color.html("#8a5a2b"), true)
+				draw_rect(Rect2(rect.position + Vector2(0.0, 0.0), Vector2(rect.size.x, 4.0)), Color.html("#c0843d"), true)
+				draw_rect(Rect2(rect.position + Vector2(7.0, 24.0), Vector2(9.0, 4.0)), Color.html("#5f3b1b"), true)
+				draw_rect(Rect2(rect.position + Vector2(25.0, 12.0), Vector2(7.0, 4.0)), Color.html("#5f3b1b"), true)
+			elif tile == RUIN:
+				draw_rect(rect, Color.html("#475569"), true)
+				draw_rect(Rect2(rect.position + Vector2(2.0, 2.0), Vector2(rect.size.x - 4.0, 4.0)), Color.html("#94a3b8"), true)
+				draw_rect(Rect2(rect.position + Vector2(6.0, 21.0), Vector2(13.0, 8.0)), Color.html("#334155"), true)
+				draw_rect(Rect2(rect.position + Vector2(24.0, 11.0), Vector2(9.0, 9.0)), Color.html("#1e293b"), true)
 			else:
 				var grass: Color = Color.html("#1f7a3a") if (x + y) % 2 == 0 else Color.html("#1a6d34")
 				draw_rect(rect, grass, true)
@@ -842,7 +985,7 @@ func draw_exit() -> void:
 	var rect: Rect2 = world_rect_to_screen(cell_world_rect(exit_cell).grow(9.0))
 	draw_rect(rect, Color.html("#fde047") if exit_open else Color.html("#334155"), true)
 	draw_rect(rect.grow(-6.0), Color.html("#0f172a"), true)
-	draw_string(get_theme_default_font(), rect.position + Vector2(8.0, 28.0), "TOR", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#f8fafc"))
+	draw_string(get_theme_default_font(), rect.position + Vector2(2.0, 24.0), "OFFEN" if exit_open else "ZU", HORIZONTAL_ALIGNMENT_CENTER, rect.size.x - 4.0, 12, Color.html("#f8fafc"))
 
 func draw_objects() -> void:
 	for obj in objects:
@@ -859,6 +1002,32 @@ func draw_objects() -> void:
 			draw_rect(rect, Color.html("#7c2d12"), true)
 			draw_rect(Rect2(rect.position + Vector2(6.0, 5.0), Vector2(18.0, 7.0)), Color.html("#facc15"), true)
 			draw_rect(Rect2(rect.position + Vector2(10.0, 18.0), Vector2(12.0, 5.0)), Color.html("#431407"), true)
+
+func draw_chests() -> void:
+	var font := get_theme_default_font()
+	for chest in chests:
+		var item: Dictionary = chest
+		var rect: Rect2 = world_rect_to_screen(cell_world_rect(item["cell"]).grow(-9.0))
+		var opened := bool(item["opened"])
+		draw_rect(rect, Color.html("#4a2d12") if opened else Color.html("#8b4513"), true)
+		draw_rect(Rect2(rect.position + Vector2(2.0, 4.0), Vector2(rect.size.x - 4.0, 7.0)), Color.html("#facc15") if not opened else Color.html("#64748b"), true)
+		draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.5 - 4.0, 13.0), Vector2(8.0, 8.0)), Color.html("#fde68a") if not opened else Color.html("#1f2937"), true)
+		if not opened:
+			draw_string(font, rect.position + Vector2(0.0, 30.0), str(item["label"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 10, Color.html("#f8fafc"))
+
+func draw_locked_doors() -> void:
+	var font := get_theme_default_font()
+	for door in locked_doors:
+		var item: Dictionary = door
+		var rect: Rect2 = world_rect_to_screen(cell_world_rect(item["cell"]).grow(-3.0))
+		if bool(item["opened"]):
+			draw_rect(rect, Color(0.96, 0.78, 0.25, 0.22), true)
+			draw_rect(Rect2(rect.position + Vector2(4.0, rect.size.y * 0.5 - 3.0), Vector2(rect.size.x - 8.0, 6.0)), Color.html("#facc15"), true)
+			continue
+		draw_rect(rect, Color.html("#1e1b4b"), true)
+		draw_rect(rect.grow(-5.0), Color.html("#312e81"), true)
+		draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.5 - 6.0, 9.0), Vector2(12.0, 15.0)), Color.html("#facc15"), true)
+		draw_string(font, rect.position + Vector2(0.0, rect.size.y - 7.0), str(item["label"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 10, Color.html("#f8fafc"))
 
 func draw_shrines() -> void:
 	if not mode_learn:
@@ -909,7 +1078,7 @@ func draw_enemies() -> void:
 		if kind == "soldier":
 			color = Color.html("#a855f7")
 		elif kind == "guardian":
-			color = Color.html("#7f1d1d")
+			color = Color.html("#7f1d1d") if is_boss_door_open() else Color.html("#334155")
 			size_px = 40.0
 		if float(item["hit"]) > 0.0:
 			color = Color.html("#f8fafc")
@@ -918,18 +1087,28 @@ func draw_enemies() -> void:
 		draw_rect(Rect2(pos + Vector2(-7.0, -6.0), Vector2(5.0, 5.0)), Color.html("#f8fafc"), true)
 		draw_rect(Rect2(pos + Vector2(4.0, -6.0), Vector2(5.0, 5.0)), Color.html("#f8fafc"), true)
 		draw_rect(Rect2(pos + Vector2(-8.0, 8.0), Vector2(16.0, 4.0)), Color.html("#020617"), true)
+		if kind == "guardian" and not is_boss_door_open():
+			draw_string(get_theme_default_font(), pos + Vector2(-24.0, -28.0), "SIEGEL", HORIZONTAL_ALIGNMENT_CENTER, 48.0, 10, Color.html("#cbd5e1"))
 
 func draw_player() -> void:
 	var pos: Vector2 = world_pos_to_screen(player_pos)
 	var blink := hurt_cooldown > 0.0 and int(hurt_cooldown * 12.0) % 2 != 0
 	var tunic: Color = Color.html("#22c55e") if not blink else Color.html("#f8fafc")
 	var skin := Color.html("#fde68a")
-	draw_rect(Rect2(pos - Vector2(13.0, 9.0), Vector2(26.0, 28.0)), Color(0.0, 0.0, 0.0, 0.24), true)
-	draw_rect(Rect2(pos - Vector2(12.0, 8.0), Vector2(24.0, 26.0)), tunic, true)
-	draw_rect(Rect2(pos - Vector2(9.0, 23.0), Vector2(7.0, 7.0)), Color.html("#78350f"), true)
-	draw_rect(Rect2(pos + Vector2(3.0, 23.0), Vector2(7.0, 7.0)), Color.html("#78350f"), true)
-	draw_rect(Rect2(pos - Vector2(10.0, 25.0), Vector2(20.0, 14.0)), skin, true)
-	draw_rect(Rect2(pos - Vector2(7.0, 31.0), Vector2(14.0, 5.0)), Color.html("#16a34a"), true)
+	var bob := 0.0
+	var step := 0.0
+	if walk_phase > 0.0:
+		step = sin(walk_phase)
+		bob = absf(step) * -1.4
+	pos += Vector2(0.0, bob)
+	draw_rect(Rect2(pos + Vector2(-15.0, 14.0), Vector2(30.0, 8.0)), Color(0.0, 0.0, 0.0, 0.24), true)
+	draw_rect(Rect2(pos + Vector2(-8.0, 11.0 + maxf(0.0, step) * 2.0), Vector2(7.0, 9.0)), Color.html("#78350f"), true)
+	draw_rect(Rect2(pos + Vector2(2.0, 11.0 + maxf(0.0, -step) * 2.0), Vector2(7.0, 9.0)), Color.html("#78350f"), true)
+	draw_rect(Rect2(pos + Vector2(-12.0, -8.0), Vector2(24.0, 23.0)), tunic, true)
+	draw_rect(Rect2(pos + Vector2(-9.0, -3.0), Vector2(18.0, 6.0)), Color.html("#16a34a"), true)
+	draw_rect(Rect2(pos + Vector2(-10.0, -25.0), Vector2(20.0, 15.0)), skin, true)
+	draw_rect(Rect2(pos + Vector2(-7.0, -33.0), Vector2(14.0, 9.0)), Color.html("#16a34a"), true)
+	draw_rect(Rect2(pos + Vector2(-3.0, -39.0), Vector2(8.0, 8.0)), Color.html("#15803d"), true)
 	var eye_offset := Vector2.ZERO
 	if absf(facing.x) > absf(facing.y):
 		eye_offset.x = 3.0 * signf(facing.x)
@@ -946,6 +1125,11 @@ func draw_player() -> void:
 	if attack_timer > 0.0:
 		var slash: Rect2 = world_rect_to_screen(attack_rect())
 		draw_rect(slash, Color(0.96, 0.95, 0.68, 0.52), true)
+		var blade_origin := pos + facing * 12.0
+		var blade_size := Vector2(8.0, 30.0)
+		if absf(facing.x) > absf(facing.y):
+			blade_size = Vector2(30.0, 8.0)
+		draw_rect(Rect2(blade_origin - blade_size * 0.5, blade_size), Color.html("#f8fafc"), true)
 
 func draw_minimap() -> void:
 	if size.x < 960.0 or size.y > size.x * 1.25:
@@ -963,20 +1147,32 @@ func draw_minimap() -> void:
 				draw_rect(Rect2(origin + Vector2(float(x) * scale.x, float(y) * scale.y), scale + Vector2(0.3, 0.3)), color, true)
 	var p := origin + Vector2(player_pos.x / TILE_SIZE * scale.x, player_pos.y / TILE_SIZE * scale.y)
 	draw_rect(Rect2(p - Vector2(2.5, 2.5), Vector2(5.0, 5.0)), Color.html("#fde047"), true)
+	for chest in chests:
+		var chest_item: Dictionary = chest
+		if bool(chest_item["opened"]):
+			continue
+		var ccell: Vector2i = chest_item["cell"]
+		var c := origin + Vector2(float(ccell.x) * scale.x, float(ccell.y) * scale.y)
+		draw_rect(Rect2(c, Vector2(4.0, 4.0)), Color.html("#f59e0b"), true)
+	for door in locked_doors:
+		var door_item: Dictionary = door
+		var dcell: Vector2i = door_item["cell"]
+		var d := origin + Vector2(float(dcell.x) * scale.x, float(dcell.y) * scale.y)
+		draw_rect(Rect2(d, Vector2(5.0, 5.0)), Color.html("#22c55e") if bool(door_item["opened"]) else Color.html("#a855f7"), true)
 	var e := origin + Vector2(float(exit_cell.x) * scale.x, float(exit_cell.y) * scale.y)
 	draw_rect(Rect2(e, Vector2(5.0, 5.0)), Color.html("#facc15") if exit_open else Color.html("#94a3b8"), true)
 
 func draw_hud() -> void:
 	var font := get_theme_default_font()
-	draw_rect(Rect2(12.0, 10.0, minf(size.x - 24.0, 690.0), 98.0), Color(0.02, 0.05, 0.09, 0.74), true)
-	draw_string(font, Vector2(24.0, 34.0), "FASKA ZELDA PRO - 16-BIT LERNWALD", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.html("#facc15"))
-	draw_string(font, Vector2(24.0, 59.0), "HP %d/%d  Ausdauer %d  Splitter %d/3  Bomben %d  Score %d" % [player_hp, player_max_hp, int(stamina), shards, bombs_left, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#f8fafc"))
-	draw_string(font, Vector2(24.0, 81.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(24.0, 101.0), "WASD bewegen  J Schwert  K Schild  Space Dash  B Bombe  L Lernen  C Fach", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.html("#fde68a"))
+	draw_rect(Rect2(12.0, 10.0, minf(size.x - 24.0, 760.0), 104.0), Color(0.02, 0.05, 0.09, 0.74), true)
+	draw_string(font, Vector2(24.0, 34.0), "FASKA ZELDA PRO - 16-BIT ABENTEUER", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.html("#facc15"))
+	draw_string(font, Vector2(24.0, 59.0), "HP %d/%d  STA %d  Splitter %d/3  Schluessel %d  Bomben %d  Score %d" % [player_hp, player_max_hp, int(stamina), shards, keys, bombs_left, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#f8fafc"))
+	draw_string(font, Vector2(24.0, 81.0), "Tore %d/%d  Truhen %d/%d  Mode %s  Fach %s  Lernziel %d/%d" % [opened_doors, locked_doors.size(), opened_chests, chests.size(), "Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(24.0, 102.0), "Quest: Schluessel holen, Boss-Tor oeffnen, Waechter besiegen. L schaltet Lernschreine zu.", HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 730.0), 12, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
-		draw_rect(Rect2(12.0, 118.0, minf(size.x - 24.0, 720.0), 34.0), Color(0.02, 0.05, 0.09, 0.74), true)
-		draw_string(font, Vector2(24.0, 141.0), str(q["prompt"]), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 696.0), 16, Color.html("#f8fafc"))
+		draw_rect(Rect2(12.0, 122.0, minf(size.x - 24.0, 760.0), 34.0), Color(0.02, 0.05, 0.09, 0.74), true)
+		draw_string(font, Vector2(24.0, 145.0), str(q["prompt"]), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 736.0), 16, Color.html("#f8fafc"))
 	if message_timer > 0.0:
 		draw_rect(Rect2(12.0, size.y - 42.0, minf(size.x - 24.0, 720.0), 29.0), Color(0.02, 0.05, 0.09, 0.74), true)
 		draw_string(font, Vector2(24.0, size.y - 20.0), message, HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 696.0), 14, Color.html("#f8fafc"))

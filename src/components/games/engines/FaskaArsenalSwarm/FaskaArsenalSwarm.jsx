@@ -54,6 +54,7 @@ const ARSENAL_GOALS = [
   { id: 'grenades_3', label: '3 Granaten-Treffer', stat: 'grenadeHits', target: 3, mode: 'both', reward: 700 },
   { id: 'drone_5', label: '5 Drohnen-Treffer', stat: 'droneHits', target: 5, mode: 'both', reward: 700 },
   { id: 'weapon_5', label: '5 Waffenwechsel', stat: 'weaponSwaps', target: 5, mode: 'arcade', reward: 550 },
+  { id: 'chain_6', label: '6 Arsenal-Chains', stat: 'weaponChains', target: 6, mode: 'both', reward: 820 },
   { id: 'rocket_6', label: '6 Rocket-Treffer', stat: 'rocketHits', target: 6, mode: 'both', reward: 850 },
   { id: 'rocket_jump_2', label: '2 Rocket-Jumps', stat: 'rocketJumps', target: 2, mode: 'arcade', reward: 760 },
   { id: 'airshot_4', label: '4 Airshot-Treffer', stat: 'airShots', target: 4, mode: 'both', reward: 840 },
@@ -69,6 +70,7 @@ const ARSENAL_CONTRACTS = [
   { id: 'grenade_2', label: '2 Granaten-Treffer', stat: 'grenadeHits', target: 2, duration: 38, reward: { score: 430, energy: 20, shield: 10 } },
   { id: 'drone_3', label: '3 Drohnen-Treffer', stat: 'droneHits', target: 3, duration: 44, reward: { score: 420, energy: 26, ammo: 8 } },
   { id: 'weapon_2', label: '2 Waffenwechsel nutzen', stat: 'weaponSwaps', target: 2, duration: 34, reward: { score: 330, heat: -24, flow: 12 }, arcadeOnly: true },
+  { id: 'chain_3', label: '3 Arsenal-Chains', stat: 'weaponChains', target: 3, duration: 44, reward: { score: 560, heat: -28, flow: 18, ammo: 8 } },
   { id: 'rocket_3', label: '3 Rocket-Treffer', stat: 'rocketHits', target: 3, duration: 48, reward: { score: 520, ammo: 16, flow: 12 } },
   { id: 'rocket_jump_1', label: '1 Rocket-Jump', stat: 'rocketJumps', target: 1, duration: 42, reward: { score: 470, energy: 28, shield: 12 }, arcadeOnly: true },
   { id: 'airshot_2', label: '2 Airshots', stat: 'airShots', target: 2, duration: 54, reward: { score: 560, flow: 18, ammo: 10 } },
@@ -155,6 +157,7 @@ function createStats() {
     droneHits: 0,
     weaponSwaps: 0,
     learnCorrect: 0,
+    weaponChains: 0,
     rocketHits: 0,
     rocketJumps: 0,
     airShots: 0,
@@ -320,6 +323,10 @@ function makeInitialGame(mode = 'arcade') {
       quadTimer: 0,
       megaTimer: 0,
       flow: 0,
+      lastHitWeaponId: null,
+      weaponChain: 0,
+      chainTimer: 0,
+      chainBonusTimer: 0,
       airTimer: 0,
       padBoostTimer: 0,
       switchHeld: false,
@@ -405,6 +412,38 @@ function addAirshotText(game, x, y) {
   spawnParticles(game, x, y, '#fef08a', 12, 1.25);
 }
 
+function registerWeaponHit(game, weaponId, x, y) {
+  if (!weaponId || !WEAPONS.some(weapon => weapon.id === weaponId)) return;
+  const player = game.player;
+  const previousWeapon = player.lastHitWeaponId;
+  const sameWeapon = previousWeapon === weaponId && player.chainTimer > 0;
+
+  if (sameWeapon) {
+    player.chainTimer = Math.max(player.chainTimer, 1.15);
+    return;
+  }
+
+  const chained = previousWeapon && previousWeapon !== weaponId && player.chainTimer > 0;
+  if (chained) {
+    player.weaponChain = clamp((player.weaponChain || 1) + 1, 2, 12);
+    player.chainBonusTimer = 0.46;
+    player.flow = clamp(player.flow + 10 + player.weaponChain * 2.5, 0, 100);
+    player.energy = clamp(player.energy + 4 + player.weaponChain, 0, 100);
+    player.heat = clamp(player.heat - (7 + player.weaponChain), 0, 100);
+    game.combo = clamp(game.combo + 0.08 + player.weaponChain * 0.012, 1, 5);
+    game.score += Math.round((90 + player.weaponChain * 32) * game.combo);
+    game.message = `Arsenal-Chain x${player.weaponChain}`;
+    game.messageTimer = 0.52;
+    recordStat(game, 'weaponChains');
+    spawnParticles(game, x, y, '#fef08a', 12 + player.weaponChain, 1.1 + player.weaponChain * 0.04);
+  } else {
+    player.weaponChain = 1;
+  }
+
+  player.lastHitWeaponId = weaponId;
+  player.chainTimer = 2.35 + Math.min(player.weaponChain, 6) * 0.08;
+}
+
 function spawnPickup(game, x, y, kind) {
   const color = kind === 'ammo' ? '#facc15' : kind === 'shield' ? '#38bdf8' : kind === 'rocketAmmo' ? '#fb923c' : '#22c55e';
   game.pickups.push({
@@ -435,6 +474,7 @@ function spawnExplosion(game, x, y, radius, damage, owner = 'player') {
     if (hits) {
       game.score += Math.round(hits * 105 * game.combo);
       recordStat(game, 'rocketHits', hits);
+      registerWeaponHit(game, 'rocket', x, y);
       if (game.player.airTimer > 0 || game.player.padBoostTimer > 0) recordStat(game, 'airShots', hits);
     }
   }
@@ -572,6 +612,12 @@ function updatePlayer(game, input, dt) {
   player.megaTimer = Math.max(0, player.megaTimer - dt);
   player.airTimer = Math.max(0, player.airTimer - dt);
   player.padBoostTimer = Math.max(0, player.padBoostTimer - dt);
+  player.chainTimer = Math.max(0, player.chainTimer - dt);
+  player.chainBonusTimer = Math.max(0, player.chainBonusTimer - dt);
+  if (player.chainTimer <= 0) {
+    player.lastHitWeaponId = null;
+    player.weaponChain = 0;
+  }
   player.heat = clamp(player.heat - (player.overheat > 0 ? 44 : 28) * dt, 0, 100);
 
   const axisX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -824,6 +870,7 @@ function updateBullets(game, dt) {
         }
         hitEnemy.hp -= bullet.damage;
         hitEnemy.hitTimer = 0.2;
+        registerWeaponHit(game, bullet.weaponId, hitEnemy.x, hitEnemy.y);
         game.score += Math.round(55 * game.combo * (game.player.quadTimer > 0 ? 1.5 : 1));
         if (bullet.weaponId === 'rail') recordStat(game, 'railHits');
         if (bullet.fromAir) {
@@ -1444,6 +1491,7 @@ function drawHud(ctx, game) {
   const player = game.player;
   const contract = game.activeContract;
   const contractProgress = arsenalContractProgress(game);
+  const chainFill = player.weaponChain > 1 ? player.chainTimer * 36 : 0;
   ctx.save();
   ctx.fillStyle = '#020617';
   drawRoundedRect(ctx, 28, 22, 454, 162, 18);
@@ -1461,9 +1509,10 @@ function drawHud(ctx, game) {
   drawMeter(ctx, 52, 154, 116, 10, player.flow, '#a78bfa', 'FLOW');
   drawMeter(ctx, 188, 154, 96, 10, player.quadTimer * 12, '#c084fc', 'QUAD');
   drawMeter(ctx, 304, 154, 96, 10, Math.max(player.padBoostTimer * 120, player.airTimer * 100), '#67e8f9', 'AIR');
-  ctx.fillStyle = '#cbd5e1';
+  drawMeter(ctx, 416, 154, 46, 10, chainFill, player.chainBonusTimer > 0 ? '#fde047' : '#fef08a', 'CHAIN');
+  ctx.fillStyle = player.weaponChain > 1 ? '#fef08a' : '#cbd5e1';
   ctx.font = '800 12px Outfit, sans-serif';
-  ctx.fillText(`Nodes ${game.stats.nodesCaptured}/3 · Rocket ${game.stats.rocketHits}/6 · Air ${game.stats.airShots}/4`, 52, 178);
+  ctx.fillText(`Chain ${game.stats.weaponChains}/6 · Nodes ${game.stats.nodesCaptured}/3 · Rocket ${game.stats.rocketHits}/6 · Air ${game.stats.airShots}/4`, 52, 178);
 
   if (game.mode === 'learn') {
     const task = currentTask(game);
@@ -1641,6 +1690,16 @@ export default function FaskaArsenalSwarm() {
     inputRef.current[name] = pressed;
   }, []);
 
+  const runPointerAction = useCallback((event, action) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  }, []);
+
+  const runKeyboardAction = useCallback((event, action) => {
+    if (event.detail === 0) action();
+  }, []);
+
   const holdButton = useCallback((name) => ({
     onPointerDown: (event) => {
       event.preventDefault();
@@ -1803,14 +1862,42 @@ export default function FaskaArsenalSwarm() {
       }} />
 
       <div className="arsenal-modebar" style={{ position: 'fixed', top: canvasTopChrome, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 10, zIndex: 10 }}>
-        <button className="btn-primary" onClick={() => setGameMode('arcade')} style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          type="button"
+          aria-pressed={mode === 'arcade'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('arcade'))}
+          onClick={(event) => runKeyboardAction(event, () => setGameMode('arcade'))}
+          style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}
+        >
           Normal
         </button>
-        <button className="btn-primary" onClick={() => setGameMode('learn')} style={{ opacity: mode === 'learn' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          type="button"
+          aria-pressed={mode === 'learn'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('learn'))}
+          onClick={(event) => runKeyboardAction(event, () => setGameMode('learn'))}
+          style={{ opacity: mode === 'learn' ? 1 : 0.55 }}
+        >
           Learncade
         </button>
-        <button className="btn-primary" onClick={restart}>Restart</button>
-        <button className="btn-primary" onClick={() => navigate('/')}>Exit</button>
+        <button
+          className="btn-primary"
+          type="button"
+          onPointerDown={(event) => runPointerAction(event, restart)}
+          onClick={(event) => runKeyboardAction(event, restart)}
+        >
+          Restart
+        </button>
+        <button
+          className="btn-primary"
+          type="button"
+          onPointerDown={(event) => runPointerAction(event, () => navigate('/'))}
+          onClick={(event) => runKeyboardAction(event, () => navigate('/'))}
+        >
+          Exit
+        </button>
       </div>
 
       <div className="arsenal-touch-controls arsenal-stick-controls" style={{
@@ -1852,7 +1939,14 @@ export default function FaskaArsenalSwarm() {
           <div style={{ fontSize: 15, color: '#c4b5fd', fontWeight: 800 }}>
             Arena-Auftraege {result.contracts || 0}/{(result.contracts || 0) + (result.contractFails || 0)}
           </div>
-          <button className="btn-primary" onClick={restart}>Neuer Lauf</button>
+          <button
+            className="btn-primary"
+            type="button"
+            onPointerDown={(event) => runPointerAction(event, restart)}
+            onClick={(event) => runKeyboardAction(event, restart)}
+          >
+            Neuer Lauf
+          </button>
         </div>
       )}
 

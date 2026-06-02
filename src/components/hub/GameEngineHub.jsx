@@ -97,7 +97,7 @@ const GAMES = [
   {
     id: 'arsenal',
     name: 'Faska Arsenal Pro',
-    description: 'FASKA-FLOW-Canvas-Arena-Shooter nach Quake/Unreal-Prinzip mit schnellem Strafing, Dash-I-Frames, Flow-Multiplikator, Pulse/Scatter/Rail/Rocket, Stagger-Treffern, Rocket-Jumps, Airshots, Jump-Pads, Mega-/Quad-Pickups, Kontrollpunkten, rotierenden Arena-Auftraegen, Touchsteuerung und Learncade-Saeulen!',
+    description: 'FASKA-FLOW-Canvas-Arena-Shooter nach Quake/Unreal-Prinzip mit schnellem Strafing, Dash-I-Frames, Flow-Multiplikator, Pulse/Scatter/Rail/Rocket, Arsenal-Chains fuer wechselnde Waffen, Stagger-Treffern, Rocket-Jumps, Airshots, Jump-Pads, Mega-/Quad-Pickups, Kontrollpunkten, rotierenden Arena-Auftraegen, Touchsteuerung und Learncade-Saeulen!',
     emoji: '⚡',
     category: 'Arena',
     gradient: 'linear-gradient(135deg, #2563eb, #facc15)',

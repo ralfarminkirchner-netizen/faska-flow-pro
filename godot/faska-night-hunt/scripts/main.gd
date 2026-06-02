@@ -8,6 +8,17 @@ const MAX_STAMINA := 100.0
 const BASE_SPEED := 294.0
 const DASH_SPEED := 910.0
 const LEARN_GOAL := 10
+const COMBO_WINDOW := 4.2
+const CONTRACT_TIME := 54.0
+
+const CONTRACTS = [
+	{"id": "beast", "label": "Bestienblut", "goal": 3, "hint": "Besiege Bestien."},
+	{"id": "parry", "label": "Pistolenfenster", "goal": 2, "hint": "Stagger per Pistole."},
+	{"id": "visceral", "label": "Visceral-Jagd", "goal": 2, "hint": "Triff gestaggerte Gegner."},
+	{"id": "rally", "label": "Rally-Schwur", "goal": 70, "hint": "Heile verlorene HP durch Gegenangriff."},
+	{"id": "learn", "label": "Runenwissen", "goal": 3, "hint": "Loese Learncade-Runen."},
+	{"id": "boss", "label": "Nachtfuerst", "goal": 1, "hint": "Besiege einen Boss."}
+]
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
 
@@ -99,6 +110,14 @@ var phase := "run"
 var wave := 1
 var score := 0
 var combo := 0
+var max_combo := 0
+var combo_timer := 0.0
+var contract_index := 0
+var contract_progress := 0
+var contract_timer := 0.0
+var contracts_done := 0
+var insight := 0
+var perfect_dodges := 0
 var weapon_form := "cane"
 var question_index := 0
 var lesson_index := 0
@@ -154,11 +173,19 @@ func reset_game() -> void:
 	wave = 1
 	score = 0
 	combo = 0
+	max_combo = 0
+	combo_timer = 0.0
+	contract_index = 0
+	contract_progress = 0
+	contract_timer = CONTRACT_TIME
+	contracts_done = 0
+	insight = 0
+	perfect_dodges = 0
 	weapon_form = "cane"
 	question_index = 0
 	lesson_index = 0
 	repeat_queue.clear()
-	stats = {"kills": 0, "parries": 0, "viscerals": 0, "dodges": 0, "trick": 0, "rally": 0, "learn": 0, "bosses": 0, "focus": 0, "wrong": 0}
+	stats = {"kills": 0, "parries": 0, "viscerals": 0, "dodges": 0, "trick": 0, "rally": 0, "learn": 0, "bosses": 0, "focus": 0, "wrong": 0, "contracts": 0, "perfect": 0}
 	build_static_world()
 	build_runes()
 	spawn_wave()
@@ -254,6 +281,12 @@ func _process(delta: float) -> void:
 
 func update_game(delta: float) -> void:
 	grace_timer = max(0.0, grace_timer - delta)
+	combo_timer = max(0.0, combo_timer - delta)
+	if combo_timer <= 0.0:
+		combo = 0
+	contract_timer = max(0.0, contract_timer - delta)
+	if contract_timer <= 0.0:
+		fail_contract()
 	update_player(delta)
 	update_enemies(delta)
 	update_bullets(delta)
@@ -411,13 +444,17 @@ func cast_focus() -> void:
 	player.stamina = max(0.0, float(player.stamina) - 28.0)
 	stats.focus = int(stats.get("focus", 0)) + 1
 	var pos := Vector2(player.pos)
+	var radius: float = 190.0 + float(min(3, insight)) * 26.0
+	var focus_damage: float = 27.0 + float(min(4, insight)) * 5.0
+	if insight > 0:
+		insight = max(0, insight - 1)
 	for i in range(enemies.size() - 1, -1, -1):
 		var e = enemies[i]
-		if Vector2(e.pos).distance_to(pos) < 190.0:
+		if Vector2(e.pos).distance_to(pos) < radius:
 			e.stagger = max(float(e.stagger), 0.75)
 			enemies[i] = e
-			hit_enemy(i, 27.0, "focus")
-	add_effect(pos, 190.0, Color(0.55, 0.35, 1.0))
+			hit_enemy(i, focus_damage, "focus")
+	add_effect(pos, radius, Color(0.55, 0.35, 1.0))
 
 func use_vial() -> void:
 	if int(player.blood) <= 0 or float(player.heal_cd) > 0.0:
@@ -497,6 +534,10 @@ func enemy_strike(e) -> void:
 	if float(player.invuln) > 0.0:
 		add_text("PERFECT", Vector2(player.pos), Color(0.45, 0.85, 1.0))
 		stats.dodges += 1
+		stats.perfect += 1
+		perfect_dodges += 1
+		player.stamina = min(MAX_STAMINA, float(player.stamina) + 14.0)
+		score += 120
 		return
 	damage_player(damage, "Treffer")
 
@@ -525,6 +566,7 @@ func update_bullets(delta: float) -> void:
 					if Vector2(player.pos).distance_to(Vector2(e.pos)) < 240.0 and float(e.attack) < 0.34:
 						e.stagger = 1.25
 						stats.parries += 1
+						advance_contract("parry", 1, Vector2(e.pos), "PARRY")
 						add_text("PARRY", Vector2(e.pos), Color(1.0, 0.84, 0.36))
 						enemies[e_i] = e
 					hit_enemy(e_i, float(b.damage), "gun")
@@ -548,6 +590,7 @@ func hit_enemy(index: int, damage: float, source: String) -> void:
 	if float(e.stagger) > 0.0 and source == "melee":
 		damage *= 2.55
 		stats.viscerals += 1
+		advance_contract("visceral", 1, Vector2(e.pos), "VISCERAL")
 		add_text("VISCERAL", Vector2(e.pos), Color(1.0, 0.1, 0.16))
 	if source == "trick":
 		stats.trick += 1
@@ -558,18 +601,21 @@ func hit_enemy(index: int, damage: float, source: String) -> void:
 		if String(e.kind) == "boss":
 			points = 2600
 			stats.bosses += 1
+			insight += 3
+			advance_contract("boss", 1, Vector2(e.pos), "BOSS")
 			player.blood = min(12, int(player.blood) + 3)
 			player.bullets = min(36, int(player.bullets) + 8)
 			add_text("BOSS DOWN", Vector2(player.pos), Color(1.0, 0.78, 0.34))
 		elif String(e.kind) == "beast":
 			points = 260
+			advance_contract("beast", 1, Vector2(e.pos), "BEAST")
 		elif String(e.kind) == "gunner":
 			points = 220
 		elif String(e.kind) == "bell":
 			points = 360
-		combo += 1
+		register_combo(Vector2(e.pos), String(e.kind).to_upper())
 		stats.kills += 1
-		score += points + combo * 24
+		score += points + combo * 28
 		if combo > 7 and float(player.fever) <= 0.0:
 			player.fever = 7.5
 			add_text("BLUTFIEBER", Vector2(player.pos), Color(1.0, 0.16, 0.25))
@@ -583,6 +629,64 @@ func hit_enemy(index: int, damage: float, source: String) -> void:
 
 func spawn_pickup(pos: Vector2, kind: String) -> void:
 	pickups.append({"pos": pos, "kind": kind, "life": 10.0, "phase": rng.randf_range(0.0, TAU)})
+
+func register_combo(pos: Vector2, label: String) -> void:
+	combo += 1
+	combo_timer = COMBO_WINDOW
+	max_combo = maxi(max_combo, combo)
+	if combo >= 4:
+		var bonus := combo * 45
+		score += bonus
+		add_text(label + " COMBO " + str(combo), pos + Vector2(0, -28), Color(0.95, 0.72, 0.92))
+	if combo >= 9:
+		player.fever = max(float(player.fever), 8.5)
+		combo = 0
+		add_text("BLUTFIEBER", Vector2(player.pos), Color(1.0, 0.16, 0.25))
+
+func current_contract() -> Dictionary:
+	return CONTRACTS[contract_index % CONTRACTS.size()]
+
+func advance_contract(kind: String, amount: int, pos: Vector2, label: String) -> void:
+	var contract: Dictionary = current_contract()
+	if String(contract.id) != kind:
+		return
+	contract_progress += amount
+	add_text(String(contract.label) + " " + str(contract_progress) + "/" + str(contract.goal), pos + Vector2(0, -44), Color(1.0, 0.78, 0.42))
+	if contract_progress >= int(contract.goal):
+		complete_contract(pos, label)
+
+func complete_contract(pos: Vector2, label: String) -> void:
+	var contract: Dictionary = current_contract()
+	var reward := 1400 + contract_index * 260 + wave * 85
+	score += reward
+	contracts_done += 1
+	stats.contracts += 1
+	insight += 1
+	player.blood = min(12, int(player.blood) + 1)
+	player.bullets = min(36, int(player.bullets) + 3)
+	player.fever = max(float(player.fever), 5.5)
+	spawn_sparks(pos, Color(1.0, 0.62, 0.36), 26)
+	add_text("VERTRAG " + String(contract.label) + " +" + str(reward), pos, Color(1.0, 0.82, 0.32))
+	message = String(contract.label) + " erfuellt durch " + label + "."
+	message_timer = 2.1
+	contract_index = (contract_index + 1) % CONTRACTS.size()
+	contract_progress = 0
+	contract_timer = CONTRACT_TIME
+	if String(current_contract().id) == "learn" and mode != "Learncade":
+		mode = "Learncade"
+		build_runes()
+
+func fail_contract() -> void:
+	if phase != "run":
+		return
+	var contract: Dictionary = current_contract()
+	message = String(contract.label) + " verpasst - neuer Vertrag: " + String(CONTRACTS[(contract_index + 1) % CONTRACTS.size()].label)
+	message_timer = 1.8
+	contract_index = (contract_index + 1) % CONTRACTS.size()
+	contract_progress = 0
+	contract_timer = CONTRACT_TIME
+	if mode == "Learncade":
+		build_runes()
 
 func update_pickups(delta: float) -> void:
 	for i in range(pickups.size() - 1, -1, -1):
@@ -609,6 +713,7 @@ func recover_rally(amount: float) -> void:
 	player.hp = min(MAX_HP, float(player.hp) + heal)
 	player.lost = max(0.0, float(player.lost) - heal)
 	stats.rally += int(heal)
+	advance_contract("rally", int(heal), Vector2(player.pos), "RALLY")
 	add_text("RALLY +" + str(int(heal)), Vector2(player.pos), Color(0.35, 1.0, 0.58))
 
 func damage_player(amount: float, reason: String) -> void:
@@ -630,6 +735,8 @@ func update_runes(_delta: float) -> void:
 			if String(rune.label) == String(rune.answer):
 				stats.learn += 1
 				score += 720
+				insight += 1
+				advance_contract("learn", 1, Vector2(rune.pos), "RUNE")
 				player.blood = min(12, int(player.blood) + 1)
 				player.bullets = min(36, int(player.bullets) + 2)
 				if bool(rune.repeat):
@@ -967,21 +1074,25 @@ func draw_effect_layer() -> void:
 		draw_circle(world_to_screen(Vector2(part.pos)), float(part.size), part.color)
 
 func draw_hud() -> void:
-	var hud_w: float = min(390.0, size.x - 20.0)
-	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 146)), Color(0.0, 0.0, 0.0, 0.62))
+	var hud_w: float = min(430.0, size.x - 20.0)
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 186)), Color(0.0, 0.0, 0.0, 0.64))
 	draw_text_at(Vector2(20, 31), "FASKA NIGHT HUNT PRO", Color(0.95, 0.72, 0.92), 18)
 	draw_bar(Vector2(20, 50), "HP", float(player.hp), MAX_HP, Color(0.92, 0.08, 0.16))
 	if float(player.lost) > 0.0:
 		draw_rect(Rect2(Vector2(101, 40), Vector2(180.0 * clamp(float(player.lost) / MAX_HP, 0.0, 1.0), 7)), Color(1.0, 0.8, 0.35, 0.65))
 	draw_bar(Vector2(20, 72), "STAM", float(player.stamina), MAX_STAMINA, Color(0.38, 0.92, 0.62))
-	draw_text_at(Vector2(20, 105), "Score " + str(score) + " Combo " + str(combo) + " Mode " + mode, Color(0.86, 0.92, 1.0), 13)
-	draw_text_at(Vector2(20, 126), "Fach " + String(LESSONS[lesson_index]) + "  Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + "  Wdh " + str(repeat_queue.size()), Color(0.78, 0.9, 1.0), 13)
+	draw_text_at(Vector2(20, 105), "Score " + str(score) + " Combo " + str(combo) + "/" + str(max_combo) + " Mode " + mode, Color(0.86, 0.92, 1.0), 13)
+	var contract: Dictionary = current_contract()
+	draw_text_at(Vector2(20, 126), "Vertrag " + String(contract.label) + " " + str(contract_progress) + "/" + str(contract.goal) + "  " + str(int(contract_timer)) + "s", Color(1.0, 0.82, 0.42), 13)
+	draw_text_at(Vector2(20, 147), "Fach " + String(LESSONS[lesson_index]) + "  Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + "  Wdh " + str(repeat_queue.size()), Color(0.78, 0.9, 1.0), 13)
+	draw_text_at(Vector2(20, 168), "Insight " + str(insight) + "  Vertr. " + str(contracts_done) + "  Perfect " + str(perfect_dodges), Color(0.95, 0.72, 0.92), 12)
 	if size.x > 760.0 and size.y <= size.x * 1.15:
-		draw_rect(Rect2(Vector2(size.x - 304, 10), Vector2(290, 112)), Color(0.0, 0.0, 0.0, 0.55))
+		draw_rect(Rect2(Vector2(size.x - 304, 10), Vector2(290, 134)), Color(0.0, 0.0, 0.0, 0.55))
 		draw_text_at(Vector2(size.x - 292, 32), "Weapon " + weapon_form.to_upper(), Color(0.94, 0.98, 1.0), 15)
 		draw_text_at(Vector2(size.x - 292, 55), "Blood " + str(player.blood) + "  Bullets " + str(player.bullets), Color(0.94, 0.98, 1.0), 14)
 		draw_text_at(Vector2(size.x - 292, 78), "Wave " + str(wave) + "  Kills " + str(stats.kills), Color(0.94, 0.98, 1.0), 14)
-		draw_text_at(Vector2(size.x - 292, 101), "Boss: jede 4. Welle", Color(0.95, 0.72, 0.92), 13)
+		draw_text_at(Vector2(size.x - 292, 101), "Parry " + str(stats.parries) + "  Visceral " + str(stats.viscerals), Color(0.94, 0.98, 1.0), 13)
+		draw_text_at(Vector2(size.x - 292, 124), "Boss: jede 4. Welle", Color(0.95, 0.72, 0.92), 13)
 	var status_pos := Vector2(size.x * 0.45, 78)
 	if size.x < 760.0 or size.y > size.x * 1.15:
 		status_pos = Vector2(size.x * 0.39, 172)

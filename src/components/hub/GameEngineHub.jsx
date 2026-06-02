@@ -177,7 +177,7 @@ const GAMES = [
   {
     id: 'night-hunt',
     name: 'Faska Night Hunt Pro',
-    description: 'Godot-4-Nachtjagd nach Bloodborne-Prinzip mit Roll-Iframes, Rally-Heal, Blutfieber, Trickwaffe, Pistolen-Parry, Visceral-Fenstern, Fokus-Zauber, knappen Blood Vials, Kugel-Pickups, Bell-/Gunner-/Beast-Gegnern, Boss jede 4. Welle, Touchsteuerung und Learncade-Runen fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
+    description: 'Godot-4-Nachtjagd nach Bloodborne-Prinzip mit Jagdvertraegen, Roll-Iframes, Perfect-Dodges, Rally-Heal, Insight-verstaerktem Fokus, Blutfieber, Trickwaffe, Pistolen-Parry, Visceral-Fenstern, knappen Blood Vials, Kugel-Pickups, Bell-/Gunner-/Beast-Gegnern, Boss jede 4. Welle, Touchsteuerung und Learncade-Runen mit Fehler-Wiederholung!',
     emoji: '🌙',
     category: 'Soulslike',
     gradient: 'linear-gradient(135deg, #0f172a, #7c3aed)',

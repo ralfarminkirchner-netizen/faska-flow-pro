@@ -246,7 +246,7 @@ const GAMES = [
   {
     id: 'snake',
     name: 'Faska Snake Arena Pro',
-    description: 'Arena-Snake mit Dash-Linien, Pulse-Welle, Rival-Schlangen, Guardian-Boss, Schockfeldern, Missionen, Magnet-Futter und faecherflexiblen Learncade-Antworten!',
+    description: 'Arena-Snake mit Dash-Linien, Pulse-Welle, Rival-Schlangen, Guardian-Boss, Schockfeldern, aktiven Zeit-Auftraegen, Medaillen, Magnet-Futter und faecherflexiblen Learncade-Antworten!',
     emoji: '🐍',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #22c55e, #16a34a)',

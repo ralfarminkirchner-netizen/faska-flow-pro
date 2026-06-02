@@ -167,6 +167,74 @@ const MISSION_GOALS = [
   },
 ];
 
+const ARENA_CONTRACTS = [
+  {
+    id: 'foodSprint',
+    label: '4 Futter in Serie',
+    stat: 'food',
+    target: 4,
+    seconds: 36,
+    reward: { score: 720, pulse: 18, magnet: 2.5 },
+  },
+  {
+    id: 'comboFlow',
+    label: 'Combo 6 halten',
+    stat: 'combo',
+    target: 6,
+    seconds: 46,
+    reward: { score: 900, shield: 1, fever: 3.5 },
+  },
+  {
+    id: 'dashLine',
+    label: '2 Dash-Linien',
+    stat: 'dash',
+    target: 2,
+    seconds: 42,
+    reward: { score: 760, pulse: 24 },
+  },
+  {
+    id: 'pulseStrike',
+    label: '3 Pulse-Treffer',
+    stat: 'pulse',
+    target: 3,
+    seconds: 52,
+    reward: { score: 850, fever: 3, slowmo: 3 },
+  },
+  {
+    id: 'hazardSweep',
+    label: '2 Felder entschärfen',
+    stat: 'hazard',
+    target: 2,
+    seconds: 48,
+    reward: { score: 680, pulse: 22, shield: 1 },
+  },
+  {
+    id: 'rivalHunt',
+    label: '2 Rivalen-Treffer',
+    stat: 'rival',
+    target: 2,
+    seconds: 50,
+    reward: { score: 980, fever: 4 },
+  },
+  {
+    id: 'guardianRaid',
+    label: '3 Guardian-Treffer',
+    stat: 'guardian',
+    target: 3,
+    seconds: 62,
+    reward: { score: 1300, shield: 2, pulse: 18 },
+  },
+  {
+    id: 'learnClean',
+    label: '3 richtige Antworten',
+    stat: 'learn',
+    target: 3,
+    seconds: 52,
+    mode: 'learn',
+    reward: { score: 1050, shield: 1, pulse: 22, fever: 4 },
+  },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const sameCell = (a, b) => a.x === b.x && a.y === b.y;
 const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -406,6 +474,13 @@ function makeInitialGame(mode = 'arcade') {
     learnIndex: 0,
     correct: 0,
     wrong: 0,
+    contract: null,
+    contractIndex: -1,
+    contractProgress: 0,
+    contractTimer: 0,
+    contractCooldown: 0.8,
+    contractMedals: 0,
+    contractFails: 0,
     mission: {
       dashUses: 0,
       rivalHits: 0,
@@ -414,8 +489,8 @@ function makeInitialGame(mode = 'arcade') {
       rewards: [],
     },
     message: mode === 'learn'
-      ? 'Sammle nur das richtige Antwortfutter.'
-      : 'Sammle Futter, nutze Dash/Pulse und bezwinge die Arena.',
+      ? 'Sammle richtige Antworten und erfuell Arena-Auftraege.'
+      : 'Sammle Futter, erfuell Auftraege und bezwinge die Arena.',
     messageTimer: 2.2,
     shake: 0,
   };
@@ -548,6 +623,7 @@ function damageRival(game, rival, amount, sourceCell) {
   rival.hp -= amount;
   rival.freeze = Math.max(rival.freeze, 0.9);
   game.mission.rivalHits += 1;
+  advanceContract(game, 'rival', amount, sourceCell);
   game.score += 220 * amount;
   game.pulseEnergy = Math.min(100, game.pulseEnergy + 8);
   spawnParticles(game, sourceCell, rival.color, 20, 220);
@@ -566,6 +642,7 @@ function damageGuardian(game, amount, sourceCell) {
   if (!guardian?.alive) return;
   guardian.hp -= amount;
   guardian.freeze = Math.max(guardian.freeze, 0.8);
+  advanceContract(game, 'guardian', amount, sourceCell);
   game.score += 320 * amount;
   spawnParticles(game, sourceCell, '#f97316', 28, 260);
   addFloater(game, sourceCell, `Guardian -${amount}`, '#f97316');
@@ -598,6 +675,7 @@ function activatePulse(game) {
       hazard.disabled = Math.max(hazard.disabled, 2.7);
       hazard.active = false;
       hits += 1;
+      advanceContract(game, 'hazard', 1, hazard);
       game.mission.hazardsCleared += 1;
       spawnParticles(game, hazard, '#38bdf8', 10, 160);
     }
@@ -620,6 +698,7 @@ function activatePulse(game) {
   }
 
   spawnParticles(game, head, '#38bdf8', 38, 290);
+  if (hits > 0) advanceContract(game, 'pulse', hits, head);
   addFloater(game, head, hits > 0 ? `Pulse x${hits}` : 'Pulse', '#38bdf8');
   game.message = hits > 0 ? `Pulse trifft ${hits} Ziele` : 'Pulse-Welle aktiviert';
   game.messageTimer = 0.9;
@@ -684,6 +763,74 @@ function driftFoodWithMagnet(game, dt) {
       food.y = step.y;
     }
   });
+}
+
+function startNextContract(game) {
+  const candidates = ARENA_CONTRACTS.filter((contract) => {
+    if (contract.mode && contract.mode !== game.mode) return false;
+    if (contract.id === 'guardianRaid' && !game.guardian?.alive) return false;
+    if (contract.id === 'rivalHunt' && game.rivals.length === 0) return false;
+    if (contract.id === 'hazardSweep' && game.hazards.length === 0) return false;
+    return true;
+  });
+  if (candidates.length === 0) return;
+  game.contractIndex += 1;
+  game.contract = candidates[game.contractIndex % candidates.length];
+  game.contractProgress = 0;
+  game.contractTimer = game.contract.seconds + Math.min(18, game.level * 1.5);
+  game.message = `Arena-Auftrag: ${game.contract.label}`;
+  game.messageTimer = 1.1;
+}
+
+function advanceContract(game, stat, amount = 1, cell = game.snake[0]) {
+  if (!game.contract || game.contract.stat !== stat) return;
+  game.contractProgress = Math.min(game.contract.target, game.contractProgress + Math.max(1, amount));
+  if (game.contractProgress < game.contract.target) return;
+  completeContract(game, cell);
+}
+
+function completeContract(game, cell = game.snake[0]) {
+  if (!game.contract) return;
+  const reward = game.contract.reward;
+  const bonus = reward.score + game.level * 70 + game.contractMedals * 95;
+  game.score += bonus;
+  game.pulseEnergy = Math.min(100, game.pulseEnergy + (reward.pulse || 0));
+  game.shield = Math.min(5, game.shield + (reward.shield || 0));
+  game.fever = Math.max(game.fever, reward.fever || 0);
+  game.magnet = Math.max(game.magnet, reward.magnet || 0);
+  game.slowmo = Math.max(game.slowmo, reward.slowmo || 0);
+  game.contractMedals += 1;
+  addFloater(game, cell, `Auftrag +${bonus}`, '#facc15');
+  spawnParticles(game, cell, '#facc15', 26, 260);
+  game.message = `${game.contract.label}: geschafft`;
+  game.messageTimer = 1.15;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.0;
+}
+
+function failContract(game) {
+  if (!game.contract) return;
+  game.contractFails += 1;
+  game.pulseEnergy = Math.max(0, game.pulseEnergy - 10);
+  game.combo = 0;
+  game.message = `${game.contract.label}: verpasst`;
+  game.messageTimer = 0.95;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.6;
+}
+
+function updateContract(game, dt) {
+  if (game.contract) {
+    game.contractTimer = Math.max(0, game.contractTimer - dt);
+    if (game.contractTimer <= 0) failContract(game);
+    return;
+  }
+  game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+  if (game.contractCooldown <= 0) startNextContract(game);
 }
 
 function refreshMissions(game) {
@@ -753,6 +900,7 @@ function eatFood(game, food) {
       game.message = `${food.label} passt nicht. Gesucht: ${task.correct}`;
       game.messageTimer = 1.25;
       game.shake = 0.12;
+      if (game.contract?.stat === 'learn') failContract(game);
       spawnParticles(game, food, '#fb7185', 18, 200);
       addFloater(game, food, 'falsch', '#fb7185');
       game.foods = game.foods.filter((candidate) => candidate.id !== food.id);
@@ -764,6 +912,10 @@ function eatFood(game, food) {
     game.learnIndex += 1;
     game.combo += 1;
     game.comboBest = Math.max(game.comboBest, game.combo);
+    advanceContract(game, 'learn', 1, food);
+    if (game.combo >= 6) {
+      advanceContract(game, 'combo', 6 - game.contractProgress, food);
+    }
     game.eaten += 1;
     const points = food.points + game.combo * 70;
     game.score += points;
@@ -780,6 +932,10 @@ function eatFood(game, food) {
 
   game.combo += 1;
   game.comboBest = Math.max(game.comboBest, game.combo);
+  advanceContract(game, 'food', 1, food);
+  if (game.combo >= 6) {
+    advanceContract(game, 'combo', 6 - game.contractProgress, food);
+  }
   game.eaten += 1;
   const points = food.points + game.combo * 35 + game.level * 18;
   game.score += game.fever > 0 ? Math.round(points * 1.3) : points;
@@ -861,6 +1017,7 @@ function stepSnake(game) {
       game.walls = game.walls.filter((wall) => !sameCell(wall, next));
       game.score += 180;
       game.pulseEnergy = Math.min(100, game.pulseEnergy + 8);
+      advanceContract(game, 'dash', 1, next);
       game.message = 'Dash bricht Barriere';
       game.messageTimer = 0.75;
       spawnParticles(game, next, '#fb923c', 22, 220);
@@ -916,6 +1073,7 @@ function moveSnake(game) {
   if (canDash) {
     game.dashCooldown = 3.2;
     game.mission.dashUses += 1;
+    advanceContract(game, 'dash', 1, game.snake[0]);
     game.pulseEnergy = Math.min(100, game.pulseEnergy + 5);
     game.message = 'Dash-Linie';
     game.messageTimer = 0.55;
@@ -965,6 +1123,7 @@ function updateGame(game, controls, dt) {
   updateEffects(game, dt);
 
   if (!game.started || game.finished) return;
+  updateContract(game, dt);
   updateHazards(game, dt);
   moveRivals(game, dt);
   moveGuardian(game, dt);
@@ -1304,7 +1463,7 @@ function drawGauge(ctx, x, y, w, label, value, color) {
 function drawHud(ctx, game) {
   ctx.save();
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, 38, 42, 224, game.mode === 'learn' ? 340 : 278, 18);
+  drawRoundedRect(ctx, 38, 42, 224, game.mode === 'learn' ? 392 : 326, 18);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 27px Outfit, sans-serif';
@@ -1316,18 +1475,19 @@ function drawHud(ctx, game) {
   ctx.fillText(`Level ${game.level}  Combo x${Math.max(1, game.combo)}`, 62, 172);
   ctx.fillText(`Leben ${game.lives}  Schild ${game.shield}`, 62, 200);
   ctx.fillText(`Rivalen ${game.rivals.length}  Pulse ${Math.round(game.pulseEnergy)}%`, 62, 228);
-  drawGauge(ctx, 62, 250, 158, 'DASH', game.dashCooldown <= 0 ? 100 : 100 - game.dashCooldown * 31, '#fb923c');
+  ctx.fillText(`Auftraege ${game.contractMedals}  Verpasst ${game.contractFails}`, 62, 256);
+  drawGauge(ctx, 62, 278, 158, 'DASH', game.dashCooldown <= 0 ? 100 : 100 - game.dashCooldown * 31, '#fb923c');
   if (game.mode === 'learn') {
     const task = currentTask(game);
     ctx.fillStyle = '#67e8f9';
-    ctx.fillText(`${task.subject} - ${task.kind}`, 62, 304);
+    ctx.fillText(`${task.subject} - ${task.kind}`, 62, 334);
     ctx.fillStyle = '#f8fafc';
     ctx.font = '900 14px Outfit, sans-serif';
-    ctx.fillText(task.prompt, 62, 332, 172);
+    ctx.fillText(task.prompt, 62, 362, 172);
   }
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, 1014, 42, 230, 380, 18);
+  drawRoundedRect(ctx, 1014, 42, 230, 458, 18);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 17px Outfit, sans-serif';
@@ -1343,12 +1503,32 @@ function drawHud(ctx, game) {
   drawGauge(ctx, 1044, 306, 160, 'PULSE', game.pulseEnergy, '#f472b6');
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText('Missionen', 1044, 350);
+  ctx.fillText('Aktiver Auftrag', 1044, 350);
+  ctx.font = '800 10px Outfit, sans-serif';
+  if (game.contract) {
+    const ratio = game.contractProgress / Math.max(1, game.contract.target);
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillText(game.contract.label, 1044, 370, 160);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(`${game.contractProgress}/${game.contract.target} · ${Math.ceil(game.contractTimer)}s`, 1044, 386);
+    ctx.fillStyle = 'rgba(148,163,184,.2)';
+    drawRoundedRect(ctx, 1044, 396, 160, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#22d3ee';
+    drawRoundedRect(ctx, 1044, 396, 160 * clamp(ratio, 0, 1), 10, 5);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Naechstes Ziel wird vorbereitet', 1044, 370, 160);
+  }
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText('Bonus-Missionen', 1044, 430);
   ctx.font = '800 10px Outfit, sans-serif';
   MISSION_GOALS.slice(0, 3).forEach((goal, index) => {
     const done = game.mission.rewards.includes(goal.id);
     ctx.fillStyle = done ? '#86efac' : '#94a3b8';
-    ctx.fillText(`${done ? 'OK' : '--'} ${goal.label}`, 1044, 370 + index * 16);
+    ctx.fillText(`${done ? 'OK' : '--'} ${goal.label}`, 1044, 450 + index * 16);
   });
 
   ctx.fillStyle = 'rgba(2,6,23,.72)';
@@ -1372,7 +1552,7 @@ function drawMessage(ctx, game) {
     ctx.fillText(game.finished ? game.message : 'FASKA SNAKE ARENA', WIDTH / 2, 260);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 18px Outfit, sans-serif';
-    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Arena-Snake mit Dash, Pulse, Rivalen, Guardian, Gefahrenfeldern und Learncade-Futter.', WIDTH / 2, 304);
+    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Arena-Snake mit Dash, Pulse, Rivalen, Guardian, Gefahrenfeldern, Zeit-Auftraegen und Learncade-Futter.', WIDTH / 2, 304);
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 16px Outfit, sans-serif';
     ctx.fillText('Oben Normal oder Learncade waehlen. Space = Dash, X = Pulse.', WIDTH / 2, 338);

@@ -64,6 +64,22 @@ const ARSENAL_GOALS = [
   { id: 'learn_3', label: '3 Wissens-Saeulen', stat: 'learnCorrect', target: 3, mode: 'learn', reward: 1200 },
 ];
 
+const ARSENAL_CONTRACTS = [
+  { id: 'kills_4', label: '4 Takedowns in Folge', stat: 'kills', target: 4, duration: 42, reward: { score: 460, ammo: 12, energy: 14, flow: 10 } },
+  { id: 'grenade_2', label: '2 Granaten-Treffer', stat: 'grenadeHits', target: 2, duration: 38, reward: { score: 430, energy: 20, shield: 10 } },
+  { id: 'drone_3', label: '3 Drohnen-Treffer', stat: 'droneHits', target: 3, duration: 44, reward: { score: 420, energy: 26, ammo: 8 } },
+  { id: 'weapon_2', label: '2 Waffenwechsel nutzen', stat: 'weaponSwaps', target: 2, duration: 34, reward: { score: 330, heat: -24, flow: 12 }, arcadeOnly: true },
+  { id: 'rocket_3', label: '3 Rocket-Treffer', stat: 'rocketHits', target: 3, duration: 48, reward: { score: 520, ammo: 16, flow: 12 } },
+  { id: 'rocket_jump_1', label: '1 Rocket-Jump', stat: 'rocketJumps', target: 1, duration: 42, reward: { score: 470, energy: 28, shield: 12 }, arcadeOnly: true },
+  { id: 'airshot_2', label: '2 Airshots', stat: 'airShots', target: 2, duration: 54, reward: { score: 560, flow: 18, ammo: 10 } },
+  { id: 'rail_2', label: '2 Rail-Treffer', stat: 'railHits', target: 2, duration: 46, reward: { score: 480, heat: -18, ammo: 8 } },
+  { id: 'node_1', label: '1 Kontrollpunkt sichern', stat: 'nodesCaptured', target: 1, duration: 62, reward: { score: 540, energy: 20, shield: 18 } },
+  { id: 'quad_3', label: '3 Quad-Takedowns', stat: 'quadKills', target: 3, duration: 58, reward: { score: 620, ammo: 18, flow: 18 } },
+  { id: 'pad_2', label: '2 Jump-Pad-Angriffe', stat: 'padShots', target: 2, duration: 48, reward: { score: 430, energy: 24, flow: 14 }, arcadeOnly: true },
+  { id: 'learn_1', label: '1 Wissens-Saeule richtig', stat: 'learnCorrect', target: 1, duration: 46, reward: { score: 520, energy: 28, shield: 16, ammo: 12 }, learnOnly: true },
+  { id: 'wave_1', label: '1 Arena-Welle klaeren', stat: 'wavesCleared', target: 1, duration: 70, reward: { score: 650, hp: 10, shield: 20, ammo: 18 } },
+];
+
 const LEARN_TASKS = [
   {
     subject: 'Deutsch',
@@ -169,6 +185,93 @@ function recordStat(game, stat, amount = 1) {
   game.messageTimer = 1.25;
 }
 
+function availableArsenalContracts(game) {
+  return ARSENAL_CONTRACTS.filter((contract) => {
+    if (contract.learnOnly && game.mode !== 'learn') return false;
+    if (contract.arcadeOnly && game.mode !== 'arcade') return false;
+    return true;
+  });
+}
+
+function arsenalContractProgress(game) {
+  const contract = game.activeContract;
+  if (!contract) return 0;
+  return clamp((game.stats[contract.stat] || 0) - contract.startValue, 0, contract.target);
+}
+
+function applyArsenalReward(game, reward = {}) {
+  const player = game.player;
+  if (reward.score) game.score += reward.score;
+  if (reward.hp) player.hp = clamp(player.hp + reward.hp, 0, 125);
+  if (reward.shield) player.shield = clamp(player.shield + reward.shield, 0, 130);
+  if (reward.energy) player.energy = clamp(player.energy + reward.energy, 0, 100);
+  if (reward.ammo) player.ammo += reward.ammo;
+  if (reward.heat) player.heat = clamp(player.heat + reward.heat, 0, 100);
+  if (reward.flow) player.flow = clamp(player.flow + reward.flow, 0, 100);
+}
+
+function startArsenalContract(game) {
+  const contracts = availableArsenalContracts(game);
+  if (!contracts.length) return;
+  const template = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...template,
+    startValue: game.stats[template.stat] || 0,
+    timeLeft: template.duration,
+  };
+  game.contractTimer = template.duration;
+  game.message = `Arena-Auftrag: ${template.label}`;
+  game.messageTimer = 1.1;
+  spawnParticles(game, game.player.x, game.player.y, '#c4b5fd', 16, 1.2);
+}
+
+function completeArsenalContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyArsenalReward(game, contract.reward);
+  game.contractWins += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.8;
+  game.goalNotice = `Auftrag: ${contract.label} +${contract.reward.score || 0}`;
+  game.goalNoticeTimer = 2;
+  game.message = `Auftrag geschafft: ${contract.label}`;
+  game.messageTimer = 1.15;
+  spawnParticles(game, game.player.x, game.player.y, '#a78bfa', 22, 1.35);
+}
+
+function failArsenalContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.6;
+  game.combo = clamp(game.combo - 0.35, 1, 5);
+  game.player.heat = clamp(game.player.heat + 8, 0, 100);
+  game.message = `Auftrag verpasst: ${contract.label}`;
+  game.messageTimer = 1.05;
+  spawnParticles(game, game.player.x, game.player.y, '#fb7185', 14, 1.1);
+}
+
+function updateArsenalContract(game, dt) {
+  if (game.phase !== 'run') return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startArsenalContract(game);
+    return;
+  }
+
+  game.activeContract.timeLeft = Math.max(0, game.activeContract.timeLeft - dt);
+  game.contractTimer = game.activeContract.timeLeft;
+  if (arsenalContractProgress(game) >= game.activeContract.target) {
+    completeArsenalContract(game);
+  } else if (game.activeContract.timeLeft <= 0) {
+    failArsenalContract(game);
+  }
+}
+
 function makeInitialGame(mode = 'arcade') {
   return {
     mode,
@@ -190,6 +293,12 @@ function makeInitialGame(mode = 'arcade') {
     goalNoticeTimer: 0,
     stats: createStats(),
     goals: createGoals(mode),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.2,
+    contractWins: 0,
+    contractFails: 0,
     player: {
       x: 690,
       y: 620,
@@ -956,6 +1065,8 @@ function updateWave(game, dt) {
       title: 'Arena geschafft',
       score: game.score + Math.round(game.player.hp * 12 + game.player.shield * 8),
       wave: game.wave - 1,
+      contracts: game.contractWins,
+      contractFails: game.contractFails,
     };
     return;
   }
@@ -1002,6 +1113,7 @@ function updateGame(game, input, dt, onFinish) {
   updateControlNodes(game, dt);
   updatePylons(game, dt);
   updateWave(game, dt);
+  updateArsenalContract(game, dt);
   updateParticles(game, dt);
   updateCamera(game);
   if (game.player.hp <= 0) {
@@ -1010,6 +1122,8 @@ function updateGame(game, input, dt, onFinish) {
       title: 'Arena verloren',
       score: game.score,
       wave: game.wave - 1,
+      contracts: game.contractWins,
+      contractFails: game.contractFails,
     };
   }
   if (game.result) onFinish(game.result);
@@ -1328,6 +1442,8 @@ function drawMeter(ctx, x, y, w, h, value, color, label) {
 
 function drawHud(ctx, game) {
   const player = game.player;
+  const contract = game.activeContract;
+  const contractProgress = arsenalContractProgress(game);
   ctx.save();
   ctx.fillStyle = '#020617';
   drawRoundedRect(ctx, 28, 22, 454, 162, 18);
@@ -1385,6 +1501,42 @@ function drawHud(ctx, game) {
     ctx.textAlign = 'right';
     ctx.fillText(`${progress}/${goal.target}`, WIDTH - 52, y);
   });
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(15,23,42,.9)';
+  drawRoundedRect(ctx, WIDTH - 356, 276, 328, 122, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(196,181,253,.35)';
+  ctx.stroke();
+  ctx.fillStyle = '#c4b5fd';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText(`ARENA-AUFTRAG · ${game.contractWins} OK · ${game.contractFails} FAIL`, WIDTH - 330, 304);
+
+  if (contract) {
+    const ratio = contract.target ? contractProgress / contract.target : 0;
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '900 15px Outfit, sans-serif';
+    ctx.fillText(contract.label, WIDTH - 330, 328);
+    ctx.fillStyle = 'rgba(255,255,255,.14)';
+    drawRoundedRect(ctx, WIDTH - 330, 344, 276, 14, 7);
+    ctx.fill();
+    ctx.fillStyle = ratio >= 1 ? '#86efac' : '#a78bfa';
+    drawRoundedRect(ctx, WIDTH - 330, 344, 276 * clamp(ratio, 0, 1), 14, 7);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText(`Fortschritt ${contractProgress}/${contract.target}`, WIDTH - 330, 380);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = contract.timeLeft < 8 ? '#fb7185' : '#fde68a';
+    ctx.fillText(`${Math.ceil(contract.timeLeft)}s`, WIDTH - 52, 380);
+  } else {
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 14px Outfit, sans-serif';
+    ctx.fillText(`Naechster Auftrag in ${Math.ceil(game.contractCooldown)}s`, WIDTH - 330, 334);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText('Kills, Nodes, Rockets, Pads oder Lernsaeulen bringen Bonus.', WIDTH - 330, 360);
+  }
 
   if (game.messageTimer > 0) {
     ctx.textAlign = 'center';
@@ -1697,6 +1849,9 @@ export default function FaskaArsenalSwarm() {
           <div style={{ fontSize: 54, fontWeight: 900, color: '#f8fafc' }}>{result.title}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Score {result.score}</div>
           <div style={{ fontSize: 15, color: '#cbd5e1' }}>Welle {result.wave}/5</div>
+          <div style={{ fontSize: 15, color: '#c4b5fd', fontWeight: 800 }}>
+            Arena-Auftraege {result.contracts || 0}/{(result.contracts || 0) + (result.contractFails || 0)}
+          </div>
           <button className="btn-primary" onClick={restart}>Neuer Lauf</button>
         </div>
       )}

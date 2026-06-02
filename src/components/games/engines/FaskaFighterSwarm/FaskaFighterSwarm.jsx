@@ -152,6 +152,19 @@ const STYLE_GOALS = [
   { id: 'learn-2', label: 'Lernfragen sichern', type: 'learns', target: 2, reward: 460, learnOnly: true },
 ];
 
+const FIGHT_CONTRACTS = [
+  { id: 'dash-2', label: '2 Dashes sauber setzen', type: 'dashes', target: 2, duration: 28, reward: { score: 220, meter: 12, stamina: 16 } },
+  { id: 'hits-3', label: '3 Treffer landen', type: 'hits', target: 3, duration: 32, reward: { score: 260, meter: 16, stamina: 12 } },
+  { id: 'combo-2', label: '2er Combo bauen', type: 'bestCombo', target: 2, duration: 34, reward: { score: 300, meter: 18 } },
+  { id: 'throw-1', label: '1 Wurf landen', type: 'throws', target: 1, duration: 38, reward: { score: 330, meter: 20, stamina: 20 } },
+  { id: 'parry-1', label: '1 Perfect Parry lesen', type: 'parries', target: 1, duration: 42, reward: { score: 360, meter: 22, stamina: 24 } },
+  { id: 'counter-1', label: '1 Counter-Hit treffen', type: 'counters', target: 1, duration: 44, reward: { score: 380, meter: 22 } },
+  { id: 'launcher-1', label: '1 Launcher starten', type: 'launchers', target: 1, duration: 46, reward: { score: 390, meter: 24 } },
+  { id: 'cancel-1', label: '1 Special-Cancel schaffen', type: 'cancels', target: 1, duration: 48, reward: { score: 420, meter: 26 } },
+  { id: 'break-1', label: '1 Guard Break erzwingen', type: 'guardBreaks', target: 1, duration: 56, reward: { score: 460, meter: 30, stamina: 20 } },
+  { id: 'learn-1', label: '1 Lernkristall sichern', type: 'learns', target: 1, duration: 52, reward: { score: 360, meter: 20, stamina: 24 }, learnOnly: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function makeInputState() {
@@ -261,6 +274,8 @@ function makeInitialGame(mode = 'arcade') {
     lastRoundWinner: null,
     stats: {
       bestCombo: 0,
+      dashes: 0,
+      hits: 0,
       parries: 0,
       throws: 0,
       throwTechs: 0,
@@ -277,6 +292,12 @@ function makeInitialGame(mode = 'arcade') {
     goals: STYLE_GOALS
       .filter((goal) => mode === 'learn' || !goal.learnOnly)
       .map((goal) => ({ ...goal, done: false })),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.4,
+    contractMedals: 0,
+    contractFails: 0,
   };
 }
 
@@ -286,6 +307,87 @@ function currentPrompt(game) {
 
 function statValue(game, goal) {
   return game.stats[goal.type] || 0;
+}
+
+function availableFightContracts(mode) {
+  return FIGHT_CONTRACTS.filter((contract) => mode === 'learn' || !contract.learnOnly);
+}
+
+function fightContractProgress(game) {
+  const contract = game.activeContract;
+  if (!contract) return { value: 0, target: 0, ratio: 0 };
+  const current = game.stats[contract.type] || 0;
+  const value = clamp(current - contract.startValue, 0, contract.target);
+  return {
+    value,
+    target: contract.target,
+    ratio: contract.target > 0 ? clamp(value / contract.target, 0, 1) : 1,
+  };
+}
+
+function applyFightReward(game, reward = {}) {
+  game.player.score += reward.score || 0;
+  game.player.meter = clamp(game.player.meter + (reward.meter || 0), 0, 100);
+  game.player.stamina = clamp(game.player.stamina + (reward.stamina || 0), 0, 100);
+  game.player.health = clamp(game.player.health + (reward.health || 0), 0, 100);
+}
+
+function startFightContract(game) {
+  const contracts = availableFightContracts(game.mode);
+  if (contracts.length === 0) return;
+  const next = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...next,
+    startValue: game.stats[next.type] || 0,
+  };
+  game.contractTimer = next.duration;
+  game.message = `Auftrag: ${next.label}`;
+  game.messageTimer = 1.05;
+  addFloater(game, game.player.x, game.player.y - 190, 'NEW CONTRACT', '#fef08a');
+}
+
+function completeFightContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyFightReward(game, contract.reward);
+  game.contractMedals += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.05;
+  game.message = `${contract.label} erledigt`;
+  game.messageTimer = 1.0;
+  addFloater(game, game.player.x, game.player.y - 184, `+${contract.reward.score || 0}`, '#86efac');
+  spawnSpark(game, game.player.x, game.player.y - 104, '#86efac', 18);
+}
+
+function failFightContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.35;
+  game.message = `${contract.label} verpasst`;
+  game.messageTimer = 0.9;
+  addFloater(game, game.player.x, game.player.y - 174, 'MISSED', '#fb7185');
+}
+
+function updateFightContract(game, dt) {
+  if (game.phase !== 'fight') return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startFightContract(game);
+    return;
+  }
+
+  game.contractTimer -= dt;
+  const progress = fightContractProgress(game);
+  if (progress.value >= progress.target) {
+    completeFightContract(game);
+    return;
+  }
+  if (game.contractTimer <= 0) failFightContract(game);
 }
 
 function completeStyleGoal(game, goal) {
@@ -729,6 +831,7 @@ function applyHit(game, attacker, defender, hitbox) {
     attacker.combo += 1;
     attacker.cancelWindow = hitbox.kind === 'light' || hitbox.kind === 'low' || hitbox.kind === 'heavy' || hitbox.kind === 'air' ? 0.28 : 0;
     if (attacker.id === 'player') {
+      game.stats.hits += 1;
       game.stats.bestCombo = Math.max(game.stats.bestCombo, attacker.combo);
       if (hitbox.launcher) game.stats.launchers += 1;
       if (wallSplat) game.stats.wallSplats += 1;
@@ -839,6 +942,7 @@ function updatePlayer(game, input, dt) {
       player.invuln = dashDir === player.facing ? 0.14 : 0.2;
       player.dashCooldown = 0.48;
       player.stamina -= 18;
+      game.stats.dashes += 1;
       game.message = dashDir === player.facing ? 'Dash!' : 'Backdash!';
       game.messageTimer = 0.35;
     }
@@ -1004,6 +1108,9 @@ function startNextRound(game) {
   game.sparks = [];
   game.orbCooldown = game.mode === 'learn' ? 1.0 : 0;
   game.aiTimer = 0.5;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.25;
   resetFighterForRound(game.player, 360, 1);
   resetFighterForRound(game.enemy, 920, -1);
 }
@@ -1021,6 +1128,9 @@ function finishRound(game, onFinish) {
   game.message = draw ? 'Doppel-K.O.' : playerWon ? 'Runde an Faska' : 'Runde an Kuro';
   game.messageTimer = 2.2;
   game.cameraShake = Math.max(game.cameraShake, 12);
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.3;
 
   if (game.phase === 'result') {
     const playerMatchWon = game.playerRounds > game.enemyRounds;
@@ -1068,6 +1178,7 @@ function updateGame(game, input, dt, onFinish) {
   if (enemyHit && rectsOverlap(enemyHit, fighterBody(game.player))) applyHit(game, game.enemy, game.player, enemyHit);
 
   updateLearnOrbs(game, dt);
+  updateFightContract(game, dt);
 
   game.sparks = game.sparks
     .map((spark) => ({
@@ -1209,20 +1320,50 @@ function drawHud(ctx, game) {
   ctx.fillText(`Combo ${game.enemy.combo}`, WIDTH - 38, 160);
 
   const missionX = game.isPortraitTouch ? CENTER_X - 190 : WIDTH - 404;
-  const missionY = game.isPortraitTouch ? HEIGHT - 222 : HEIGHT - 230;
+  const missionY = game.isPortraitTouch ? HEIGHT - 248 : HEIGHT - 264;
   const missionW = game.isPortraitTouch ? 380 : 366;
-  const missionRows = game.isPortraitTouch ? 7 : 10;
+  const missionH = game.isPortraitTouch ? 180 : 224;
+  const missionRows = game.isPortraitTouch ? 5 : 7;
+  const contractProgress = fightContractProgress(game);
   ctx.fillStyle = 'rgba(2,6,23,.72)';
-  drawRoundedRect(ctx, missionX, missionY, missionW, game.isPortraitTouch ? 152 : 190, 16);
+  drawRoundedRect(ctx, missionX, missionY, missionW, missionH, 16);
   ctx.fill();
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '900 13px Outfit, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('STYLE-MISSIONEN', missionX + 22, missionY + 26);
+  ctx.fillText('KAMPFAUFTRAG', missionX + 22, missionY + 26);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fef08a';
+  ctx.fillText(`Orden ${game.contractMedals} · Fehl ${game.contractFails}`, missionX + missionW - 22, missionY + 26);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = game.activeContract ? '#f8fafc' : '#94a3b8';
+  ctx.font = '900 16px Outfit, sans-serif';
+  ctx.fillText(
+    game.activeContract ? game.activeContract.label : `naechster Auftrag in ${game.contractCooldown.toFixed(1)}s`,
+    missionX + 22,
+    missionY + 50,
+  );
+  ctx.fillStyle = 'rgba(148,163,184,.22)';
+  drawRoundedRect(ctx, missionX + 22, missionY + 62, missionW - 44, 10, 5);
+  ctx.fill();
+  ctx.fillStyle = game.activeContract ? '#86efac' : '#475569';
+  drawRoundedRect(ctx, missionX + 22, missionY + 62, (missionW - 44) * contractProgress.ratio, 10, 5);
+  ctx.fill();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '800 11px Outfit, sans-serif';
+  ctx.fillText(
+    game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereitmachen',
+    missionX + 22,
+    missionY + 88,
+  );
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '900 13px Outfit, sans-serif';
+  ctx.fillText('STYLE-MISSIONEN', missionX + 22, missionY + 112);
   game.goals.slice(0, missionRows).forEach((goal, index) => {
     const progress = clamp(statValue(game, goal), 0, goal.target);
     ctx.fillStyle = goal.done ? '#86efac' : '#cbd5e1';
-    ctx.fillText(`${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`, missionX + 22, missionY + 48 + index * 16);
+    ctx.fillText(`${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`, missionX + 22, missionY + 134 + index * 16);
   });
 
   if (game.mode === 'learn') {

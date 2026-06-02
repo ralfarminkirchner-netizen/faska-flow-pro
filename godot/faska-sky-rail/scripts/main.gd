@@ -7,8 +7,19 @@ const MOVE_SPEED := 1.65
 const RAIL_SPEED := 0.48
 const RETICLE_R := 54.0
 const LEARN_GOAL := 9
+const COMBO_WINDOW := 3.8
+const ROLL_COOLDOWN := 2.2
+const OPERATION_TIME := 42.0
+const OVERHEAT_LIMIT := 96.0
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
+const OPERATIONS = [
+	{"id": "rings", "label": "Apex-Route", "goal": 3, "hint": "Fliege durch Ringe."},
+	{"id": "locks", "label": "Lock-on-Jagd", "goal": 4, "hint": "Triff Gegner mit Salven."},
+	{"id": "ace", "label": "Ace-Hunter", "goal": 2, "hint": "Schalte Ace-Jets aus."},
+	{"id": "learn", "label": "Learncade-Korridor", "goal": 3, "hint": "Nimm richtige Gates."},
+	{"id": "survive", "label": "Schildlauf", "goal": 4, "hint": "Nutze Supply, Roll oder Nova."}
+]
 
 const TASKS_WORD = [
 	{"prompt": "Welche Wortart ist 'fliegt'?", "answer": "Verb", "options": ["Nomen", "Verb", "Adjektiv"]},
@@ -87,6 +98,15 @@ var score := 0
 var wave := 1
 var wave_kills := 0
 var combo := 0
+var max_combo := 0
+var combo_timer := 0.0
+var operation_index := 0
+var operation_progress := 0
+var operation_timer := 0.0
+var medals := 0
+var roll_cd := 0.0
+var near_misses := 0
+var perfect_locks := 0
 var spawn_timer := 0.0
 var distance := 0.0
 var boss := {}
@@ -134,7 +154,7 @@ func reset_game() -> void:
 	floaters.clear()
 	gates.clear()
 	touch_buttons.clear()
-	touch_button_state = {"fire": false, "lock": false, "nova": false, "wing": false, "learn": false, "subject": false}
+	touch_button_state = {"fire": false, "lock": false, "nova": false, "wing": false, "roll": false, "learn": false, "subject": false}
 	active_touch_buttons.clear()
 	touch_axis = Vector2.ZERO
 	touch_pointer = -1
@@ -144,6 +164,15 @@ func reset_game() -> void:
 	wave = 1
 	wave_kills = 0
 	combo = 0
+	max_combo = 0
+	combo_timer = 0.0
+	operation_index = 0
+	operation_progress = 0
+	operation_timer = OPERATION_TIME
+	medals = 0
+	roll_cd = 0.0
+	near_misses = 0
+	perfect_locks = 0
 	spawn_timer = 0.4
 	distance = 0.0
 	boss.clear()
@@ -153,7 +182,7 @@ func reset_game() -> void:
 	question_index = 0
 	lesson_index = 0
 	repeat_queue.clear()
-	stats = {"targets": 0, "locks": 0, "wing": 0, "rings": 0, "supplies": 0, "evades": 0, "learn": 0, "wrong": 0, "boss_phases": 0}
+	stats = {"targets": 0, "locks": 0, "wing": 0, "rings": 0, "supplies": 0, "evades": 0, "learn": 0, "wrong": 0, "boss_phases": 0, "aces": 0, "guardians": 0, "operations": 0}
 	build_gates()
 
 func build_gates() -> void:
@@ -179,6 +208,13 @@ func update_game(delta: float) -> void:
 	player.wing = max(0.0, float(player.wing) - delta)
 	player.evade = max(0.0, float(player.evade) - delta)
 	player.invuln = max(0.0, float(player.invuln) - delta)
+	roll_cd = max(0.0, roll_cd - delta)
+	combo_timer = max(0.0, combo_timer - delta)
+	if combo_timer <= 0.0:
+		combo = 0
+	operation_timer = max(0.0, operation_timer - delta)
+	if operation_timer <= 0.0:
+		fail_operation()
 	if bool(player.charging):
 		player.charge = min(1.0, float(player.charge) + delta * 0.65)
 	update_stars(delta)
@@ -218,6 +254,8 @@ func update_input(delta: float) -> void:
 		if bool(player.charging):
 			release_lock()
 		player.charging = false
+	if bool(touch_button_state.get("roll", false)):
+		activate_barrel_roll(axis.x)
 
 func update_stars(delta: float) -> void:
 	for star in stars:
@@ -243,7 +281,11 @@ func update_spawns(delta: float) -> void:
 		spawn_target("supply")
 	elif roll < 0.43:
 		spawn_target("mine")
-	elif roll < 0.62 and wave >= 2:
+	elif roll < 0.54 and wave >= 3:
+		spawn_target("ace")
+	elif roll < 0.66 and wave >= 4:
+		spawn_target("guardian")
+	elif roll < 0.78 and wave >= 2:
 		spawn_target("turret")
 	else:
 		spawn_target("drone")
@@ -257,6 +299,12 @@ func spawn_target(kind: String) -> void:
 	if kind == "turret":
 		hp = 3.2
 		color = Color(0.65, 0.48, 1.0)
+	elif kind == "ace":
+		hp = 4.4
+		color = Color(1.0, 0.32, 0.42)
+	elif kind == "guardian":
+		hp = 5.2
+		color = Color(0.25, 0.95, 0.78)
 	elif kind == "mine":
 		hp = 1.0
 		color = Color(1.0, 0.62, 0.12)
@@ -277,12 +325,25 @@ func update_targets(delta: float) -> void:
 	var player_pos: Vector2 = Vector2(float(player.x), float(player.y))
 	for i in range(targets.size() - 1, -1, -1):
 		var t = targets[i]
-		t.z = float(t.z) - delta * (0.58 if String(t.kind) != "ring" else 0.66)
+		t.z = float(t.z) - delta * (0.62 if String(t.kind) == "ace" else (0.58 if String(t.kind) != "ring" else 0.66))
 		t.phase = float(t.phase) + delta
 		if String(t.kind) == "drone":
 			t.x = float(t.x) + sin(float(t.phase) * 2.5) * delta * 0.12
+		elif String(t.kind) == "ace":
+			t.x = float(t.x) + sin(float(t.phase) * 3.6) * delta * 0.32
+			t.y = float(t.y) + cos(float(t.phase) * 2.2) * delta * 0.15
+			t.shot = float(t.shot) - delta
+			if float(t.shot) <= 0.0 and float(t.z) < 1.55:
+				t.shot = rng.randf_range(0.75, 1.25)
+				fire_enemy_shot(Vector2(float(t.x), float(t.y)), rng.randf_range(-0.16, 0.16))
 		elif String(t.kind) == "mine":
 			t.y = float(t.y) + sin(float(t.phase) * 4.0) * delta * 0.11
+		elif String(t.kind) == "guardian":
+			t.x = float(t.x) + sin(float(t.phase) * 1.4) * delta * 0.08
+			t.shot = float(t.shot) - delta
+			if float(t.shot) <= 0.0 and float(t.z) < 1.4:
+				t.shot = rng.randf_range(1.0, 1.55)
+				fire_enemy_shot(Vector2(float(t.x), float(t.y)), 0.0)
 		elif String(t.kind) == "turret":
 			t.shot = float(t.shot) - delta
 			if float(t.shot) <= 0.0 and float(t.z) < 1.45:
@@ -293,11 +354,13 @@ func update_targets(delta: float) -> void:
 			if String(t.kind) == "ring" and d < 0.28:
 				stats.rings += 1
 				score += 210
+				register_action("rings", player_screen(), "APEX")
 				add_text("APEX", player_screen(), Color(0.35, 0.86, 1.0))
 			elif String(t.kind) == "supply" and d < 0.25:
 				stats.supplies += 1
 				player.shield = MAX_SHIELD
 				player.nova = min(3, int(player.nova) + 1)
+				register_action("survive", player_screen(), "SUPPLY")
 				add_text("SUPPLY", player_screen(), Color(0.35, 1.0, 0.62))
 			elif d < 0.22 and String(t.kind) != "ring" and String(t.kind) != "supply":
 				damage_player(16.0 if String(t.kind) != "mine" else 22.0, "Kollision")
@@ -335,7 +398,7 @@ func update_boss(delta: float) -> void:
 		boss.clear()
 
 func fire_pulse() -> void:
-	if float(player.cooldown) > 0.0 or float(player.heat) > 92.0:
+	if float(player.cooldown) > 0.0 or float(player.heat) > OVERHEAT_LIMIT:
 		return
 	player.cooldown = 0.12
 	player.heat = min(MAX_HEAT, float(player.heat) + 7.0)
@@ -349,7 +412,7 @@ func fire_pulse() -> void:
 func release_lock() -> void:
 	var charge: float = float(player.charge)
 	player.charge = 0.0
-	if charge < 0.16 or float(player.heat) > 94.0:
+	if charge < 0.16 or float(player.heat) > OVERHEAT_LIMIT:
 		return
 	var count := 1
 	if charge > 0.86:
@@ -358,6 +421,10 @@ func release_lock() -> void:
 		count = 3
 	player.heat = min(MAX_HEAT, float(player.heat) + 12.0 + count * 5.0)
 	var hits := locked_targets(count)
+	if charge > 0.86 and hits.size() >= 3:
+		perfect_locks += 1
+		score += 450
+		add_text("PERFECT LOCK", reticle_pos(), Color(1.0, 0.72, 0.22))
 	for hit in hits:
 		missiles.append({"from": player_screen(), "to": hit.pos, "life": 0.28, "max": 0.28, "kind": hit.kind, "index": hit.index})
 	if hits.is_empty() and not boss.is_empty():
@@ -393,18 +460,28 @@ func hit_target(index: int, damage: float, source: String) -> void:
 	if index < 0 or index >= targets.size():
 		return
 	var t = targets[index]
+	var kind := String(t.kind)
+	if kind == "guardian" and source == "pulse":
+		damage *= 0.42
 	if source == "lock":
 		damage *= 2.2
 	t.hp = float(t.hp) - damage
 	if float(t.hp) <= 0.0:
 		var pos := project(Vector2(float(t.x), float(t.y)), float(t.z))
 		var points := 180
-		if String(t.kind) == "turret":
+		if kind == "turret":
 			points = 260
-		elif String(t.kind) == "mine":
+		elif kind == "mine":
 			points = 140
-		score += points + combo * 18
-		combo += 1
+		elif kind == "ace":
+			points = 420
+			stats.aces += 1
+			register_action("ace", pos, "ACE")
+		elif kind == "guardian":
+			points = 480
+			stats.guardians += 1
+		register_combo(pos, kind.to_upper())
+		score += points + combo * 22
 		stats.targets += 1
 		wave_kills += 1
 		spawn_sparks(pos, t.color, 12)
@@ -438,6 +515,7 @@ func update_missiles(delta: float) -> void:
 				hit_boss(4.0)
 			else:
 				stats.locks += 1
+				register_action("locks", Vector2(m.to), "LOCK")
 				hit_target(int(m.index), 1.0, "lock")
 			spawn_sparks(Vector2(m.to), Color(1.0, 0.72, 0.22), 14)
 			missiles.remove_at(i)
@@ -473,6 +551,7 @@ func resolve_gate(g) -> void:
 		stats.learn += 1
 		score += 700
 		player.shield = MAX_SHIELD
+		register_action("learn", player_screen(), "LEARN")
 		if bool(g.repeat):
 			remove_repeat(task)
 		if int(stats.learn) == LEARN_GOAL:
@@ -488,11 +567,72 @@ func resolve_gate(g) -> void:
 	if repeat_queue.size() == 0 or not bool(task.get("repeat", false)):
 		question_index = (question_index + 1) % question_bank().size()
 
+func register_combo(pos: Vector2, label: String) -> void:
+	combo += 1
+	combo_timer = COMBO_WINDOW
+	max_combo = maxi(max_combo, combo)
+	if combo >= 3:
+		var bonus := combo * 70
+		score += bonus
+		add_text(label + " COMBO " + str(combo) + " +" + str(bonus), pos + Vector2(0, -22), Color(0.35, 0.86, 1.0))
+	if combo >= 8:
+		player.nova = min(3, int(player.nova) + 1)
+		combo = 0
+		add_text("NOVA BONUS", pos, Color(0.75, 0.55, 1.0))
+
+func current_operation() -> Dictionary:
+	return OPERATIONS[operation_index % OPERATIONS.size()]
+
+func register_action(kind: String, pos: Vector2, label: String) -> void:
+	advance_operation(kind, pos, label)
+
+func advance_operation(kind: String, pos: Vector2, label: String) -> void:
+	var operation: Dictionary = current_operation()
+	var operation_id := String(operation.id)
+	if kind != operation_id:
+		return
+	operation_progress += 1
+	add_text(String(operation.label) + " " + str(operation_progress) + "/" + str(operation.goal), pos + Vector2(0, -42), Color(0.85, 0.75, 1.0))
+	if operation_progress >= int(operation.goal):
+		complete_operation(pos, label)
+
+func complete_operation(pos: Vector2, label: String) -> void:
+	var operation: Dictionary = current_operation()
+	var reward := 1200 + operation_index * 280 + wave * 90
+	score += reward
+	medals += 1
+	stats.operations += 1
+	player.nova = min(3, int(player.nova) + 1)
+	player.shield = MAX_SHIELD
+	spawn_sparks(pos, Color(0.85, 0.75, 1.0), 28)
+	add_text("MISSION " + String(operation.label) + " +" + str(reward), pos, Color(1.0, 0.86, 0.28))
+	message = String(operation.label) + " erledigt durch " + label + "."
+	message_timer = 2.0
+	operation_index = (operation_index + 1) % OPERATIONS.size()
+	operation_progress = 0
+	operation_timer = OPERATION_TIME
+	if String(current_operation().id) == "learn" and mode != "Learncade":
+		mode = "Learncade"
+		build_gates()
+
+func fail_operation() -> void:
+	if phase != "run":
+		return
+	var operation: Dictionary = current_operation()
+	message = String(operation.label) + " verpasst - neuer Einsatz: " + String(OPERATIONS[(operation_index + 1) % OPERATIONS.size()].label)
+	message_timer = 1.8
+	operation_index = (operation_index + 1) % OPERATIONS.size()
+	operation_progress = 0
+	operation_timer = OPERATION_TIME
+	if mode == "Learncade":
+		build_gates()
+
 func activate_nova() -> void:
 	if int(player.nova) <= 0:
 		return
 	player.nova -= 1
 	stats.evades += 1
+	register_action("survive", player_screen(), "NOVA")
 	player.invuln = 1.1
 	player.shield = MAX_SHIELD
 	for i in range(targets.size() - 1, -1, -1):
@@ -504,8 +644,26 @@ func activate_nova() -> void:
 
 func activate_wingman() -> void:
 	player.wing = 7.0
+	stats.wing += 1
 	message = "Wingman aktiv"
 	message_timer = 1.8
+
+func activate_barrel_roll(axis_x: float) -> void:
+	if roll_cd > 0.0:
+		return
+	roll_cd = ROLL_COOLDOWN
+	player.invuln = max(float(player.invuln), 0.58)
+	player.evade = max(float(player.evade), 0.72)
+	player.heat = max(0.0, float(player.heat) - 18.0)
+	var direction := axis_x
+	if absf(direction) < 0.1:
+		direction = -1.0 if float(player.x) > 0.0 else 1.0
+	player.x = clamp(float(player.x) + sign(direction) * 0.24, -0.86, 0.86)
+	stats.evades += 1
+	near_misses += 1
+	score += 160 + near_misses * 12
+	register_action("survive", player_screen(), "ROLL")
+	add_text("BARREL ROLL", player_screen(), Color(0.55, 0.9, 1.0))
 
 func damage_player(amount: float, reason: String) -> void:
 	if float(player.invuln) > 0.0:
@@ -595,6 +753,8 @@ func _unhandled_input(event) -> void:
 					activate_nova()
 				KEY_E:
 					activate_wingman()
+				KEY_Q, KEY_SHIFT:
+					activate_barrel_roll(0.0)
 				KEY_L:
 					toggle_learncade()
 				KEY_C, KEY_TAB:
@@ -661,6 +821,8 @@ func handle_touch_action(name: String) -> void:
 		activate_nova()
 	elif name == "wing":
 		activate_wingman()
+	elif name == "roll":
+		activate_barrel_roll(0.0)
 	elif name == "learn":
 		toggle_learncade()
 	elif name == "subject":
@@ -763,6 +925,12 @@ func draw_targets() -> void:
 			draw_arc(p, s * 1.4, 0.0, TAU, 24, Color(1.0, 0.62, 0.12, 0.35), 2.0)
 		elif kind == "turret":
 			draw_regular_polygon(p, s, 3, Color(0.65, 0.48, 1.0), -PI * 0.5 + float(t.phase))
+		elif kind == "ace":
+			draw_regular_polygon(p, s * 1.12, 4, Color(1.0, 0.32, 0.42), PI * 0.25 + float(t.phase) * 0.4)
+			draw_arc(p, s * 1.55, -0.8, 0.8, 18, Color(1.0, 0.62, 0.70, 0.55), 2.0)
+		elif kind == "guardian":
+			draw_regular_polygon(p, s * 1.08, 6, Color(0.25, 0.95, 0.78), float(t.phase) * 0.35)
+			draw_arc(p, s * 1.62, 0.0, TAU, 34, Color(0.40, 1.0, 0.82, 0.48), 3.0)
 		elif kind == "bolt":
 			draw_circle(p, s * 0.35, Color(1.0, 0.18, 0.16))
 		else:
@@ -817,19 +985,22 @@ func draw_particles() -> void:
 
 func draw_hud() -> void:
 	var hud_w: float = min(405.0, size.x - 20.0)
-	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 150)), Color(0.0, 0.0, 0.0, 0.62))
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 176)), Color(0.0, 0.0, 0.0, 0.64))
 	draw_text_at(Vector2(20, 31), "FASKA SKY RAIL PRO", Color(0.55, 0.9, 1.0), 18)
 	draw_bar(Vector2(20, 52), "HP", float(player.hp), MAX_HP, Color(0.25, 1.0, 0.55))
 	draw_bar(Vector2(20, 74), "SHIELD", float(player.shield), MAX_SHIELD, Color(0.35, 0.82, 1.0))
 	draw_bar(Vector2(20, 96), "HEAT", float(player.heat), MAX_HEAT, Color(1.0, 0.48, 0.22))
-	draw_text_at(Vector2(20, 128), "Score " + str(score) + " Combo " + str(combo) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
-	draw_text_at(Vector2(20, 148), "Fach " + String(LESSONS[lesson_index]) + " Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + " Wdh " + str(repeat_queue.size()), Color(0.78, 0.92, 1.0), 12)
+	draw_text_at(Vector2(20, 128), "Score " + str(score) + " Combo " + str(combo) + "/" + str(max_combo) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
+	var operation: Dictionary = current_operation()
+	draw_text_at(Vector2(20, 148), "Operation " + String(operation.label) + " " + str(operation_progress) + "/" + str(operation.goal) + " " + str(int(operation_timer)) + "s  Medaillen " + str(medals), Color(0.82, 0.76, 1.0), 12)
+	draw_text_at(Vector2(20, 168), "Fach " + String(LESSONS[lesson_index]) + " Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + " Wdh " + str(repeat_queue.size()) + " Roll " + str(int(roll_cd * 10.0) / 10.0), Color(0.78, 0.92, 1.0), 12)
 	if size.x > 760.0 and size.y <= size.x * 1.15:
-		draw_rect(Rect2(Vector2(size.x - 304, 10), Vector2(290, 112)), Color(0.0, 0.0, 0.0, 0.55))
+		draw_rect(Rect2(Vector2(size.x - 304, 10), Vector2(290, 136)), Color(0.0, 0.0, 0.0, 0.55))
 		draw_text_at(Vector2(size.x - 292, 32), "Wave " + str(wave) + "  Targets " + str(stats.targets), Color(0.94, 0.98, 1.0), 14)
 		draw_text_at(Vector2(size.x - 292, 55), "Locks " + str(stats.locks) + "  Rings " + str(stats.rings), Color(0.94, 0.98, 1.0), 14)
 		draw_text_at(Vector2(size.x - 292, 78), "Nova " + str(player.nova) + "  Supplies " + str(stats.supplies), Color(0.94, 0.98, 1.0), 14)
-		draw_text_at(Vector2(size.x - 292, 101), "Boss: jede 4. Welle", Color(0.95, 0.78, 0.35), 13)
+		draw_text_at(Vector2(size.x - 292, 101), "Ace " + str(stats.aces) + "  Guardian " + str(stats.guardians), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 292, 124), "Boss: jede 4. Welle", Color(0.95, 0.78, 0.35), 13)
 
 func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color) -> void:
 	draw_text_at(pos, label, Color(0.76, 0.82, 0.9), 12)
@@ -848,6 +1019,7 @@ func draw_touch_controls() -> void:
 		["lock", "LOCK", Vector2(size.x - 128, size.y - 132)],
 		["nova", "NOVA", Vector2(size.x - 58, size.y - 102)],
 		["wing", "WING", Vector2(size.x - 128, size.y - 62)],
+		["roll", "ROLL", Vector2(size.x - 198, size.y - 102)],
 		["learn", "LERN", Vector2(size.x - 58, size.y - 242)],
 		["subject", "FACH", Vector2(size.x - 128, size.y - 242)]
 	]

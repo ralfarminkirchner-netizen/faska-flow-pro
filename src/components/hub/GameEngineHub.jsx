@@ -117,7 +117,7 @@ const GAMES = [
   {
     id: 'sky-rail',
     name: 'Faska Sky Rail Pro',
-    description: 'Godot-4-On-Rails-Shooter nach Star-Fox-/Panzer-Dragoon-Prinzip mit Rail-Flug, Pulsefire, geladenen Lock-on-Salven, Nova-Burst, Wingman, Apex-Ringen, Supply-Pods, Minen, Turrets, Sturmtraeger-Bossphasen, Touchsteuerung und Learncade-Gates fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
+    description: 'Godot-4-On-Rails-Shooter nach Star-Fox-/Panzer-Dragoon-Prinzip mit Rail-Flug, Combo-Fenster, Einsatzzielen, Barrel-Roll, Ace-Jets, Guardian-Schiffen, Pulsefire, geladenen Lock-on-Salven, Nova-Burst, Wingman, Apex-Ringen, Supply-Pods, Minen, Turrets, Sturmtraeger-Bossphasen, Touchsteuerung und Learncade-Gates mit Fehler-Wiederholung!',
     emoji: '🛩️',
     category: 'Shooter',
     gradient: 'linear-gradient(135deg, #0369a1, #22d3ee)',

@@ -18,6 +18,7 @@ const GAMES = [
   { id: 'maze', label: 'Lese-Labyrinth', hint: 'Laufe durch das Labyrinth und sammle nur das passende Ziel.' },
   { id: 'sort', label: 'Sortier-Dojo', hint: 'Ordne Karten in die richtige Gruppe.' },
   { id: 'sentence', label: 'Satzwerkstatt', hint: 'Baue Saetze oder Gleichungen in der richtigen Reihenfolge.' },
+  { id: 'memory', label: 'Paar-Memory', hint: 'Drehe Karten um und finde zusammenpassende Paare.' },
   { id: 'blitz', label: 'Blitzduell', hint: 'Kurze Fragen, direkte Rueckmeldung, Fehler kommen wieder.' },
 ];
 
@@ -380,6 +381,98 @@ const NORMAL_BLITZ = [
   { id: 'blitz-arcade-3', prompt: 'Welcher Bonus ist sicher?', answer: 'Schild', choices: ['Risiko', 'Schild', 'Falle'] },
 ];
 
+const MEMORY_TASKS = {
+  Deutsch: [
+    {
+      id: 'mem-de-wordtypes',
+      prompt: 'Finde Wort und Wortart.',
+      pairs: [
+        { id: 'haus', left: 'Haus', right: 'Nomen' },
+        { id: 'rennt', left: 'rennt', right: 'Verb' },
+        { id: 'mutig', left: 'mutig', right: 'Adjektiv' },
+        { id: 'baumhaus', left: 'Baumhaus', right: 'Kompositum' },
+      ],
+    },
+    {
+      id: 'mem-de-rhymes',
+      prompt: 'Finde Reimpaare.',
+      pairs: [
+        { id: 'haus-maus', left: 'Haus', right: 'Maus' },
+        { id: 'licht-gesicht', left: 'Licht', right: 'Gesicht' },
+        { id: 'stein-bein', left: 'Stein', right: 'Bein' },
+        { id: 'baum-traum', left: 'Baum', right: 'Traum' },
+      ],
+    },
+  ],
+  Mathe: [
+    {
+      id: 'mem-ma-results',
+      prompt: 'Finde Aufgabe und Ergebnis.',
+      pairs: [
+        { id: '8-7', left: '8 + 7', right: '15' },
+        { id: '6-6', left: '6 x 6', right: '36' },
+        { id: '42-6', left: '42 : 6', right: '7' },
+        { id: '30-12', left: '30 - 12', right: '18' },
+      ],
+    },
+    {
+      id: 'mem-ma-units',
+      prompt: 'Finde Einheit und Bedeutung.',
+      pairs: [
+        { id: 'cm', left: 'cm', right: 'Laenge' },
+        { id: 'kg', left: 'kg', right: 'Gewicht' },
+        { id: 'min', left: 'min', right: 'Zeit' },
+        { id: 'eur', left: 'Euro', right: 'Geld' },
+      ],
+    },
+  ],
+  Englisch: [
+    {
+      id: 'mem-en-basic',
+      prompt: 'Finde deutsche und englische Woerter.',
+      pairs: [
+        { id: 'tree', left: 'Baum', right: 'tree' },
+        { id: 'book', left: 'Buch', right: 'book' },
+        { id: 'green', left: 'gruen', right: 'green' },
+        { id: 'run', left: 'rennen', right: 'run' },
+      ],
+    },
+    {
+      id: 'mem-en-actions',
+      prompt: 'Finde Verbpaare.',
+      pairs: [
+        { id: 'read', left: 'lesen', right: 'to read' },
+        { id: 'jump', left: 'springen', right: 'to jump' },
+        { id: 'write', left: 'schreiben', right: 'to write' },
+        { id: 'listen', left: 'hoeren', right: 'to listen' },
+      ],
+    },
+  ],
+};
+
+const NORMAL_MEMORY = [
+  {
+    id: 'mem-arcade-colors',
+    prompt: 'Finde gleiche Farben.',
+    pairs: [
+      { id: 'red', left: 'Rot', right: 'Rot' },
+      { id: 'blue', left: 'Blau', right: 'Blau' },
+      { id: 'gold', left: 'Gold', right: 'Gold' },
+      { id: 'green', left: 'Gruen', right: 'Gruen' },
+    ],
+  },
+  {
+    id: 'mem-arcade-icons',
+    prompt: 'Finde gleiche Symbole.',
+    pairs: [
+      { id: 'star', left: 'Stern', right: 'Stern' },
+      { id: 'shield', left: 'Schild', right: 'Schild' },
+      { id: 'key', left: 'Schluessel', right: 'Schluessel' },
+      { id: 'bolt', left: 'Blitz', right: 'Blitz' },
+    ],
+  },
+];
+
 function sameCell(a, b) {
   return a.x === b.x && a.y === b.y;
 }
@@ -393,6 +486,7 @@ function getPool(game, subject, mode) {
   if (game === 'maze') return mode === 'learn' ? MAZE_TASKS[subject] : NORMAL_MAZE;
   if (game === 'sort') return mode === 'learn' ? SORT_TASKS[subject] : NORMAL_SORT;
   if (game === 'sentence') return mode === 'learn' ? SENTENCE_TASKS[subject] : NORMAL_SENTENCE;
+  if (game === 'memory') return mode === 'learn' ? MEMORY_TASKS[subject] : NORMAL_MEMORY;
   return mode === 'learn' ? BLITZ_TASKS[subject] : NORMAL_BLITZ;
 }
 
@@ -415,7 +509,7 @@ export default function FaskaLearncadeEssentials() {
   const [mode, setMode] = useState('learn');
   const [subject, setSubject] = useState('Deutsch');
   const [game, setGame] = useState('taxi');
-  const [cursor, setCursor] = useState({ taxi: 0, maze: 0, sort: 0, sentence: 0, blitz: 0 });
+  const [cursor, setCursor] = useState({ taxi: 0, maze: 0, sort: 0, sentence: 0, memory: 0, blitz: 0 });
   const [repeatQueue, setRepeatQueue] = useState([]);
   const [taxi, setTaxi] = useState({ taskId: '', x: 1, y: 5, hasPassenger: false });
   const [maze, setMaze] = useState({ taskId: '', x: 1, y: 5 });
@@ -426,6 +520,7 @@ export default function FaskaLearncadeEssentials() {
   const [message, setMessage] = useState('Waehle ein Spiel und starte die erste Runde.');
   const [mastery, setMastery] = useState({ Deutsch: 0, Mathe: 0, Englisch: 0 });
   const [sentenceState, setSentenceState] = useState({ key: '', picks: [] });
+  const [memoryState, setMemoryState] = useState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
 
   const pool = useMemo(() => getPool(game, subject, mode), [game, subject, mode]);
   const repeatTask = repeatQueue.find((task) => task.game === game && task.subject === subject && task.mode === mode);
@@ -445,6 +540,17 @@ export default function FaskaLearncadeEssentials() {
     if (game !== 'sentence') return [];
     return shuffleById(task.answer, task.id);
   }, [game, task]);
+  const activeMemory = memoryState.key === taskKey
+    ? memoryState
+    : { key: taskKey, flipped: [], matched: [], locked: false, mistakes: 0 };
+  const memoryCards = useMemo(() => {
+    if (game !== 'memory') return [];
+    const cards = task.pairs.flatMap((pair) => [
+      { id: `${pair.id}-left`, pairId: pair.id, label: pair.left },
+      { id: `${pair.id}-right`, pairId: pair.id, label: pair.right },
+    ]);
+    return shuffleById(cards, task.id);
+  }, [game, task]);
 
   const completeTask = useCallback((success, feedback) => {
     setMessage(feedback);
@@ -459,6 +565,7 @@ export default function FaskaLearncadeEssentials() {
       setMaze({ taskId: '', x: 1, y: 5 });
       setMoves(0);
       setSentenceState({ key: '', picks: [] });
+      setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
       return;
     }
 
@@ -468,6 +575,7 @@ export default function FaskaLearncadeEssentials() {
     setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
     setMaze({ taskId: '', x: 1, y: 5 });
     setMoves(0);
+    setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
     setRepeatQueue((queue) => {
       if (queue.some((entry) => entry.payload.id === task.id)) return queue;
       return [...queue.slice(-5), { game, subject, mode, payload: task }];
@@ -578,14 +686,58 @@ export default function FaskaLearncadeEssentials() {
     completeTask(built === target, built === target ? `Richtig: ${target}` : `Noch einmal ordnen: ${target}`);
   };
 
+  const chooseMemoryCard = useCallback((card) => {
+    if (game !== 'memory') return;
+    const base = memoryState.key === taskKey
+      ? memoryState
+      : { key: taskKey, flipped: [], matched: [], locked: false, mistakes: 0 };
+    if (base.locked) return;
+    if (base.matched.includes(card.pairId)) return;
+    if (base.flipped.some((item) => item.id === card.id)) return;
+
+    const nextFlipped = [...base.flipped, card];
+    if (nextFlipped.length < 2) {
+      setMemoryState({ ...base, flipped: nextFlipped });
+      setMessage(`${card.label} aufgedeckt. Finde das Paar.`);
+      return;
+    }
+
+    setMoves((value) => value + 1);
+    const [first, second] = nextFlipped;
+    if (first.pairId === second.pairId) {
+      const matched = [...base.matched, card.pairId];
+      if (matched.length >= task.pairs.length) {
+        setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
+        completeTask(true, `Alle Paare gefunden: ${task.prompt}`);
+        return;
+      }
+      setMemoryState({ ...base, flipped: [], matched });
+      setMessage(`Paar gefunden: ${first.label} + ${second.label}`);
+      return;
+    }
+
+    setStreak(0);
+    setHearts((value) => Math.max(1, value - 1));
+    setMemoryState({ ...base, flipped: nextFlipped, locked: true, mistakes: base.mistakes + 1 });
+    setMessage(`${first.label} passt nicht zu ${second.label}. Schau genau hin.`);
+    window.setTimeout(() => {
+      setMemoryState((current) => (
+        current.key === taskKey
+          ? { ...current, flipped: [], locked: false }
+          : current
+      ));
+    }, 760);
+  }, [completeTask, game, memoryState, task, taskKey]);
+
   const resetRun = () => {
     setScore(0);
     setStreak(0);
     setHearts(5);
-    setCursor({ taxi: 0, maze: 0, sort: 0, sentence: 0, blitz: 0 });
+    setCursor({ taxi: 0, maze: 0, sort: 0, sentence: 0, memory: 0, blitz: 0 });
     setRepeatQueue([]);
     setMastery({ Deutsch: 0, Mathe: 0, Englisch: 0 });
     setSentenceState({ key: '', picks: [] });
+    setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
     setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
     setMaze({ taskId: '', x: 1, y: 5 });
     setMoves(0);
@@ -595,12 +747,14 @@ export default function FaskaLearncadeEssentials() {
   const selectMode = (nextMode) => {
     setMode(nextMode);
     setMoves(0);
+    setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
     setMessage(nextMode === 'learn' ? 'Lernmodus aktiv.' : 'Normalmodus aktiv.');
   };
 
   const selectSubject = (nextSubject) => {
     setSubject(nextSubject);
     setMoves(0);
+    setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
     setMessage(`${nextSubject} ausgewaehlt.`);
   };
 
@@ -610,6 +764,7 @@ export default function FaskaLearncadeEssentials() {
     setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
     setMaze({ taskId: '', x: 1, y: 5 });
     setSentenceState({ key: '', picks: [] });
+    setMemoryState({ key: '', flipped: [], matched: [], locked: false, mistakes: 0 });
     setMessage(GAMES.find((item) => item.id === nextGame)?.hint ?? '');
   };
 
@@ -677,6 +832,15 @@ export default function FaskaLearncadeEssentials() {
               onPick={addSentenceToken}
               onCheck={checkSentence}
               onReset={() => setSentenceState({ key: taskKey, picks: [] })}
+            />
+          )}
+
+          {game === 'memory' && (
+            <MemoryArena
+              task={task}
+              cards={memoryCards}
+              state={activeMemory}
+              onPick={chooseMemoryCard}
             />
           )}
 
@@ -980,7 +1144,8 @@ export default function FaskaLearncadeEssentials() {
           box-shadow: 8px 8px 0 rgba(0,0,0,.24);
         }
         .choice-grid,
-        .token-grid {
+        .token-grid,
+        .memory-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 10px;
@@ -1010,6 +1175,45 @@ export default function FaskaLearncadeEssentials() {
           display: flex;
           justify-content: center;
           gap: 10px;
+        }
+        .memory-arena {
+          align-content: start;
+        }
+        .memory-status {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 10px;
+          color: #cbd5e1;
+          font-size: 13px;
+          font-weight: 900;
+        }
+        .memory-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .memory-card {
+          min-height: clamp(76px, 12vw, 118px);
+          border-radius: 8px;
+          border: 2px solid rgba(226, 232, 240, .24);
+          background:
+            linear-gradient(135deg, rgba(14, 165, 233, .26), rgba(168, 85, 247, .22)),
+            rgba(15, 23, 42, .92);
+          color: #f8fafc;
+          font-size: clamp(16px, 2vw, 25px);
+          box-shadow: 5px 5px 0 rgba(0,0,0,.26);
+          transition: transform .14s ease, background .14s ease, border-color .14s ease;
+        }
+        .memory-card.revealed {
+          background: #f8fafc;
+          color: #0f172a;
+          border-color: rgba(125, 211, 252, .9);
+          transform: translateY(-2px);
+        }
+        .memory-card.matched {
+          background: #bbf7d0;
+          color: #052e16;
+          border-color: #22c55e;
+          box-shadow: 0 0 0 4px rgba(34, 197, 94, .16), 5px 5px 0 rgba(0,0,0,.22);
         }
         .message-line {
           min-height: 28px;
@@ -1124,8 +1328,12 @@ export default function FaskaLearncadeEssentials() {
             min-height: 260px;
           }
           .choice-grid,
-          .token-grid {
+          .token-grid,
+          .memory-grid {
             grid-template-columns: 1fr;
+          }
+          .memory-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           .score-panel {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1240,6 +1448,34 @@ function SentenceArena({ task, options, picked, onPick, onCheck, onReset }) {
       <div className="sentence-actions">
         <button type="button" onClick={onReset}>Reset</button>
         <button type="button" onClick={onCheck} disabled={picked.length !== task.answer.length}>Pruefen</button>
+      </div>
+    </div>
+  );
+}
+
+function MemoryArena({ task, cards, state, onPick }) {
+  return (
+    <div className="arena memory-arena">
+      <div className="memory-status">
+        <span>Paare {state.matched.length}/{task.pairs.length}</span>
+        <span>Fehlversuche {state.mistakes}</span>
+      </div>
+      <div className="memory-grid">
+        {cards.map((card) => {
+          const matched = state.matched.includes(card.pairId);
+          const revealed = matched || state.flipped.some((item) => item.id === card.id);
+          return (
+            <button
+              key={card.id}
+              type="button"
+              className={`memory-card${revealed ? ' revealed' : ''}${matched ? ' matched' : ''}`}
+              disabled={matched || state.locked}
+              onClick={() => onPick(card)}
+            >
+              {revealed ? card.label : '?'}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

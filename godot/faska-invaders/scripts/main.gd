@@ -8,8 +8,20 @@ const MAX_HP := 120.0
 const MAX_HEAT := 100.0
 const MAX_OVERDRIVE := 100.0
 const LEARN_GOAL := 12
+const MISSION_TIME := 38.0
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
+
+const MISSION_BANK = [
+	{"id": "combo", "title": "Feuerkette", "goal": 12, "reward": 900, "brief": "Halte eine Trefferkette."},
+	{"id": "charge", "title": "Charge-Beam", "goal": 3, "reward": 820, "brief": "Zerstoere Ziele mit geladenem Beam."},
+	{"id": "elite", "title": "Elite-Jagd", "goal": 2, "reward": 980, "brief": "Schalte gelbe Elite-Invader aus."},
+	{"id": "barrier", "title": "Schildwall", "goal": 7, "reward": 760, "brief": "Lass Deckungen Treffer abfangen."},
+	{"id": "dash", "title": "Ausweichflug", "goal": 4, "reward": 720, "brief": "Nutze Dashs ohne den Druck zu verlieren."},
+	{"id": "overdrive", "title": "Overdrive-Raid", "goal": 1, "reward": 1040, "brief": "Zuendele eine volle Overdrive-Phase."},
+	{"id": "boss", "title": "Mutterschiff", "goal": 1, "reward": 1500, "brief": "Zerstoere den Boss dieser Welle."},
+	{"id": "learn", "title": "Antwort-Fokus", "goal": 3, "reward": 1100, "brief": "Triff richtige Lern-Antwortziele."}
+]
 
 const INVADER_TYPES = {
 	"scout": {"hp": 1.0, "points": 90, "color": "#22d3ee", "radius": 18.0, "fire": 1.0},
@@ -107,6 +119,17 @@ var wave := 0
 var score := 0
 var combo := 0
 var combo_timer := 0.0
+var max_combo := 0
+var mission := {}
+var mission_progress := 0
+var mission_timer := 0.0
+var mission_index := -1
+var mission_cooldown := 0.0
+var mission_medals := 0
+var charged_kills := 0
+var elite_kills := 0
+var barrier_saves := 0
+var dive_timer := 3.2
 var direction := 1.0
 var formation := Vector2.ZERO
 var formation_speed := 44.0
@@ -182,6 +205,17 @@ func reset_game() -> void:
 	score = 0
 	combo = 0
 	combo_timer = 0.0
+	max_combo = 0
+	mission.clear()
+	mission_progress = 0
+	mission_timer = 0.0
+	mission_index = -1
+	mission_cooldown = 0.4
+	mission_medals = 0
+	charged_kills = 0
+	elite_kills = 0
+	barrier_saves = 0
+	dive_timer = 3.2
 	direction = 1.0
 	formation = Vector2.ZERO
 	formation_speed = 44.0
@@ -252,6 +286,15 @@ func update_timers(delta: float) -> void:
 	combo_timer = maxf(0.0, combo_timer - delta)
 	if combo_timer <= 0.0:
 		combo = 0
+	if phase == "run":
+		if mission.size() > 0:
+			mission_timer = maxf(0.0, mission_timer - delta)
+			if mission_timer <= 0.0:
+				fail_mission()
+		else:
+			mission_cooldown = maxf(0.0, mission_cooldown - delta)
+			if mission_cooldown <= 0.0 and wave > 0:
+				start_next_mission()
 
 func update_player(delta: float) -> void:
 	var axis := read_axis()
@@ -272,11 +315,13 @@ func update_player(delta: float) -> void:
 		player.invuln = 0.28
 		player.heat += 14.0
 		spawn_particles(Vector2(float(player.x), PLAYER_Y + 10.0), Color.html("#67e8f9"), 14, 190.0)
+		advance_mission("dash", 1, Vector2(float(player.x), PLAYER_Y))
 	if (key_once(KEY_I) or consume_touch_edge("overdrive")) and float(player.overdrive) >= MAX_OVERDRIVE:
 		player.overdrive = 7.0
 		player.heat = 0.0
 		add_floater(Vector2(float(player.x), PLAYER_Y - 72.0), "OVERDRIVE", Color.html("#facc15"))
 		spawn_particles(Vector2(float(player.x), PLAYER_Y - 20.0), Color.html("#facc15"), 32, 320.0)
+		advance_mission("overdrive", 1, Vector2(float(player.x), PLAYER_Y - 72.0))
 	if key_once(KEY_J) or consume_touch_edge("fire"):
 		fire_player_shot(1.0, false)
 	var charge_now := Input.is_key_pressed(KEY_K) or bool(touch_button_state.get("charge", false))
@@ -345,15 +390,68 @@ func update_invaders(delta: float) -> void:
 	formation.x += direction * formation_speed * delta
 	formation_speed = minf(142.0, 42.0 + float(wave) * 7.0 + float(45 - invaders.size()) * 1.15)
 	enemy_fire_timer -= delta
+	dive_timer -= delta
+	if dive_timer <= 0.0:
+		start_enemy_dive()
 	for invader in invaders:
 		invader.hit = maxf(0.0, float(invader.hit) - delta)
-		var wobble := sin(elapsed * 2.4 + float(invader.phase)) * 7.0
-		invader.pos = Vector2(float(invader.base.x) + formation.x + wobble, float(invader.base.y) + formation.y)
+		if bool(invader.get("dive", false)):
+			update_diving_invader(invader, delta)
+		else:
+			var wobble := sin(elapsed * 2.4 + float(invader.phase)) * 7.0
+			invader.pos = Vector2(float(invader.base.x) + formation.x + wobble, float(invader.base.y) + formation.y)
 		if float(invader.pos.y) > PLAYER_Y - 76.0:
 			player.hp = 0.0
 	if enemy_fire_timer <= 0.0:
 		fire_enemy_wave()
 		enemy_fire_timer = rng.randf_range(0.52, 1.25) / maxf(1.0, 0.8 + float(wave) * 0.08)
+
+func start_enemy_dive() -> void:
+	dive_timer = rng.randf_range(2.5, 4.6) / maxf(1.0, 0.82 + float(wave) * 0.045)
+	if wave < 2 or invaders.size() <= 5:
+		return
+	var candidates := []
+	for invader in invaders:
+		if bool(invader.get("dive", false)):
+			continue
+		if float(invader.pos.y) < PLAYER_Y - 155.0 and (bool(invader.elite) or str(invader.type) in ["hunter", "manta", "sentinel"]):
+			candidates.append(invader)
+	if candidates.size() == 0:
+		for invader in invaders:
+			if not bool(invader.get("dive", false)) and float(invader.pos.y) < PLAYER_Y - 180.0:
+				candidates.append(invader)
+	if candidates.size() == 0:
+		return
+	var invader: Dictionary = candidates[rng.randi_range(0, candidates.size() - 1)]
+	invader.dive = true
+	invader.dive_t = 0.0
+	invader.dive_origin = Vector2(invader.pos)
+	invader.dive_target_x = clampf(float(player.x) + rng.randf_range(-54.0, 54.0), 62.0, VIEW_W - 62.0)
+	invader.dive_amp = rng.randf_range(-72.0, 72.0)
+	invader.dive_speed = rng.randf_range(0.72, 0.94) + minf(0.24, float(wave) * 0.018)
+	add_floater(Vector2(invader.pos), "DIVE", Color.html("#fef08a"))
+
+func update_diving_invader(invader: Dictionary, delta: float) -> void:
+	var t := minf(1.12, float(invader.dive_t) + delta * float(invader.dive_speed))
+	invader.dive_t = t
+	var origin: Vector2 = invader.dive_origin
+	var target_x := float(invader.dive_target_x)
+	var arc := sin(t * PI)
+	invader.pos = Vector2(
+		lerpf(origin.x, target_x, minf(1.0, t)) + sin(t * TAU) * float(invader.dive_amp),
+		lerpf(origin.y, PLAYER_Y - 92.0, minf(1.0, t)) - arc * 42.0
+	)
+	if Vector2(invader.pos).distance_to(Vector2(float(player.x), PLAYER_Y)) < float(invader.radius) + 29.0:
+		invader.dive = false
+		if float(player.invuln) > 0.0:
+			return
+		shake = 0.22
+		combo = 0
+		player.invuln = 0.58
+		player.hp -= 16.0 + float(wave) * 1.2
+		spawn_particles(Vector2(invader.pos), Color.html("#fecaca"), 16, 180.0)
+	if t >= 1.0:
+		invader.dive = false
 
 func fire_enemy_wave() -> void:
 	if invaders.size() == 0:
@@ -426,6 +524,9 @@ func check_player_shot(shot: Dictionary) -> void:
 		if float(boss.hp) <= 0.0:
 			score += 2400 + wave * 80
 			add_floater(Vector2(float(boss.x), float(boss.y)), "BOSS +" + str(2400 + wave * 80), Color.html("#facc15"))
+			if bool(shot.charged):
+				advance_mission("charge", 1, Vector2(float(boss.x), float(boss.y)))
+			advance_mission("boss", 1, Vector2(float(boss.x), float(boss.y)))
 			spawn_pickup(Vector2(float(boss.x), float(boss.y)), "overdrive")
 			spawn_particles(Vector2(float(boss.x), float(boss.y)), Color.html("#facc15"), 42, 350.0)
 			boss.clear()
@@ -434,6 +535,7 @@ func check_player_shot(shot: Dictionary) -> void:
 		if Vector2(shot.pos).distance_to(Vector2(invader.pos)) < float(invader.radius) + float(shot.radius):
 			invader.hp -= float(shot.damage)
 			invader.hit = 0.16
+			invader.last_hit_charged = bool(shot.charged)
 			shot.life = 0.0
 			spawn_particles(Vector2(shot.pos), Color.html(str(invader.color)), 8, 120.0)
 			if float(invader.hp) <= 0.0:
@@ -448,6 +550,9 @@ func check_enemy_shot(shot: Dictionary) -> void:
 			if float(cell.hp) > 0.0 and Rect2(cell.rect).grow(float(shot.radius)).has_point(Vector2(shot.pos)):
 				cell.hp -= 1.0
 				shot.life = 0.0
+				barrier_saves += 1
+				var hit_rect := Rect2(cell.rect)
+				advance_mission("barrier", 1, hit_rect.position + hit_rect.size * 0.5)
 				spawn_particles(Vector2(shot.pos), Color.html("#fde68a"), 5, 80.0)
 				return
 	if Vector2(shot.pos).distance_to(Vector2(float(player.x), PLAYER_Y)) < 30.0 + float(shot.radius):
@@ -469,6 +574,12 @@ func defeat_invader(invader: Dictionary) -> void:
 	add_combo(1)
 	player.overdrive = minf(MAX_OVERDRIVE, float(player.overdrive) + 4.0)
 	add_floater(Vector2(invader.pos), "+" + str(points), Color.html("#bbf7d0"))
+	if bool(invader.elite):
+		elite_kills += 1
+		advance_mission("elite", 1, Vector2(invader.pos))
+	if bool(invader.get("last_hit_charged", false)):
+		charged_kills += 1
+		advance_mission("charge", 1, Vector2(invader.pos))
 	if mode == "Lernen" and str(invader.label) != "":
 		resolve_answer_invader(invader)
 	if rng.randf() < 0.12 or bool(invader.elite):
@@ -488,9 +599,87 @@ func defeat_invader(invader: Dictionary) -> void:
 
 func add_combo(amount: int) -> void:
 	combo += amount
+	max_combo = maxi(max_combo, combo)
 	combo_timer = 2.0
+	if mission.size() > 0 and str(mission.get("id", "")) == "combo" and combo >= int(mission.get("goal", 1)):
+		advance_mission("combo", int(mission.get("goal", 1)) - mission_progress, Vector2(float(player.x), PLAYER_Y - 90.0))
 	if combo % 8 == 0:
 		add_floater(Vector2(float(player.x), PLAYER_Y - 90.0), str(combo) + " COMBO", Color.html("#facc15"))
+
+func start_next_mission() -> void:
+	var candidates := []
+	var has_elites := false
+	for invader in invaders:
+		if bool(invader.elite):
+			has_elites = true
+			break
+	for template in MISSION_BANK:
+		var id := str(template.id)
+		if id == "learn" and mode != "Lernen":
+			continue
+		if id == "boss" and boss.size() == 0:
+			continue
+		if id == "elite" and not has_elites:
+			continue
+		candidates.append(template)
+	if candidates.size() == 0:
+		mission.clear()
+		mission_cooldown = 2.0
+		return
+	mission_index += 1
+	mission = Dictionary(candidates[mission_index % candidates.size()]).duplicate(true)
+	mission_progress = 0
+	mission_timer = MISSION_TIME + minf(16.0, float(wave) * 1.35)
+	message = "Mission: " + str(mission.title)
+	message_timer = 1.35
+
+func advance_mission(id: String, amount: int = 1, pos: Vector2 = Vector2.ZERO) -> void:
+	if mission.size() == 0 or str(mission.get("id", "")) != id:
+		return
+	mission_progress = mini(int(mission.get("goal", 1)), mission_progress + maxi(1, amount))
+	if mission_progress >= int(mission.get("goal", 1)):
+		complete_mission(pos)
+
+func complete_mission(pos: Vector2) -> void:
+	if mission.size() == 0:
+		return
+	var reward := int(mission.get("reward", 500)) + wave * 45 + max_combo * 6
+	var title := str(mission.get("title", "Mission"))
+	score += reward
+	mission_medals += 1
+	player.overdrive = minf(MAX_OVERDRIVE, float(player.overdrive) + 18.0)
+	repair_barriers(0.8 + float(mission_medals % 3) * 0.4)
+	add_floater(pos, "MISSION +" + str(reward), Color.html("#facc15"))
+	if mission_medals % 3 == 0:
+		spawn_pickup(Vector2(float(player.x), PLAYER_Y - 210.0), "overdrive")
+	elif mission_medals % 2 == 0:
+		spawn_pickup(Vector2(float(player.x), PLAYER_Y - 210.0), "shield")
+	message = title + " geschafft"
+	message_timer = 1.7
+	mission.clear()
+	mission_progress = 0
+	mission_timer = 0.0
+	mission_cooldown = 2.0
+
+func fail_mission() -> void:
+	if mission.size() == 0:
+		return
+	var title := str(mission.get("title", "Mission"))
+	score = maxi(0, score - 160)
+	message = title + " verpasst"
+	message_timer = 1.4
+	mission.clear()
+	mission_progress = 0
+	mission_timer = 0.0
+	mission_cooldown = 1.35
+
+func repair_barriers(amount: float) -> void:
+	for barrier in barriers:
+		for cell in barrier.cells:
+			if float(cell.hp) <= 0.0 and mission_medals % 2 == 0:
+				cell.hp = minf(float(cell.max_hp), amount)
+			elif float(cell.hp) > 0.0:
+				cell.hp = minf(float(cell.max_hp), float(cell.hp) + amount)
 
 func spawn_pickup(pos: Vector2, kind: String) -> void:
 	pickups.append({"pos": pos, "kind": kind, "life": 10.0, "bob": rng.randf() * TAU})
@@ -545,6 +734,8 @@ func spawn_wave() -> void:
 	if mode == "Lernen":
 		prepare_task()
 		ensure_learn_targets()
+	if mission.size() == 0:
+		mission_cooldown = minf(mission_cooldown, 0.55)
 
 func spawn_invader_wave() -> void:
 	var cols := mini(10, 7 + wave / 2)
@@ -579,7 +770,14 @@ func spawn_invader_wave() -> void:
 				"elite": elite,
 				"label": "",
 				"correct": false,
-				"hit": 0.0
+				"hit": 0.0,
+				"last_hit_charged": false,
+				"dive": false,
+				"dive_t": 0.0,
+				"dive_origin": Vector2.ZERO,
+				"dive_target_x": 0.0,
+				"dive_amp": 0.0,
+				"dive_speed": 0.0
 			})
 	message = "Welle " + str(wave) + " - Formation bricht an."
 	message_timer = 1.35
@@ -601,7 +799,14 @@ func spawn_boss_wave() -> void:
 			"elite": false,
 			"label": "",
 			"correct": false,
-			"hit": 0.0
+			"hit": 0.0,
+			"last_hit_charged": false,
+			"dive": false,
+			"dive_t": 0.0,
+			"dive_origin": Vector2.ZERO,
+			"dive_target_x": 0.0,
+			"dive_amp": 0.0,
+			"dive_speed": 0.0
 		})
 	boss = {"x": VIEW_W * 0.5, "y": 116.0, "vx": 105.0 + float(wave) * 6.0, "hp": 28.0 + float(wave) * 7.0, "max_hp": 28.0 + float(wave) * 7.0, "fire": 1.1, "laser": 2.4, "hit": 0.0}
 	message = "Boss-Welle " + str(wave)
@@ -610,6 +815,10 @@ func spawn_boss_wave() -> void:
 func toggle_mode() -> void:
 	mode = "Lernen" if mode == "Normal" else "Normal"
 	clear_labels()
+	mission.clear()
+	mission_progress = 0
+	mission_timer = 0.0
+	mission_cooldown = 0.35
 	if mode == "Lernen":
 		prepare_task()
 		ensure_learn_targets()
@@ -620,6 +829,11 @@ func cycle_subject() -> void:
 	lesson_index = (lesson_index + 1) % LESSONS.size()
 	clear_labels()
 	active_task.clear()
+	if str(mission.get("id", "")) == "learn":
+		mission.clear()
+		mission_progress = 0
+		mission_timer = 0.0
+		mission_cooldown = 0.35
 	if mode == "Lernen":
 		prepare_task()
 		ensure_learn_targets()
@@ -689,6 +903,7 @@ func resolve_answer_invader(invader: Dictionary) -> void:
 		score += 650
 		player.hp = minf(MAX_HP, float(player.hp) + 10.0)
 		player.overdrive = minf(MAX_OVERDRIVE, float(player.overdrive) + 12.0)
+		advance_mission("learn", 1, Vector2(invader.pos))
 		add_floater(Vector2(invader.pos), "RICHTIG +650", Color.html("#bbf7d0"))
 		active_task.clear()
 		clear_labels()
@@ -873,6 +1088,10 @@ func draw_invaders() -> void:
 		var color := Color.html(str(invader.color))
 		if float(invader.hit) > 0.0:
 			color = color.lerp(Color.WHITE, 0.55)
+		if bool(invader.get("dive", false)):
+			var origin: Vector2 = invader.dive_origin
+			draw_line(origin, pos, Color(0.99, 0.9, 0.5, 0.22), 4.0)
+			draw_arc(pos, radius + 11.0, -PI * 0.2, PI * 1.2, 28, Color.html("#facc15"), 3.0)
 		draw_circle(pos + Vector2(0, 9), radius * 0.82, Color(0, 0, 0, 0.28))
 		draw_rect(Rect2(pos.x - radius, pos.y - radius * 0.55, radius * 2.0, radius * 1.1), color, true)
 		draw_circle(pos + Vector2(-radius * 0.56, -radius * 0.16), radius * 0.42, color)
@@ -936,7 +1155,7 @@ func draw_particles_and_floaters() -> void:
 		draw_string(font, Vector2(floater.pos) + Vector2(-80, 0), str(floater.text), HORIZONTAL_ALIGNMENT_CENTER, 160.0, 18, c2)
 
 func draw_hud() -> void:
-	var panel := Rect2(16, 14, minf(size.x - 32.0, 720.0), 92.0)
+	var panel := Rect2(16, 14, minf(size.x - 32.0, 760.0), 118.0)
 	draw_rect(panel, Color(0.02, 0.05, 0.09, 0.78), true)
 	draw_rect(panel, Color(0.78, 0.88, 1.0, 0.22), false, 2.0)
 	draw_string(font, Vector2(30, 39), "FASKA INVADERS PRO", HORIZONTAL_ALIGNMENT_LEFT, 310.0, 22, Color.html("#f8fafc"))
@@ -945,14 +1164,24 @@ func draw_hud() -> void:
 	var over_ratio := float(player.overdrive) / MAX_OVERDRIVE if float(player.overdrive) <= MAX_OVERDRIVE else float(player.overdrive) / 7.0
 	draw_bar(Vector2(430, 56), 190.0, "OVER", clampf(over_ratio, 0.0, 1.0), Color.html("#facc15"))
 	draw_string(font, Vector2(30, 98), "Welle " + str(wave) + "   Ziele " + str(invaders.size()) + "   Score " + str(score), HORIZONTAL_ALIGNMENT_LEFT, 580.0, 17, Color.html("#cbd5e1"))
-	var right := Rect2(size.x - 344.0, 14.0, 328.0, 92.0)
+	if mission.size() > 0:
+		var goal := int(mission.get("goal", 1))
+		var ratio := float(mission_progress) / float(maxi(1, goal))
+		draw_string(font, Vector2(30, 121), "Mission: " + str(mission.get("title", "")) + "  " + str(mission_progress) + "/" + str(goal) + "  " + str(ceil(mission_timer)) + "s", HORIZONTAL_ALIGNMENT_LEFT, 360.0, 15, Color.html("#fef3c7"))
+		draw_rect(Rect2(Vector2(394, 108), Vector2(222, 12)), Color(0, 0, 0, 0.42), true)
+		draw_rect(Rect2(Vector2(394, 108), Vector2(222.0 * clampf(ratio, 0.0, 1.0), 12)), Color.html("#22d3ee"), true)
+		draw_rect(Rect2(Vector2(394, 108), Vector2(222, 12)), Color(1, 1, 1, 0.22), false, 2.0)
+	else:
+		draw_string(font, Vector2(30, 121), "Mission wird vorbereitet", HORIZONTAL_ALIGNMENT_LEFT, 360.0, 15, Color.html("#94a3b8"))
+	var right := Rect2(size.x - 376.0, 14.0, 360.0, 118.0)
 	draw_rect(right, Color(0.02, 0.05, 0.09, 0.78), true)
 	draw_rect(right, Color(0.78, 0.88, 1.0, 0.22), false, 2.0)
-	draw_string(font, right.position + Vector2(14, 25), mode + "  |  " + str(LESSONS[lesson_index]), HORIZONTAL_ALIGNMENT_LEFT, 296.0, 18, Color.html("#fef3c7"))
-	draw_string(font, right.position + Vector2(14, 50), "Richtig: " + str(learn_correct) + "/" + str(LEARN_GOAL) + "  Serie: " + str(learn_streak), HORIZONTAL_ALIGNMENT_LEFT, 296.0, 14, Color.html("#cbd5e1"))
-	draw_string(font, right.position + Vector2(14, 74), "Wiederholung: " + str(repeat_queue.size()), HORIZONTAL_ALIGNMENT_LEFT, 296.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, right.position + Vector2(14, 25), mode + "  |  " + str(LESSONS[lesson_index]), HORIZONTAL_ALIGNMENT_LEFT, 328.0, 18, Color.html("#fef3c7"))
+	draw_string(font, right.position + Vector2(14, 50), "Richtig: " + str(learn_correct) + "/" + str(LEARN_GOAL) + "  Serie: " + str(learn_streak), HORIZONTAL_ALIGNMENT_LEFT, 328.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, right.position + Vector2(14, 74), "Medaillen: " + str(mission_medals) + "  Max-Combo: " + str(max_combo), HORIZONTAL_ALIGNMENT_LEFT, 328.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, right.position + Vector2(14, 98), "Beam-Kills: " + str(charged_kills) + "  Eliten: " + str(elite_kills) + "  Deckung: " + str(barrier_saves), HORIZONTAL_ALIGNMENT_LEFT, 328.0, 13, Color.html("#cbd5e1"))
 	if mode == "Lernen" and active_task.size() > 0:
-		var qpanel := Rect2(170.0, 118.0, size.x - 340.0, 62.0)
+		var qpanel := Rect2(170.0, 146.0, size.x - 340.0, 62.0)
 		draw_rect(qpanel, Color(0.92, 0.96, 1.0, 0.92), true)
 		draw_rect(qpanel, Color(0.38, 0.67, 1.0, 0.7), false, 3.0)
 		draw_string(font, qpanel.position + Vector2(14, 24), str(active_task.prompt), HORIZONTAL_ALIGNMENT_LEFT, qpanel.size.x - 28.0, 20, Color.html("#0f172a"))

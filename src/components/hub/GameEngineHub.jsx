@@ -273,7 +273,7 @@ const GAMES = [
   {
     id: 'space-invaders',
     name: 'Faska Invaders Pro',
-    description: 'Godot-4-Formation-Shooter nach Space-Invaders-/Galaga-Prinzip mit echten Wellen, Deckungsbarrieren, Elite-Invadern, Bossmutterschiff, Drohnen-/Wide-/Shield-Powerups, Charge-Beam, Heat-Management, Dash, Overdrive, Touchsteuerung und Learncade-Antwortzielen fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
+    description: 'Godot-4-Formation-Shooter nach Space-Invaders-/Galaga-Prinzip mit echten Wellen, Dive-Angriffen, Deckungsbarrieren, Elite-Invadern, Bossmutterschiff, Missionen, Medaillen, Drohnen-/Wide-/Shield-Powerups, Charge-Beam, Heat, Dash, Overdrive und Learncade-Antwortzielen fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde!',
     emoji: '👾',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',

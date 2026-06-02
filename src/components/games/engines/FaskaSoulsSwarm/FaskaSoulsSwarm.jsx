@@ -92,6 +92,13 @@ const SOULS_SIGILS = [
   { id: 'moon', label: 'Mond-Eid', x: 640, y: 520, color: '#38bdf8', effect: 'focus', chargeTime: 1.25 },
 ];
 
+const BONFIRE_SEAL = {
+  x: CENTER_X,
+  y: 586,
+  radius: 74,
+  chargeTime: 1.7,
+};
+
 const SOULS_GOALS = [
   { id: 'parry-1', label: 'Parry landen', type: 'parries', target: 1, reward: 420 },
   { id: 'block-3', label: '3 Treffer blocken', type: 'blocks', target: 3, reward: 440 },
@@ -101,6 +108,7 @@ const SOULS_GOALS = [
   { id: 'dodge-2', label: 'perfekte Rollen', type: 'perfectDodges', target: 2, reward: 520 },
   { id: 'shade-3', label: '3 Schatten bannen', type: 'shades', target: 3, reward: 560 },
   { id: 'sigils-2', label: '2 Eid-Siegel entzuenden', type: 'sigils', target: 2, reward: 620 },
+  { id: 'bonfire-1', label: 'Leuchtfeuer entfachen', type: 'bonfires', target: 1, reward: 520 },
   { id: 'rally-20', label: 'Rally-HP holen', type: 'rallyHealed', target: 20, reward: 460 },
   { id: 'phase-2', label: 'Phase 2 erzwingen', type: 'phases', target: 1, reward: 650 },
   { id: 'runes-3', label: 'Runen richtig', type: 'runes', target: 3, reward: 620, learnOnly: true },
@@ -142,6 +150,7 @@ function makeInitialGame(mode = 'arcade') {
     sparks: [],
     hazards: [],
     sigils: createSigils(),
+    bonfire: createBonfire(),
     shades: [],
     shadeIdCounter: 0,
     shadeSpawnTimer: 5.8,
@@ -214,6 +223,8 @@ function makeInitialGame(mode = 'arcade') {
       criticalHits: 0,
       rolls: 0,
       estusUsed: 0,
+      bonfires: 0,
+      revives: 0,
     },
     goals: SOULS_GOALS
       .filter((goal) => mode === 'learn' || !goal.learnOnly)
@@ -341,6 +352,16 @@ function createSigils() {
     activated: false,
     pulse: 0,
   }));
+}
+
+function createBonfire() {
+  return {
+    ...BONFIRE_SEAL,
+    charge: 0,
+    lit: false,
+    spent: false,
+    pulse: 0,
+  };
 }
 
 function drawRoundedRect(ctx, x, y, w, h, r) {
@@ -1071,6 +1092,81 @@ function updateSigils(game, dt) {
   });
 }
 
+function updateBonfire(game, dt) {
+  const bonfire = game.bonfire;
+  const player = game.player;
+  const boss = game.boss;
+  bonfire.pulse += dt * 3.4;
+  if (bonfire.lit || bonfire.spent || boss.hp <= 0) return;
+
+  const close = distance(player, bonfire) < bonfire.radius;
+  const vulnerable = player.attack || player.rollTimer > 0 || player.hurtTimer > 0 || boss.windup || boss.attack;
+  bonfire.charge = clamp(bonfire.charge + (close && !vulnerable ? dt : -dt * 0.7), 0, bonfire.chargeTime);
+  if (bonfire.charge < bonfire.chargeTime) {
+    if (close && !vulnerable) {
+      game.message = 'Leuchtfeuer halten';
+      game.messageTimer = Math.max(game.messageTimer, 0.18);
+    }
+    return;
+  }
+
+  bonfire.lit = true;
+  bonfire.charge = bonfire.chargeTime;
+  game.stats.bonfires += 1;
+  player.hp = clamp(player.hp + 24, 0, 100);
+  player.stamina = 100;
+  player.focus = clamp(player.focus + 28, 0, 100);
+  player.estus = Math.min(4, player.estus + 1);
+  player.score += 360;
+  boss.posture = clamp(boss.posture + 18, 0, 100);
+  game.message = 'Leuchtfeuer entfacht';
+  game.messageTimer = 1.15;
+  addFloater(game, bonfire.x, bonfire.y - 56, 'CHECKPOINT', '#facc15');
+  spawnSparks(game, bonfire.x, bonfire.y, '#facc15', 30);
+  evaluateSoulsGoals(game);
+}
+
+function reviveAtBonfire(game) {
+  const bonfire = game.bonfire;
+  const player = game.player;
+  const boss = game.boss;
+  if (!bonfire.lit || bonfire.spent || boss.hp <= 0) return false;
+
+  bonfire.spent = true;
+  player.x = bonfire.x;
+  player.y = bonfire.y - 78;
+  player.vx = 0;
+  player.vy = -80;
+  player.hp = 56;
+  player.rally = 0;
+  player.stamina = 100;
+  player.focus = Math.max(player.focus, 36);
+  player.estus = Math.max(player.estus, 1);
+  player.invuln = 1.55;
+  player.rollTimer = 0;
+  player.hurtTimer = 0;
+  player.attack = null;
+  player.guard = 0;
+  player.parryTimer = 0;
+  game.hazards = [];
+  game.stats.revives += 1;
+  boss.posture = 100;
+  boss.stagger = 0;
+  boss.windup = null;
+  boss.attack = null;
+  boss.aiTimer = 0.82;
+  if (boss.phase >= 2) {
+    spawnShade(game, bonfire.x - 118, bonfire.y - 96, boss.phase >= 3 ? 'bell' : 'hunter');
+    spawnShade(game, bonfire.x + 128, bonfire.y - 88, 'hound');
+  }
+  game.cameraShake = Math.max(game.cameraShake, 18);
+  game.message = 'Am Leuchtfeuer erwacht';
+  game.messageTimer = 1.45;
+  addFloater(game, bonfire.x, bonfire.y - 62, 'REVIVE', '#facc15');
+  spawnSparks(game, bonfire.x, bonfire.y, '#facc15', 38);
+  return true;
+}
+
 function updateRunes(game, dt) {
   if (game.mode !== 'learn' || game.phase !== 'fight') return;
   game.runeCooldown = Math.max(0, game.runeCooldown - dt);
@@ -1117,6 +1213,7 @@ function updateGame(game, input, dt, onFinish) {
   bossAttackHits(game);
   updateHazards(game, dt);
   updateSigils(game, dt);
+  updateBonfire(game, dt);
   updateRunes(game, dt);
   updateSoulsContract(game, dt);
 
@@ -1131,6 +1228,8 @@ function updateGame(game, input, dt, onFinish) {
     }))
     .filter((spark) => spark.life > 0);
 
+  if (game.player.hp <= 0 && reviveAtBonfire(game)) return;
+
   if (game.player.hp <= 0 || game.boss.hp <= 0) {
     game.phase = 'result';
     const won = game.boss.hp <= 0;
@@ -1140,6 +1239,7 @@ function updateGame(game, input, dt, onFinish) {
       score: game.player.score + (won ? 1500 : 0),
       playerHp: Math.round(game.player.hp),
       bossHp: Math.round(game.boss.hp),
+      revives: game.stats.revives,
     });
   }
 }
@@ -1185,9 +1285,56 @@ function drawArena(ctx, game) {
     ctx.globalAlpha = 1;
   });
 
+  drawBonfire(ctx, game);
   drawSigils(ctx, game);
   if (game.mode === 'learn') drawRunes(ctx, game);
   drawHazards(ctx, game);
+  ctx.restore();
+}
+
+function drawBonfire(ctx, game) {
+  const bonfire = game.bonfire;
+  const progress = bonfire.lit ? 1 : bonfire.charge / bonfire.chargeTime;
+  const pulse = Math.sin(bonfire.pulse + game.elapsed * 3.2) * 5;
+  ctx.save();
+  ctx.globalAlpha = bonfire.spent ? 0.42 : 0.9;
+  ctx.shadowColor = bonfire.spent ? '#64748b' : bonfire.lit ? '#facc15' : '#fb923c';
+  ctx.shadowBlur = bonfire.lit ? 28 : 12 + progress * 20;
+  ctx.fillStyle = bonfire.spent ? 'rgba(51,65,85,.74)' : 'rgba(120,53,15,.78)';
+  ctx.beginPath();
+  ctx.arc(bonfire.x, bonfire.y, 40 + pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = bonfire.lit ? '#fef08a' : '#fed7aa';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(bonfire.x, bonfire.y, 52, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+  ctx.stroke();
+
+  ctx.strokeStyle = bonfire.spent ? '#94a3b8' : '#fde68a';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(bonfire.x - 22, bonfire.y + 16);
+  ctx.lineTo(bonfire.x + 20, bonfire.y - 18);
+  ctx.moveTo(bonfire.x + 22, bonfire.y + 16);
+  ctx.lineTo(bonfire.x - 20, bonfire.y - 18);
+  ctx.stroke();
+
+  if (bonfire.lit && !bonfire.spent) {
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(bonfire.x, bonfire.y - 58 - pulse);
+    ctx.lineTo(bonfire.x - 15, bonfire.y - 24);
+    ctx.lineTo(bonfire.x + 15, bonfire.y - 24);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.textAlign = 'center';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillStyle = bonfire.spent ? '#94a3b8' : '#fef3c7';
+  ctx.fillText(bonfire.spent ? 'Leuchtfeuer verbraucht' : bonfire.lit ? 'Leuchtfeuer bereit' : 'Leuchtfeuer', bonfire.x, bonfire.y + 74);
   ctx.restore();
 }
 
@@ -1280,6 +1427,12 @@ function drawHud(ctx, game) {
   const player = game.player;
   const boss = game.boss;
   const contractProgress = soulsContractProgress(game);
+  const bonfire = game.bonfire;
+  const bonfireText = bonfire.spent
+    ? 'Leuchtfeuer verbraucht'
+    : bonfire.lit
+      ? 'Leuchtfeuer bereit'
+      : `Leuchtfeuer ${Math.round((bonfire.charge / bonfire.chargeTime) * 100)}%`;
   ctx.save();
   if (game.isPortraitTouch) {
     const panelX = CENTER_X - 320;
@@ -1302,7 +1455,7 @@ function drawHud(ctx, game) {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '900 12px Outfit, sans-serif';
-    drawFittedText(ctx, `Held HP ${Math.round(player.hp)} · Trank ${player.estus}`, leftX, panelY + 108, 250, '900 12px Outfit, sans-serif');
+    drawFittedText(ctx, `Held HP ${Math.round(player.hp)} · Trank ${player.estus} · ${bonfire.lit && !bonfire.spent ? 'Feuer bereit' : bonfire.spent ? 'Feuer leer' : 'Feuer laden'}`, leftX, panelY + 108, 250, '900 12px Outfit, sans-serif');
     ctx.fillStyle = player.guardCounterWindow > 0 ? '#fef08a' : '#cbd5e1';
     drawFittedText(ctx, `Counter ${game.stats.guardCounters} · Backstab ${game.stats.backstabs} · Fenster ${player.guardCounterWindow > 0 ? player.guardCounterWindow.toFixed(1) : '-'}`, leftX, panelY + 126, 260, '900 12px Outfit, sans-serif');
 
@@ -1385,7 +1538,7 @@ function drawHud(ctx, game) {
   });
 
   ctx.fillStyle = 'rgba(2,6,23,.72)';
-  drawRoundedRect(ctx, 42, 326, 330, 112, 16);
+  drawRoundedRect(ctx, 42, 326, 330, 130, 16);
   ctx.fill();
   ctx.fillStyle = '#fef08a';
   ctx.font = '900 13px Outfit, sans-serif';
@@ -1402,6 +1555,9 @@ function drawHud(ctx, game) {
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '800 12px Outfit, sans-serif';
   ctx.fillText(game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereitmachen', 62, 420);
+  ctx.fillStyle = bonfire.lit && !bonfire.spent ? '#fef08a' : bonfire.spent ? '#94a3b8' : '#fed7aa';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText(`${bonfireText} · Revives ${game.stats.revives}`, 62, 440);
 
   if (game.mode === 'learn') {
     const prompt = currentPrompt(game);
@@ -1909,7 +2065,7 @@ export default function FaskaSoulsSwarm() {
         }}>
           <div style={{ fontSize: 56, fontWeight: 900, color: '#f8fafc' }}>{result.result}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Score {result.score}</div>
-          <div style={{ fontSize: 15, color: '#cbd5e1' }}>Held {result.playerHp} HP · Boss {result.bossHp} HP</div>
+          <div style={{ fontSize: 15, color: '#cbd5e1' }}>Held {result.playerHp} HP · Boss {result.bossHp} HP · Revives {result.revives || 0}</div>
           <button className="btn-primary" onClick={restart}>Noch ein Versuch</button>
         </div>
       )}

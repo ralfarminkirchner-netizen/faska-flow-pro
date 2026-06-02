@@ -167,7 +167,7 @@ const GAMES = [
   {
     id: 'souls',
     name: 'Faska Souls Pro',
-    description: 'FASKA-FLOW-Canvas-Soulslike-Bossarena mit Normalmodus zuerst, Light/Heavy-Angriffen, Schildblock, Rollen-Iframes, Parry-Fenster, Guard-Counter, Riposte, Backstab, Rally-Heal, Heilflaschen, Schatten-Minions, Boss-Telegraphs, Stagger, Phasenwechsel, rotierenden Eid-Auftraegen, Touchsteuerung und zuschaltbaren Learncade-Runen!',
+    description: 'FASKA-FLOW-Canvas-Soulslike-Bossarena mit Normalmodus zuerst, Light/Heavy-Angriffen, Schildblock, Rollen-Iframes, Parry-Fenster, Guard-Counter, Riposte, Backstab, Rally-Heal, Heilflaschen, entfachbarem Leuchtfeuer-Checkpoint mit einmaligem Revive, Schatten-Minions, Boss-Telegraphs, Stagger, Phasenwechsel, rotierenden Eid-Auftraegen, Touchsteuerung und zuschaltbaren Learncade-Runen!',
     emoji: '🛡️',
     category: 'Soulslike',
     gradient: 'linear-gradient(135deg, #111827, #991b1b)',

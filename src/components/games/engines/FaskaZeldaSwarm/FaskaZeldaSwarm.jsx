@@ -123,6 +123,14 @@ function ZeldaHUD() {
           : 'Schalterziel';
   const showStaminaPanel = staminaPct < 100 || shieldActive || rolling || rollCooldown > 0 || spinCooldown > 0;
   const showCouragePanel = courageTimer > 0 || courageCharge > 0 || combo > 0 || goals.some((goal) => goal.complete);
+  const solvedShrines = shrines.filter((shrine) => shrine.solved).length;
+  const failedShrines = shrines.filter((shrine) => shrine.failed).length;
+  const mapRooms = Array.from({ length: totalRooms }, (_, index) => ({
+    index,
+    current: index === currentRoom,
+    cleared: index < currentRoom || (index === currentRoom && roomUnlocked),
+    boss: index > 0 && (index + 1) % 5 === 0,
+  }));
 
   return (
     <>
@@ -408,6 +416,49 @@ function ZeldaHUD() {
 	        )}
 	      </div>
 
+      <div className="zelda-dungeon-map">
+        <div className="zelda-map-heading">
+          <span>DUNGEON-KARTE</span>
+          <strong>{currentRoom + 1}/{totalRooms}</strong>
+        </div>
+        <div className="zelda-dungeon-map-grid">
+          {mapRooms.map((room) => (
+            <div
+              key={room.index}
+              className="zelda-map-cell"
+              style={{
+                background: room.current
+                  ? '#facc15'
+                  : room.cleared
+                    ? '#22c55e'
+                    : room.boss
+                      ? 'rgba(127, 29, 29, .92)'
+                      : 'rgba(15, 23, 42, .88)',
+                borderColor: room.current
+                  ? '#fef08a'
+                  : room.cleared
+                    ? '#86efac'
+                    : room.boss
+                      ? '#fb7185'
+                      : 'rgba(148, 163, 184, .35)',
+                color: room.current ? '#172554' : room.boss ? '#fecaca' : '#f8fafc',
+              }}
+              aria-label={`Raum ${room.index + 1}`}
+            >
+              {room.current ? '>' : room.boss ? 'B' : room.index + 1}
+            </div>
+          ))}
+        </div>
+        <div className="zelda-map-status">
+          Tor {roomUnlocked ? 'offen' : 'zu'} · Auftrag {contractMedals} OK/{contractFails} Fail
+        </div>
+        {mode === 'learn' && (
+          <div className="zelda-map-status zelda-map-status-learn">
+            Schreine {solvedShrines}/{shrines.length} · Fehler {failedShrines}
+          </div>
+        )}
+      </div>
+
       {((roomMessageTimer > 0 && roomUnlocked) || (activeShrine && mode === 'learn')) && (
         <div
           style={{
@@ -621,7 +672,86 @@ function ZeldaPixelStyle() {
         outline-offset: -2px;
       }
 
+      .faska-zelda-pixel .zelda-dungeon-map {
+        position: fixed;
+        top: 112px;
+        right: 14px;
+        width: 206px;
+        z-index: 55;
+        pointer-events: none;
+        padding: 10px;
+        background: rgba(5, 24, 16, .82);
+        border: 2px solid rgba(187, 247, 208, .38);
+        box-shadow: 5px 5px 0 rgba(2, 6, 23, .78), 0 0 0 2px rgba(255,255,255,.08) inset;
+        font-family: ${PIXEL_FONT};
+      }
+
+      .faska-zelda-pixel .zelda-map-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        color: #bbf7d0;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .faska-zelda-pixel .zelda-map-heading strong {
+        color: #facc15;
+        font-size: 12px;
+      }
+
+      .faska-zelda-pixel .zelda-dungeon-map-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+        margin-top: 8px;
+      }
+
+      .faska-zelda-pixel .zelda-map-cell {
+        width: 100%;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid rgba(148, 163, 184, .35);
+        box-shadow: 2px 2px 0 rgba(2, 6, 23, .88);
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .faska-zelda-pixel .zelda-map-status {
+        margin-top: 8px;
+        color: #cbd5e1;
+        font-size: 9px;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .faska-zelda-pixel .zelda-map-status-learn {
+        color: #fde68a;
+      }
+
       @media (max-width: 700px) {
+        .faska-zelda-pixel .zelda-dungeon-map {
+          top: 104px;
+          right: 8px;
+          width: 164px;
+          padding: 8px;
+        }
+
+        .faska-zelda-pixel .zelda-dungeon-map-grid {
+          gap: 4px;
+          margin-top: 6px;
+        }
+
+        .faska-zelda-pixel .zelda-map-cell {
+          height: 16px;
+          font-size: 9px;
+        }
+
         .faska-zelda-pixel .joystick-zone-right {
           grid-template-columns: repeat(3, 58px) !important;
           gap: 8px !important;

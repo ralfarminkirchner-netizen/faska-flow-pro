@@ -187,7 +187,7 @@ const GAMES = [
   {
     id: 'mansion',
     name: 'Faska Mansion Pro',
-    description: 'Godot-4-Top-Down-Survival-Horror nach Resident-Evil-Prinzip mit Villa, Safe-Rooms, knapper Munition, Reload-Panik, Zielpfeil, Minimap, Gegnerdruck, Barrikaden, Fallen, Schluesseln, Beweisen, Exit-Ziel, Touchsteuerung und Learncade-Siegeln fuer Wortarten, Lesen, Satzbau, Komposita, Mathe und Englisch mit Fehler-Wiederholung!',
+    description: 'Godot-4-Top-Down-Survival-Horror nach Resident-Evil-Prinzip mit Villa, Safe-Rooms, knapper Munition, echter Reload-Spannung, durchsuchbaren Moebeln, Geraeuschdruck, aufbrechenden Tueren, Gegnerzustaenden, Barrikaden, Fallen, Schluesseln, Beweisen, Exit-Ziel, Touchsteuerung und Learncade-Siegeln mit Fehler-Wiederholung!',
     emoji: '🔦',
     category: 'Horror',
     gradient: 'linear-gradient(135deg, #111827, #581c87)',

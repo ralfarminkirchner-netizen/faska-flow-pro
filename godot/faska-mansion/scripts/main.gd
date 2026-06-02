@@ -9,6 +9,9 @@ const MAX_HP := 6
 const MAX_STAMINA := 100.0
 const MAG_SIZE := 8
 const LEARN_GOAL := 8
+const MAX_NOISE := 100.0
+const SEARCH_DURATION := 0.72
+const DOOR_BREAK_HITS := 3
 const LESSONS := ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH"]
 
 const TASKS_WORD := [
@@ -195,11 +198,17 @@ var silver_keys := 0
 var evidence := 0
 var score := 0
 var panic := 0.0
+var noise := 0.0
+var last_noise_pos := Vector2.ZERO
+var last_noise_timer := 0.0
 var reload_timer := 0.0
+var reload_pending := 0
 var shoot_cooldown := 0.0
 var dodge_timer := 0.0
 var invuln_timer := 0.0
 var interact_timer := 0.0
+var search_timer := 0.0
+var search_target := -1
 var wave_timer := 0.0
 var learn_mode := false
 var lesson_index := 0
@@ -219,6 +228,7 @@ var enemies := []
 var bullets := []
 var barricades := []
 var traps := []
+var searchables := []
 var learn_gates := []
 var safe_zones := []
 var touch: TouchLayer
@@ -257,6 +267,7 @@ func _process(delta: float) -> void:
 	_tick_timers(delta)
 	_handle_touch_edges()
 	_update_player(delta)
+	_update_search(delta)
 	_update_enemies(delta)
 	_update_bullets(delta)
 	_update_traps(delta)
@@ -267,19 +278,27 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _tick_timers(delta: float) -> void:
+	var was_reloading := reload_timer > 0.0
 	reload_timer = maxf(0.0, reload_timer - delta)
+	if was_reloading and reload_timer <= 0.0:
+		_finish_reload()
 	shoot_cooldown = maxf(0.0, shoot_cooldown - delta)
 	dodge_timer = maxf(0.0, dodge_timer - delta)
 	invuln_timer = maxf(0.0, invuln_timer - delta)
 	interact_timer = maxf(0.0, interact_timer - delta)
 	message_timer = maxf(0.0, message_timer - delta)
 	panic = maxf(0.0, panic - delta * 5.0)
+	noise = maxf(0.0, noise - delta * 18.0)
+	last_noise_timer = maxf(0.0, last_noise_timer - delta)
+	for door in doors:
+		door["rattle"] = maxf(0.0, float(door.get("rattle", 0.0)) - delta)
 	if stamina < MAX_STAMINA and dodge_timer <= 0.0:
 		stamina = minf(MAX_STAMINA, stamina + delta * 18.0)
 	wave_timer += delta
-	if wave_timer > 22.0:
+	var spawn_delay := 22.0 - minf(8.0, panic * 0.08 + noise * 0.04)
+	if wave_timer > spawn_delay and not _in_safe_zone(player_pos):
 		wave_timer = 0.0
-		var kind := "stalker" if panic > 42.0 or evidence >= 4 else "crawler"
+		var kind := "stalker" if panic > 42.0 or evidence >= 4 or noise > 55.0 else "crawler"
 		_spawn_enemy(_pick_spawn(), kind)
 		_set_message("Du hoerst Schritte im Flur.")
 
@@ -313,6 +332,9 @@ func _update_player(delta: float) -> void:
 	var target_speed := RUN_SPEED if Input.is_key_pressed(KEY_SHIFT) and stamina > 8.0 else WALK_SPEED
 	if target_speed == RUN_SPEED and input_vec.length() > 0.05:
 		stamina = maxf(0.0, stamina - delta * 16.0)
+		_make_noise(delta * 16.0, player_pos)
+	elif input_vec.length() > 0.05 and not _in_safe_zone(player_pos):
+		_make_noise(delta * 4.0, player_pos)
 	if dodge_timer > 0.0:
 		player_velocity = facing * DODGE_SPEED
 	else:
@@ -354,12 +376,16 @@ func _try_shoot() -> void:
 	ammo -= 1
 	shoot_cooldown = 0.22
 	panic += 4.0
+	_make_noise(46.0, player_pos)
+	var focused_shot := player_velocity.length() < 20.0 and panic < 58.0
 	bullets.append({
 		"pos": player_pos + facing * 25.0,
 		"vel": facing * 820.0,
 		"life": 0.7,
+		"damage": 2 if focused_shot else 1,
+		"focused": focused_shot,
 	})
-	_set_message("Schuss")
+	_set_message("Gezielter Schuss" if focused_shot else "Schuss")
 
 func _try_dodge() -> void:
 	if stamina < 24.0 or dodge_timer > 0.0:
@@ -368,6 +394,7 @@ func _try_dodge() -> void:
 	dodge_timer = 0.22
 	invuln_timer = 0.38
 	panic += 1.5
+	_make_noise(10.0, player_pos)
 	_set_message("Perfect-Dodge-Fenster")
 
 func _try_reload() -> void:
@@ -375,31 +402,53 @@ func _try_reload() -> void:
 		return
 	reload_timer = 1.0 + panic * 0.01
 	var needed := MAG_SIZE - ammo
-	var taken := mini(needed, reserve_ammo)
+	reload_pending = mini(needed, reserve_ammo)
+	_make_noise(7.0, player_pos)
+	_set_message("Reload: nicht treffen lassen")
+
+func _finish_reload() -> void:
+	if reload_pending <= 0:
+		return
+	var taken := mini(reload_pending, reserve_ammo)
 	ammo += taken
 	reserve_ammo -= taken
-	_set_message("Reload")
+	reload_pending = 0
+	_set_message("Magazin geladen")
 
 func _try_interact() -> void:
 	if interact_timer > 0.0:
 		return
 	interact_timer = 0.25
+	for i in range(searchables.size()):
+		var stash: Dictionary = searchables[i]
+		if bool(stash["searched"]):
+			continue
+		if player_pos.distance_to(_searchable_center(stash)) < 72.0:
+			search_target = i
+			search_timer = SEARCH_DURATION + panic * 0.006
+			_make_noise(6.0, player_pos)
+			_set_message("Durchsuchen: Deckung halten")
+			return
 	for door in doors:
 		if player_pos.distance_to(door["rect"].get_center()) < 70.0:
 			if door["open"]:
 				door["open"] = false
+				_make_noise(8.0, door["rect"].get_center())
 				_set_message("Tuer geschlossen")
 			elif door["locked"]:
 				if silver_keys > 0:
 					silver_keys -= 1
 					door["locked"] = false
 					door["open"] = true
+					door["hp"] = DOOR_BREAK_HITS
 					score += 80
+					_make_noise(12.0, door["rect"].get_center())
 					_set_message("Schluessel benutzt")
 				else:
 					_set_message("Verschlossen")
 			else:
 				door["open"] = true
+				_make_noise(10.0, door["rect"].get_center())
 				_set_message("Tuer geoeffnet")
 			return
 	for barrier in barricades:
@@ -416,30 +465,145 @@ func _try_interact() -> void:
 		else:
 			_set_message("Du brauchst 5 Beweise und 1 Ausgangsschluessel")
 
+func _update_search(delta: float) -> void:
+	if search_target < 0:
+		return
+	if search_target >= searchables.size():
+		search_target = -1
+		search_timer = 0.0
+		return
+	var stash: Dictionary = searchables[search_target]
+	if bool(stash["searched"]):
+		search_target = -1
+		search_timer = 0.0
+		return
+	if player_pos.distance_to(_searchable_center(stash)) > 92.0:
+		search_target = -1
+		search_timer = 0.0
+		_set_message("Suche abgebrochen")
+		return
+	search_timer = maxf(0.0, search_timer - delta)
+	if search_timer <= 0.0:
+		_finish_search(search_target)
+		search_target = -1
+
+func _finish_search(index: int) -> void:
+	var stash: Dictionary = searchables[index]
+	stash["searched"] = true
+	searchables[index] = stash
+	var reward := str(stash["reward"])
+	if reward == "ammo":
+		reserve_ammo += int(stash.get("amount", 5))
+		score += 65
+		_set_message("Schublade: Munition gefunden")
+	elif reward == "herb":
+		hp = mini(MAX_HP, hp + int(stash.get("amount", 1)))
+		score += 55
+		_set_message("Schrank: Kraeuter gefunden")
+	elif reward == "key":
+		silver_keys += 1
+		score += 130
+		_set_message("Versteckter Schluessel")
+	elif reward == "evidence":
+		evidence += 1
+		score += 190
+		_set_message("Akte gefunden: Beweis %d/5" % evidence)
+	elif reward == "trap":
+		panic += 16.0
+		_make_noise(32.0, _searchable_center(stash))
+		_damage(1, "Laute Falle im Schrank")
+	elif reward == "ambush":
+		panic += 20.0
+		_spawn_enemy(_searchable_center(stash) + Vector2(54.0, 0.0), "crawler")
+		_make_noise(36.0, _searchable_center(stash))
+		_set_message("Etwas kam aus dem Dunkeln")
+
+func _searchable_center(stash: Dictionary) -> Vector2:
+	var rect: Rect2 = stash["rect"]
+	return rect.get_center()
+
+func _make_noise(amount: float, pos: Vector2) -> void:
+	if amount <= 0.0:
+		return
+	noise = minf(MAX_NOISE, noise + amount)
+	last_noise_pos = pos
+	last_noise_timer = 3.2
+
 func _update_enemies(delta: float) -> void:
 	for enemy in enemies:
 		if enemy["hp"] <= 0:
 			continue
 		enemy["attack"] = maxf(0.0, enemy["attack"] - delta)
+		enemy["stagger"] = maxf(0.0, float(enemy.get("stagger", 0.0)) - delta)
+		if float(enemy["stagger"]) > 0.0:
+			continue
 		var to_player: Vector2 = player_pos - enemy["pos"]
 		var dist: float = to_player.length()
 		var speed: float = enemy["speed"]
 		var dir := Vector2.ZERO
-		if dist < enemy["sense"] or panic > 25.0:
+		if _in_safe_zone(player_pos) and not _in_safe_zone(enemy["pos"]):
+			enemy["state"] = "prowl"
+			enemy["wander"] += delta * 0.65
+			dir = Vector2(cos(enemy["wander"]), sin(enemy["wander"] * 0.7)).normalized()
+		elif dist < enemy["sense"] or panic > 25.0:
+			enemy["state"] = "hunt"
 			dir = to_player.normalized()
+		elif last_noise_timer > 0.0 and enemy["pos"].distance_to(last_noise_pos) < float(enemy["sense"]) + noise * 4.2:
+			enemy["state"] = "search"
+			dir = (last_noise_pos - enemy["pos"]).normalized()
+			speed *= 0.82
 		else:
+			enemy["state"] = "patrol"
 			enemy["wander"] += delta
 			dir = Vector2(cos(enemy["wander"]), sin(enemy["wander"] * 0.7)).normalized()
 		var next_pos: Vector2 = enemy["pos"] + dir * speed * delta
 		if _enemy_can_stand(next_pos):
 			enemy["pos"] = next_pos
+		else:
+			var door_index := _closed_door_blocking(Rect2(next_pos - Vector2(18.0, 18.0), Vector2(36.0, 36.0)))
+			if door_index >= 0 and enemy["attack"] <= 0.0 and not _door_touches_safe_zone(doors[door_index]):
+				enemy["attack"] = 0.72
+				_batter_door(door_index, enemy)
 		var hit_range := float(enemy.get("radius", 18.0)) + PLAYER_RADIUS - 3.0
 		if dist < hit_range and enemy["attack"] <= 0.0:
 			enemy["attack"] = 1.05
 			_damage(2 if str(enemy.get("kind", "")) == "stalker" else 1, "Biss")
 
+func _closed_door_blocking(rect: Rect2) -> int:
+	for i in range(doors.size()):
+		var door: Dictionary = doors[i]
+		if not bool(door["open"]) and rect.intersects(door["rect"]):
+			return i
+	return -1
+
+func _door_touches_safe_zone(door: Dictionary) -> bool:
+	var center: Vector2 = door["rect"].get_center()
+	for zone in safe_zones:
+		if zone.grow(38.0).has_point(center):
+			return true
+	return false
+
+func _batter_door(index: int, enemy: Dictionary) -> void:
+	var door: Dictionary = doors[index]
+	var hp_left := int(door.get("hp", DOOR_BREAK_HITS)) - (2 if str(enemy.get("kind", "")) == "stalker" else 1)
+	door["hp"] = hp_left
+	door["rattle"] = 0.35
+	if hp_left <= 0:
+		door["open"] = true
+		door["locked"] = false
+		door["hp"] = DOOR_BREAK_HITS
+		panic += 12.0
+		_make_noise(24.0, door["rect"].get_center())
+		_set_message("Eine Tuer wurde aufgebrochen")
+	else:
+		panic += 4.0
+		_set_message("Etwas schlaegt gegen eine Tuer")
+	doors[index] = door
+
 func _enemy_can_stand(pos: Vector2) -> bool:
 	var rect := Rect2(pos - Vector2(16.0, 16.0), Vector2(32.0, 32.0))
+	if _in_safe_zone(pos):
+		return false
 	for wall in walls:
 		if rect.intersects(wall):
 			return false
@@ -459,13 +623,20 @@ func _update_bullets(delta: float) -> void:
 			continue
 		for enemy in enemies:
 			if enemy["hp"] > 0 and bullet["pos"].distance_to(enemy["pos"]) < 24.0:
-				enemy["hp"] -= 1
+				var damage := int(bullet.get("damage", 1))
+				enemy["hp"] -= damage
+				enemy["stagger"] = 0.46 if bool(bullet.get("focused", false)) else 0.18
+				var push_dir: Vector2 = (enemy["pos"] - bullet["pos"]).normalized()
+				if push_dir.length() > 0.1:
+					enemy["pos"] += push_dir * (18.0 + float(damage) * 8.0)
 				bullet["life"] = 0.0
 				panic += 3.0
-				score += 40
+				score += 65 if bool(bullet.get("focused", false)) else 40
 				if enemy["hp"] <= 0:
 					score += 160
 					_set_message("Gegner ausgeschaltet")
+				elif bool(bullet.get("focused", false)):
+					_set_message("Stagger-Treffer")
 				break
 		for barrier in barricades:
 			if barrier["hp"] > 0 and barrier["rect"].has_point(bullet["pos"]):
@@ -564,6 +735,9 @@ func _damage(amount: int, text: String) -> void:
 		return
 	hp -= amount
 	panic += 14.0
+	if reload_timer > 0.0:
+		reload_timer = 0.0
+		reload_pending = 0
 	invuln_timer = 0.8
 	_set_message(text)
 	if hp <= 0:
@@ -612,6 +786,9 @@ func _build_level() -> void:
 		{"rect": Rect2(1300, 560, 88, 38), "open": false, "locked": false, "hint": ""},
 		{"rect": Rect2(1690, 560, 88, 38), "open": false, "locked": true, "hint": ""},
 	]
+	for door in doors:
+		door["hp"] = DOOR_BREAK_HITS
+		door["rattle"] = 0.0
 	pickups = [
 		{"pos": Vector2(410, 1188), "kind": "ammo", "taken": false},
 		{"pos": Vector2(850, 1260), "kind": "herb", "taken": false},
@@ -637,6 +814,20 @@ func _build_level() -> void:
 		{"pos": Vector2(1110, 895), "phase": 0.3, "active": false},
 		{"pos": Vector2(1600, 760), "phase": 1.3, "active": false},
 		{"pos": Vector2(900, 455), "phase": 0.9, "active": false},
+	]
+	searchables = [
+		{"rect": Rect2(235, 1130, 58, 76), "reward": "ammo", "amount": 5, "searched": false, "label": "Kiste"},
+		{"rect": Rect2(700, 1215, 70, 54), "reward": "trap", "amount": 0, "searched": false, "label": "Schublade"},
+		{"rect": Rect2(1184, 1118, 74, 58), "reward": "evidence", "amount": 1, "searched": false, "label": "Akte"},
+		{"rect": Rect2(1620, 1168, 62, 72), "reward": "herb", "amount": 2, "searched": false, "label": "Schrank"},
+		{"rect": Rect2(312, 742, 70, 54), "reward": "ambush", "amount": 0, "searched": false, "label": "Vorhang"},
+		{"rect": Rect2(650, 720, 68, 62), "reward": "ammo", "amount": 6, "searched": false, "label": "Kommode"},
+		{"rect": Rect2(1185, 700, 78, 56), "reward": "key", "amount": 1, "searched": false, "label": "Sekretaer"},
+		{"rect": Rect2(1845, 718, 74, 64), "reward": "evidence", "amount": 1, "searched": false, "label": "Archiv"},
+		{"rect": Rect2(280, 290, 78, 58), "reward": "herb", "amount": 1, "searched": false, "label": "Tisch"},
+		{"rect": Rect2(760, 292, 82, 60), "reward": "evidence", "amount": 1, "searched": false, "label": "Dossier"},
+		{"rect": Rect2(1260, 312, 72, 58), "reward": "ammo", "amount": 4, "searched": false, "label": "Spind"},
+		{"rect": Rect2(1774, 302, 82, 62), "reward": "ambush", "amount": 0, "searched": false, "label": "Schatten"},
 	]
 	learn_gates = [
 		{"pos": Vector2(760, 900), "answer": 0, "cooldown": 0.0, "label": ""},
@@ -807,6 +998,14 @@ func _current_goal_pos() -> Vector2:
 			if dist < best_dist:
 				best_dist = dist
 				best = pickup["pos"]
+		for stash in searchables:
+			var item: Dictionary = stash
+			if bool(item["searched"]) or str(item["reward"]) != "evidence":
+				continue
+			var search_dist := player_pos.distance_to(_searchable_center(item))
+			if search_dist < best_dist:
+				best_dist = search_dist
+				best = _searchable_center(item)
 		return best
 	if silver_keys < 1:
 		var best_key := Vector2(1980, 250)
@@ -818,6 +1017,14 @@ func _current_goal_pos() -> Vector2:
 			if dist < best_key_dist:
 				best_key_dist = dist
 				best_key = pickup["pos"]
+		for stash in searchables:
+			var item: Dictionary = stash
+			if bool(item["searched"]) or str(item["reward"]) != "key":
+				continue
+			var search_dist := player_pos.distance_to(_searchable_center(item))
+			if search_dist < best_key_dist:
+				best_key_dist = search_dist
+				best_key = _searchable_center(item)
 		return best_key
 	return Vector2(1980, 250)
 
@@ -867,13 +1074,26 @@ func _draw_world(screen: Vector2) -> void:
 			color = Color(0.48, 0.32, 0.08)
 		if door["open"]:
 			color = Color(0.14, 0.30, 0.18)
-		draw_rect(Rect2(_world_to_screen(door["rect"].position), door["rect"].size), color)
+		var rattle_offset := Vector2(sin(float(door.get("rattle", 0.0)) * 70.0) * 3.0, 0.0)
+		var door_rect := Rect2(_world_to_screen(door["rect"].position) + rattle_offset, door["rect"].size)
+		draw_rect(door_rect, color)
+		if not bool(door["open"]) and int(door.get("hp", DOOR_BREAK_HITS)) < DOOR_BREAK_HITS:
+			draw_rect(Rect2(door_rect.position, Vector2(door_rect.size.x * float(door.get("hp", 1)) / float(DOOR_BREAK_HITS), 4.0)), Color(0.95, 0.18, 0.14))
 	for barrier in barricades:
 		if barrier["hp"] > 0:
 			draw_rect(Rect2(_world_to_screen(barrier["rect"].position), barrier["rect"].size), Color(0.45, 0.25, 0.12))
 	for trap in traps:
 		var trap_color := Color(0.8, 0.12, 0.1, 0.85) if trap["active"] else Color(0.25, 0.2, 0.18, 0.8)
 		draw_circle(_world_to_screen(trap["pos"]), 24.0, trap_color)
+	for stash in searchables:
+		var item: Dictionary = stash
+		var rect: Rect2 = item["rect"]
+		var screen_rect := Rect2(_world_to_screen(rect.position), rect.size)
+		var searched := bool(item["searched"])
+		draw_rect(screen_rect, Color(0.20, 0.15, 0.11) if not searched else Color(0.09, 0.08, 0.08))
+		draw_rect(screen_rect, Color(0.66, 0.50, 0.32, 0.78) if not searched else Color(0.25, 0.23, 0.22, 0.6), false, 2.0)
+		if not searched:
+			draw_rect(Rect2(screen_rect.position + Vector2(8.0, screen_rect.size.y * 0.5 - 2.0), Vector2(screen_rect.size.x - 16.0, 4.0)), Color(0.95, 0.78, 0.42, 0.8))
 	draw_rect(Rect2(_world_to_screen(Vector2(1905, 205)), Vector2(160, 78)), Color(0.22, 0.16, 0.38))
 	draw_string(get_theme_default_font(), _world_to_screen(Vector2(1920, 252)), "EXIT", HORIZONTAL_ALIGNMENT_CENTER, 130.0, 22, Color(1.0, 0.92, 0.55))
 
@@ -915,6 +1135,11 @@ func _draw_entities(screen: Vector2) -> void:
 		draw_circle(pos, radius, enemy.get("color", Color(0.47, 0.09, 0.11)))
 		if str(enemy.get("kind", "")) == "stalker":
 			draw_arc(pos, radius + 7.0, -0.6, TAU - 0.6, 36, Color(0.96, 0.45, 0.72, 0.65), 2.0)
+		var state := str(enemy.get("state", "patrol"))
+		if state == "hunt":
+			draw_string(font, pos + Vector2(-8, -radius - 10), "!", HORIZONTAL_ALIGNMENT_CENTER, 16.0, 16, Color(1.0, 0.25, 0.18))
+		elif state == "search":
+			draw_string(font, pos + Vector2(-8, -radius - 10), "?", HORIZONTAL_ALIGNMENT_CENTER, 16.0, 16, Color(1.0, 0.88, 0.38))
 		draw_circle(pos + Vector2(6, -5), 4.0, Color(1.0, 0.84, 0.65))
 		draw_rect(Rect2(pos + Vector2(-18, radius + 7.0), Vector2(36.0 * enemy["hp"] / max(1.0, float(enemy.get("max_hp", 2))), 4.0)), Color(0.78, 0.05, 0.08))
 	var p := _world_to_screen(player_pos)
@@ -935,9 +1160,9 @@ func _draw_lighting(screen: Vector2) -> void:
 
 func _draw_hud(screen: Vector2) -> void:
 	var font := get_theme_default_font()
-	var hud_w := minf(430.0, screen.x - 16.0)
+	var hud_w := minf(470.0, screen.x - 16.0)
 	var text_w := maxf(220.0, hud_w - 34.0)
-	draw_rect(Rect2(8, 8, hud_w, 132), Color(0.02, 0.03, 0.05, 0.76))
+	draw_rect(Rect2(8, 8, hud_w, 154), Color(0.02, 0.03, 0.05, 0.76))
 	draw_string(font, Vector2(20, 28), "FASKA MANSION PRO", HORIZONTAL_ALIGNMENT_LEFT, text_w, 15, Color(1.0, 0.94, 0.78))
 	draw_string(font, Vector2(20, 52), "HP %d/%d  Ammo %d/%d  Key %d  Score %d" % [hp, MAX_HP, ammo, reserve_ammo, silver_keys, score], HORIZONTAL_ALIGNMENT_LEFT, text_w, 13, Color.WHITE)
 	draw_string(font, Vector2(20, 74), "%s  Mode %s  Fach %s" % [_objective_text(), "Learncade" if learn_mode else "Normal", str(LESSONS[lesson_index])], HORIZONTAL_ALIGNMENT_LEFT, text_w, 13, Color.WHITE)
@@ -946,13 +1171,18 @@ func _draw_hud(screen: Vector2) -> void:
 	draw_rect(Rect2(20, 110, 150.0 * stamina / MAX_STAMINA, 8), Color(0.25, 0.75, 0.95))
 	draw_rect(Rect2(20, 124, 150, 8), Color(0.16, 0.18, 0.20))
 	draw_rect(Rect2(20, 124, 150.0 * minf(100.0, panic) / 100.0, 8), Color(0.92, 0.25, 0.18))
+	draw_rect(Rect2(20, 138, 150, 8), Color(0.16, 0.18, 0.20))
+	draw_rect(Rect2(20, 138, 150.0 * noise / MAX_NOISE, 8), Color(0.95, 0.78, 0.28))
+	draw_string(font, Vector2(186, 145), "Noise %d  Panic %d" % [int(noise), int(panic)], HORIZONTAL_ALIGNMENT_LEFT, text_w - 180.0, 12, Color(0.95, 0.88, 0.68))
 	_draw_minimap(screen)
 	if message_timer > 0.0 or learn_mode:
 		var panel_y := 58.0 if learn_mode else 12.0
 		draw_rect(Rect2(screen.x * 0.5 - 280, panel_y, 560, 44), Color(0.02, 0.03, 0.05, 0.62))
 		draw_string(font, Vector2(screen.x * 0.5 - 260, panel_y + 28.0), message, HORIZONTAL_ALIGNMENT_CENTER, 520.0, 16, Color(1.0, 0.94, 0.74))
 	if reload_timer > 0.0:
-		draw_string(font, Vector2(screen.x * 0.5 - 80, screen.y - 120), "RELOAD", HORIZONTAL_ALIGNMENT_CENTER, 160.0, 22, Color(1.0, 0.86, 0.45))
+		draw_string(font, Vector2(screen.x * 0.5 - 120, screen.y - 120), "RELOAD %.1f" % reload_timer, HORIZONTAL_ALIGNMENT_CENTER, 240.0, 22, Color(1.0, 0.86, 0.45))
+	if search_target >= 0:
+		draw_string(font, Vector2(screen.x * 0.5 - 120, screen.y - 88), "SUCHE %.1f" % search_timer, HORIZONTAL_ALIGNMENT_CENTER, 240.0, 22, Color(0.75, 0.92, 1.0))
 	if escaped:
 		draw_rect(Rect2(Vector2.ZERO, screen), Color(0.0, 0.0, 0.0, 0.72))
 		draw_string(font, Vector2(screen.x * 0.5 - 260, screen.y * 0.5 - 18), "AUSGANG GESCHAFFT - SCORE %d" % score, HORIZONTAL_ALIGNMENT_CENTER, 520.0, 26, Color(1.0, 0.92, 0.55))
@@ -974,6 +1204,14 @@ func _draw_minimap(screen: Vector2) -> void:
 		var color := Color(0.68, 0.43, 1.0) if pickup["kind"] == "evidence" else Color(0.85, 0.85, 0.4)
 		var p := origin + Vector2(pickup["pos"].x / WORLD_SIZE.x * map_size.x, pickup["pos"].y / WORLD_SIZE.y * map_size.y)
 		draw_circle(p, 2.5, color)
+	for stash in searchables:
+		var item: Dictionary = stash
+		if bool(item["searched"]):
+			continue
+		var color := Color(0.68, 0.43, 1.0) if str(item["reward"]) == "evidence" else Color(0.95, 0.78, 0.42)
+		var center := _searchable_center(item)
+		var p := origin + Vector2(center.x / WORLD_SIZE.x * map_size.x, center.y / WORLD_SIZE.y * map_size.y)
+		draw_rect(Rect2(p - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), color)
 	var gp := _current_goal_pos()
 	draw_circle(origin + Vector2(gp.x / WORLD_SIZE.x * map_size.x, gp.y / WORLD_SIZE.y * map_size.y), 4.0, Color(1.0, 0.88, 0.35))
 	draw_circle(origin + Vector2(player_pos.x / WORLD_SIZE.x * map_size.x, player_pos.y / WORLD_SIZE.y * map_size.y), 3.5, Color(0.25, 0.84, 1.0))

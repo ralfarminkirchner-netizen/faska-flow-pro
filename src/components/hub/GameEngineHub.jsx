@@ -197,12 +197,12 @@ const GAMES = [
   {
     id: 'kart',
     name: 'Faska Kart Pro',
-    description: 'FASKA-FLOW-Canvas-Kart-Racer nach Mario-Kart-Prinzip mit Rundkurs, Platzierung, Drift-Tiers, Mini-/Super-Turbos, Windschatten, Apex-Gates, Shortcuts, Hazards, Rivalen, Items, Rakete, Schild, Oelspur, Racecraft-Wertung, rotierenden Rennauftraegen, Touchsteuerung und Learncade-Wortarten-Gates!',
+    description: 'FASKA-FLOW-3D-Kart-Racer nach Mario-Kart-/Ridge-Racer-Prinzip mit Rundkurs, Platzierung, Drift-Tiers, Mini-/Super-Turbos, Turbo-Ketten, Windschatten, Apex-Gates, Shortcuts, Hazards, Rivalen, Items, Rakete, Schild, Oelspur, Racecraft-Wertung, rotierenden Rennauftraegen, Touchsteuerung und Learncade-Wortarten-Gates!',
     emoji: '🏎️',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
     path: '/game/kart',
-    engine: 'Canvas',
+    engine: 'React Three Fiber',
   },
   {
     id: 'rally',

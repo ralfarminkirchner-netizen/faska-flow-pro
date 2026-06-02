@@ -149,6 +149,11 @@ function RaceHUD() {
   const bestLapTime = useKartStore(s => s.bestLapTime);
   const slipstreamCharge = useKartStore(s => s.slipstreamCharge);
   const slipstreamTimer = useKartStore(s => s.slipstreamTimer);
+  const turboChain = useKartStore(s => s.turboChain);
+  const turboChainTimer = useKartStore(s => s.turboChainTimer);
+  const turboChainPeak = useKartStore(s => s.turboChainPeak);
+  const turboChainSource = useKartStore(s => s.turboChainSource);
+  const turboChainPulseTimer = useKartStore(s => s.turboChainPulseTimer);
   const stats = useKartStore(s => s.stats);
   const finished = useKartStore(s => s.finished);
   const itemSlot = useKartStore(s => s.itemSlot);
@@ -268,8 +273,8 @@ function RaceHUD() {
         </div>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 7,
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: 6,
           marginTop: 12,
         }}>
           {[
@@ -277,19 +282,58 @@ function RaceHUD() {
             ['CLEAN', cleanSectorStreak],
             ['WIND', slipstreamTimer > 0 ? `${Math.round(slipstreamCharge * 100)}%` : (stats?.slipstreams ?? 0)],
             ['CUT', stats?.shortcuts ?? 0],
+            ['CHAIN', turboChain > 0 ? `x${turboChain}` : turboChainPeak],
           ].map(([label, value]) => (
             <div key={label} style={{
               borderRadius: 11,
-              padding: '7px 8px',
-              background: 'rgba(15, 23, 42, 0.62)',
-              border: '1px solid rgba(148, 163, 184, 0.14)',
+              padding: '7px 6px',
+              background: label === 'CHAIN' && turboChain > 1 ? 'rgba(245, 158, 11, 0.18)' : 'rgba(15, 23, 42, 0.62)',
+              border: label === 'CHAIN' && turboChain > 1 ? '1px solid rgba(251, 191, 36, 0.48)' : '1px solid rgba(148, 163, 184, 0.14)',
               textAlign: 'center',
+              transform: label === 'CHAIN' && turboChainPulseTimer > 0 ? 'scale(1.06)' : 'scale(1)',
+              transition: 'transform 0.14s ease, background 0.14s ease, border 0.14s ease',
             }}>
               <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 900 }}>{label}</div>
               <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 900 }}>{value}</div>
             </div>
           ))}
         </div>
+        {turboChain > 0 && (
+          <div style={{
+            marginTop: 10,
+            padding: '8px 10px',
+            borderRadius: 12,
+            background: 'rgba(120, 53, 15, 0.35)',
+            border: '1px solid rgba(251, 191, 36, 0.24)',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              fontSize: 10,
+              color: '#fef3c7',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+            }}>
+              <span>Turbo-Kette x{turboChain}</span>
+              <span>{turboChainSource || 'Turbo'}</span>
+            </div>
+            <div style={{
+              height: 6,
+              marginTop: 6,
+              borderRadius: 999,
+              background: 'rgba(15, 23, 42, 0.86)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${Math.min(1, turboChainTimer / 3.6) * 100}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #f97316, #facc15, #22d3ee)',
+              }} />
+            </div>
+          </div>
+        )}
         <div style={{
           marginTop: 10,
           display: 'flex',
@@ -604,6 +648,7 @@ function RaceHUD() {
             margin: '-6px 0 0',
           }}>
             Racecraft {racecraft} {racecraftGrade} • Best Lap {formatDuration(bestLapTime)}
+            {turboChainPeak > 1 ? ` • Beste Kette x${turboChainPeak}` : ''}
           </p>
           <button
             onClick={() => useKartStore.getState().startRace()}

@@ -110,6 +110,7 @@ const KART_GOALS = [
   { id: 'clean-4', label: '4 saubere Sektoren', type: 'cleanSectors', target: 4, reward: 520 },
   { id: 'slip-4', label: '4 Windschatten', type: 'slipstreams', target: 4, reward: 500 },
   { id: 'cut-3', label: '3 Shortcuts', type: 'shortcuts', target: 3, reward: 520 },
+  { id: 'chain-6', label: '6 Turbo-Ketten', type: 'turboChains', target: 6, reward: 560 },
   { id: 'hazard-3', label: '3 Hazards blocken', type: 'hazardEvades', target: 3, reward: 480 },
   { id: 'rivals-2', label: '2 Rivalen stoeren', type: 'rivalHits', target: 2, reward: 480 },
   { id: 'boost-4', label: '4 Boost-Pads', type: 'boostPads', target: 4, reward: 360 },
@@ -123,6 +124,7 @@ const KART_CONTRACTS = [
   { id: 'clean-2', label: '2 saubere Sektoren', type: 'cleanSectors', target: 2, duration: 46, reward: { score: 440, boost: 1, racecraft: 12 } },
   { id: 'draft-1', label: '1 Windschatten-Schub', type: 'slipstreams', target: 1, duration: 48, reward: { score: 430, boostTimer: 0.9, racecraft: 9 } },
   { id: 'shortcut-1', label: '1 Shortcut nehmen', type: 'shortcuts', target: 1, duration: 44, reward: { score: 390, boostTimer: 0.85, racecraft: 8 } },
+  { id: 'chain-3', label: '3 Turbo-Ketten verbinden', type: 'turboChains', target: 3, duration: 46, reward: { score: 520, boostTimer: 1.1, racecraft: 14 } },
   { id: 'hazard-1', label: '1 Hazard blocken', type: 'hazardEvades', target: 1, duration: 52, reward: { score: 400, shield: 2, racecraft: 10 } },
   { id: 'rival-1', label: '1 Rivalen stoeren', type: 'rivalHits', target: 1, duration: 50, reward: { score: 430, boost: 1, racecraft: 10 } },
   { id: 'pad-2', label: '2 Boost-Pads treffen', type: 'boostPads', target: 2, duration: 40, reward: { score: 320, boost: 1, racecraft: 7 } },
@@ -141,6 +143,7 @@ const createKartStats = () => ({
   cleanLaps: 0,
   slipstreams: 0,
   shortcuts: 0,
+  turboChains: 0,
   hazardEvades: 0,
 });
 const createKartGoals = (mode) => KART_GOALS
@@ -216,6 +219,11 @@ const useKartStore = createGameStore(
     slipstreamCharge: 0,
     slipstreamTimer: 0,
     slipstreamCooldown: 0,
+    turboChain: 0,
+    turboChainTimer: 0,
+    turboChainPeak: 0,
+    turboChainSource: '',
+    turboChainPulseTimer: 0,
     shortcutCooldown: 0,
     hazardCooldown: 0,
     rivalShockTimer: 0,
@@ -402,6 +410,7 @@ const useKartStore = createGameStore(
         boostTimer: 1.5, // seconds
         boostCount: state.boostCount - 1,
       });
+      get().registerTurboChain('Hand-Turbo', { boostTimer: 0.12, score: 25 });
     },
 
     collectItemBox: () => {
@@ -430,6 +439,7 @@ const useKartStore = createGameStore(
           raceMessageTimer: 0.9,
           itemSlot: null,
         });
+        get().registerTurboChain('Item-Turbo', { boostTimer: 0.22, score: 35 });
       } else if (state.itemSlot === 'shield') {
         set({
           shieldTimer: 4,
@@ -470,6 +480,7 @@ const useKartStore = createGameStore(
     updateBoost: (dt) => {
       const state = get();
       const nextMiniTurboTimer = Math.max(0, state.miniTurboTimer - dt);
+      const nextTurboChainTimer = Math.max(0, state.turboChainTimer - dt);
       const baseTimers = {
         miniTurboTimer: nextMiniTurboTimer,
         raceMessageTimer: Math.max(0, state.raceMessageTimer - dt),
@@ -481,6 +492,10 @@ const useKartStore = createGameStore(
         completedGoalTimer: Math.max(0, state.completedGoalTimer - dt),
         rivalBumpCooldown: Math.max(0, state.rivalBumpCooldown - dt),
         slipstreamCooldown: Math.max(0, state.slipstreamCooldown - dt),
+        turboChainTimer: nextTurboChainTimer,
+        turboChain: nextTurboChainTimer > 0 ? state.turboChain : 0,
+        turboChainSource: nextTurboChainTimer > 0 ? state.turboChainSource : '',
+        turboChainPulseTimer: Math.max(0, state.turboChainPulseTimer - dt),
         shortcutCooldown: Math.max(0, state.shortcutCooldown - dt),
         hazardCooldown: Math.max(0, state.hazardCooldown - dt),
       };
@@ -509,6 +524,46 @@ const useKartStore = createGameStore(
         raceMessageTimer: 0.7,
       });
       get().recordStat('boostPads');
+      get().registerTurboChain('Boost-Pad', { boostTimer: 0.18, score: 30 });
+    },
+
+    registerTurboChain: (source = 'Turbo', bonus = {}) => {
+      const state = get();
+      if (state.finished || !state.raceStarted || state.isPaused) return;
+      const chained = state.turboChainTimer > 0 && state.turboChain > 0;
+      const turboChain = chained ? state.turboChain + 1 : 1;
+      const chainScore = chained ? 42 + turboChain * 18 + (bonus.score ?? 0) : (bonus.score ?? 0);
+      const chainRacecraft = chained ? Math.min(30, 5 + turboChain * 3) : 2;
+      const boostBonus = turboChain >= 3
+        ? Math.min(1.05, 0.18 + turboChain * 0.08 + (bonus.boostTimer ?? 0))
+        : (bonus.boostTimer ?? 0);
+      const nextBoostTimer = boostBonus > 0
+        ? Math.max(state.boostTimer, boostBonus)
+        : state.boostTimer;
+      const message = turboChain >= 2
+        ? `Turbo-Kette x${turboChain}: ${source}`
+        : `${source} bereit`;
+
+      set({
+        turboChain,
+        turboChainTimer: 3.6,
+        turboChainPeak: Math.max(state.turboChainPeak, turboChain),
+        turboChainSource: source,
+        turboChainPulseTimer: 0.38,
+        boostActive: boostBonus > 0 ? true : state.boostActive,
+        boostTimer: nextBoostTimer,
+        playerSpeed: turboChain >= 3 ? Math.max(state.playerSpeed, 12.6 + turboChain * 0.35) : state.playerSpeed,
+        racecraft: clamp(state.racecraft + chainRacecraft, 0, 999),
+        raceMessage: message,
+        raceMessageTimer: turboChain >= 2 ? 1.05 : 0.68,
+      });
+
+      if (chained) {
+        get().recordStat('turboChains');
+        get().addScore(chainScore);
+      } else if (chainScore > 0) {
+        get().addScore(chainScore);
+      }
     },
 
     updateSlipstream: (dt, intensity = 0) => {
@@ -537,6 +592,7 @@ const useKartStore = createGameStore(
           raceMessageTimer: 0.95,
         });
         get().recordStat('slipstreams');
+        get().registerTurboChain('Windschatten', { boostTimer: 0.2, score: 40 });
         get().addScore(130);
         return;
       }
@@ -564,6 +620,7 @@ const useKartStore = createGameStore(
         raceMessageTimer: 0.85,
       });
       get().recordStat('shortcuts');
+      get().registerTurboChain(gate.label, { boostTimer: 0.16, score: 45 });
       get().addScore(gate.reward ?? 110);
     },
 
@@ -660,6 +717,10 @@ const useKartStore = createGameStore(
       if (turboReady) {
         get().recordStat('miniTurbos');
         if (superTurbo) get().recordStat('superMiniTurbos');
+        get().registerTurboChain(superTurbo ? 'Super-Drift' : 'Mini-Turbo', {
+          boostTimer: superTurbo ? 0.3 : 0.14,
+          score: superTurbo ? 45 : 25,
+        });
         get().addScore(superTurbo ? 110 : 55);
       }
     },
@@ -704,6 +765,7 @@ const useKartStore = createGameStore(
         playerSpeed: comboBoost ? Math.max(state.playerSpeed, 12.8) : state.playerSpeed,
       });
       get().recordStat('apexHits');
+      get().registerTurboChain(comboBoost ? 'Apex-Kette' : `${gate.label} Apex`, { boostTimer: comboBoost ? 0.18 : 0, score: 20 });
       get().addScore(70 + apexCombo * 12);
     },
 
@@ -760,6 +822,7 @@ const useKartStore = createGameStore(
           raceMessageTimer: 1.35,
         });
         get().recordStat('learnCorrect');
+        get().registerTurboChain('Wort-Gate', { boostTimer: 0.2, score: 55 });
         get().addScore(180 + streak * 60);
       } else {
         set({
@@ -962,6 +1025,11 @@ const useKartStore = createGameStore(
         slipstreamCharge: 0,
         slipstreamTimer: 0,
         slipstreamCooldown: 0,
+        turboChain: 0,
+        turboChainTimer: 0,
+        turboChainPeak: 0,
+        turboChainSource: '',
+        turboChainPulseTimer: 0,
         shortcutCooldown: 0,
         hazardCooldown: 0,
         rivalShockTimer: 0,

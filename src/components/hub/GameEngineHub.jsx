@@ -147,7 +147,7 @@ const GAMES = [
   {
     id: 'fighter',
     name: 'Faska Fighter Pro',
-    description: 'FASKA-FLOW-Canvas-1v1-Fighter mit Normalmodus zuerst, Best-of-3-Runden, Blocken, Guard-Breaks, Counter-Hits, Low/Mid-Mixups, Jab/Kick/Low/Throw/Super, Parry-Fenster, Throw-Tech, Launcher, Wall-Splats, rotierenden Kampfauftraegen, Timer-Belohnungen, Supermeter, Touchsteuerung und zuschaltbaren Learncade-Kristallen!',
+    description: 'FASKA-FLOW-Canvas-1v1-Fighter mit Normalmodus zuerst, Best-of-3-Runden, Blocken, Guard-Breaks, Counter-Hits, Low/Mid-Mixups, Jab/Kick/Low/Throw/Super, Parry-Fenster, Throw-Tech, Launcher, Wall-Splats, Pressure-Drive fuer offensiven Rhythmus, rotierenden Kampfauftraegen, Timer-Belohnungen, Supermeter, Touchsteuerung und zuschaltbaren Learncade-Kristallen!',
     emoji: '🥊',
     category: 'Fighting',
     gradient: 'linear-gradient(135deg, #e11d48, #7c2d12)',

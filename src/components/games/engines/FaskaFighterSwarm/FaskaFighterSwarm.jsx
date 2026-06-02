@@ -36,6 +36,8 @@ const FIGHTER_KEY_BINDINGS = new Map([
 
 const FIGHTER_TAP_INPUTS = new Set(['light', 'heavy', 'special', 'ex', 'super', 'throw', 'parry', 'dash']);
 const FIGHTER_INPUT_BUFFER_MS = 140;
+const DRIVE_MAX = 100;
+const DRIVE_DURATION = 7;
 
 const LEARN_PROMPTS = [
   {
@@ -148,6 +150,7 @@ const STYLE_GOALS = [
   { id: 'break-1', label: 'Guard Break', type: 'guardBreaks', target: 1, reward: 500 },
   { id: 'cancel-2', label: '2 Special-Cancels', type: 'cancels', target: 2, reward: 520 },
   { id: 'ex-1', label: 'EX-Technik', type: 'exMoves', target: 1, reward: 540 },
+  { id: 'drive-1', label: 'Pressure-Drive', type: 'driveActivations', target: 1, reward: 620 },
   { id: 'super-1', label: 'Super landen', type: 'supers', target: 1, reward: 640 },
   { id: 'learn-2', label: 'Lernfragen sichern', type: 'learns', target: 2, reward: 460, learnOnly: true },
 ];
@@ -161,6 +164,7 @@ const FIGHT_CONTRACTS = [
   { id: 'counter-1', label: '1 Counter-Hit treffen', type: 'counters', target: 1, duration: 44, reward: { score: 380, meter: 22 } },
   { id: 'launcher-1', label: '1 Launcher starten', type: 'launchers', target: 1, duration: 46, reward: { score: 390, meter: 24 } },
   { id: 'cancel-1', label: '1 Special-Cancel schaffen', type: 'cancels', target: 1, duration: 48, reward: { score: 420, meter: 26 } },
+  { id: 'drive-1', label: '1 Pressure-Drive starten', type: 'driveActivations', target: 1, duration: 58, reward: { score: 520, meter: 28, stamina: 30, drive: 18 } },
   { id: 'break-1', label: '1 Guard Break erzwingen', type: 'guardBreaks', target: 1, duration: 56, reward: { score: 460, meter: 30, stamina: 20 } },
   { id: 'learn-1', label: '1 Lernkristall sichern', type: 'learns', target: 1, duration: 52, reward: { score: 360, meter: 20, stamina: 24 }, learnOnly: true },
 ];
@@ -272,6 +276,11 @@ function makeInitialGame(mode = 'arcade') {
     enemyRounds: 0,
     roundPause: 0,
     lastRoundWinner: null,
+    drive: {
+      value: 12,
+      timer: 0,
+      best: 12,
+    },
     stats: {
       bestCombo: 0,
       dashes: 0,
@@ -288,6 +297,8 @@ function makeInitialGame(mode = 'arcade') {
       exMoves: 0,
       supers: 0,
       learns: 0,
+      driveActivations: 0,
+      pressure: 0,
     },
     goals: STYLE_GOALS
       .filter((goal) => mode === 'learn' || !goal.learnOnly)
@@ -330,6 +341,7 @@ function applyFightReward(game, reward = {}) {
   game.player.meter = clamp(game.player.meter + (reward.meter || 0), 0, 100);
   game.player.stamina = clamp(game.player.stamina + (reward.stamina || 0), 0, 100);
   game.player.health = clamp(game.player.health + (reward.health || 0), 0, 100);
+  if (reward.drive) addDrivePressure(game, reward.drive, game.player.x, game.player.y - 170, 'DRIVE +');
 }
 
 function startFightContract(game) {
@@ -404,6 +416,54 @@ function completeStyleGoal(game, goal) {
 
 function evaluateStyleGoals(game) {
   game.goals.forEach((goal) => completeStyleGoal(game, goal));
+}
+
+function activateDrive(game) {
+  if (!game.drive || game.drive.timer > 0) return;
+  game.drive.value = 0;
+  game.drive.timer = DRIVE_DURATION;
+  game.stats.driveActivations += 1;
+  game.player.meter = clamp(game.player.meter + 18, 0, 100);
+  game.player.stamina = 100;
+  game.player.score += 280;
+  game.message = 'Pressure Drive!';
+  game.messageTimer = 1.0;
+  addFloater(game, game.player.x, game.player.y - 190, 'DRIVE', '#fef08a');
+  spawnSpark(game, game.player.x, game.player.y - 100, '#fef08a', 22);
+  evaluateStyleGoals(game);
+}
+
+function addDrivePressure(game, amount, x = game.player.x, y = game.player.y - 164, label = null) {
+  if (!game.drive || game.phase !== 'fight' || amount <= 0) return;
+  if (game.drive.timer > 0) {
+    game.player.score += Math.round(amount * 8);
+    return;
+  }
+  const next = clamp(game.drive.value + amount, 0, DRIVE_MAX);
+  game.drive.value = next;
+  game.drive.best = Math.max(game.drive.best, next);
+  game.stats.pressure += amount;
+  if (label && amount >= 10) addFloater(game, x, y, label, '#fef08a');
+  if (next >= DRIVE_MAX) activateDrive(game);
+}
+
+function updateDrive(game, input, dt) {
+  if (!game.drive || game.phase !== 'fight') return;
+  if (game.drive.timer > 0) {
+    game.drive.timer = Math.max(0, game.drive.timer - dt);
+    if (game.drive.timer <= 0) {
+      game.message = 'Drive endet';
+      game.messageTimer = Math.max(game.messageTimer, 0.55);
+    }
+    return;
+  }
+
+  const player = game.player;
+  const forward = (player.facing > 0 && input.right) || (player.facing < 0 && input.left);
+  const retreat = (player.facing > 0 && input.left) || (player.facing < 0 && input.right);
+  const canBuild = player.grounded && player.guard <= 0 && player.hitstun <= 0;
+  if (forward && canBuild) addDrivePressure(game, 6.5 * dt, player.x, player.y - 160);
+  if (retreat && canBuild) game.drive.value = Math.max(0, game.drive.value - 5.2 * dt);
 }
 
 function drawRoundedRect(ctx, x, y, w, h, r) {
@@ -625,6 +685,7 @@ function tryCancelAttack(game, fighter, type) {
   if (fighter.id === 'player') {
     game.stats.cancels += 1;
     fighter.score += type === 'super' ? 260 : type === 'ex' ? 210 : 150;
+    addDrivePressure(game, type === 'super' ? 20 : type === 'ex' ? 16 : 12, fighter.x, fighter.y - 170, 'DRIVE +');
     evaluateStyleGoals(game);
   }
   return true;
@@ -689,6 +750,7 @@ function tryThrow(game, attacker, defender) {
       game.stats.throwTechs += 1;
       defender.score += 150;
       defender.meter = clamp(defender.meter + 18, 0, 100);
+      addDrivePressure(game, 12, defender.x, defender.y - 164, 'TECH +');
       evaluateStyleGoals(game);
     }
     return true;
@@ -708,6 +770,7 @@ function tryThrow(game, attacker, defender) {
   if (attacker.id === 'player') {
     attacker.score += 170 + attacker.combo * 24;
     game.stats.throws += 1;
+    addDrivePressure(game, 14, attacker.x, attacker.y - 166, 'PRESSURE');
     evaluateStyleGoals(game);
   }
   spawnSpark(game, defender.x, defender.y - 92, '#facc15', 14);
@@ -747,6 +810,7 @@ function applyHit(game, attacker, defender, hitbox) {
     if (defender.id === 'player') {
       game.stats.parries += 1;
       defender.score += 120;
+      addDrivePressure(game, 18, defender.x, defender.y - 162, 'PARRY +');
       evaluateStyleGoals(game);
     }
     attacker.attack = null;
@@ -758,6 +822,7 @@ function applyHit(game, attacker, defender, hitbox) {
   const blocking = facingBlock && blockHeightMatches;
   const knowledgeBonus = attacker.knowledge > 0 ? 1.35 : 1;
   const enemyScale = attacker.id === 'enemy' ? 0.58 : 1;
+  const driveBonus = attacker.id === 'player' && game.drive?.timer > 0 ? 1.18 : 1;
   const counterHit = defender.attack && defender.attack.timer < defender.attack.startup + defender.attack.active && !blocking;
   const whiffPunish = defender.attack
     && !defender.attack.hasHit
@@ -767,7 +832,7 @@ function applyHit(game, attacker, defender, hitbox) {
   const wallSplat = !blocking
     && ['heavy', 'launcher', 'special', 'ex', 'super'].includes(hitbox.kind)
     && (projectedX < 102 || projectedX > WIDTH - 102);
-  let damage = hitbox.damage * knowledgeBonus * enemyScale;
+  let damage = hitbox.damage * knowledgeBonus * enemyScale * driveBonus;
   let stun = hitbox.stun;
   if (counterHit) {
     damage *= 1.24;
@@ -804,10 +869,13 @@ function applyHit(game, attacker, defender, hitbox) {
       if (attacker.id === 'player') {
         game.stats.guardBreaks += 1;
         attacker.score += 160;
+        addDrivePressure(game, 18, attacker.x, attacker.y - 166, 'BREAK +');
         evaluateStyleGoals(game);
       }
     } else {
       game.message = 'Block!';
+      if (attacker.id === 'player') addDrivePressure(game, 4, attacker.x, attacker.y - 164);
+      if (defender.id === 'player') addDrivePressure(game, 3, defender.x, defender.y - 150);
     }
     game.messageTimer = 0.45;
     spawnSpark(game, defender.x, defender.y - 92, '#93c5fd', 5);
@@ -839,6 +907,20 @@ function applyHit(game, attacker, defender, hitbox) {
       if (whiffPunish) game.stats.whiffPunishes += 1;
       if (hitbox.kind === 'ex') game.stats.exMoves += 1;
       if (hitbox.kind === 'super') game.stats.supers += 1;
+      addDrivePressure(
+        game,
+        7 + attacker.combo * 2
+          + (counterHit ? 7 : 0)
+          + (whiffPunish ? 8 : 0)
+          + (wallSplat ? 8 : 0)
+          + (hitbox.launcher ? 6 : 0)
+          + (hitbox.kind === 'ex' ? 6 : 0)
+          + (hitbox.kind === 'super' ? 15 : 0),
+        defender.x,
+        defender.y - 178,
+        counterHit || whiffPunish || wallSplat || hitbox.launcher ? 'DRIVE +' : null,
+      );
+      if (game.drive?.timer > 0) attacker.meter = clamp(attacker.meter + 4, 0, 100);
       evaluateStyleGoals(game);
     }
     attacker.score += Math.round(damage * 12) + attacker.combo * 18;
@@ -945,6 +1027,7 @@ function updatePlayer(game, input, dt) {
       game.stats.dashes += 1;
       game.message = dashDir === player.facing ? 'Dash!' : 'Backdash!';
       game.messageTimer = 0.35;
+      if (dashDir === player.facing) addDrivePressure(game, 4, player.x, player.y - 156);
     }
   }
 
@@ -1056,6 +1139,7 @@ function updateLearnOrbs(game, dt) {
       game.promptIndex += 1;
       game.message = `${prompt.word}: ${prompt.answer}`;
       game.messageTimer = 1.35;
+      addDrivePressure(game, 16, orb.x, orb.y - 52, 'LEARN +');
       spawnSpark(game, orb.x, orb.y, '#5eead4', 12);
       evaluateStyleGoals(game);
     } else {
@@ -1111,6 +1195,10 @@ function startNextRound(game) {
   game.activeContract = null;
   game.contractTimer = 0;
   game.contractCooldown = 1.25;
+  if (game.drive) {
+    game.drive.value = clamp(game.drive.value * 0.45, 0, 62);
+    game.drive.timer = 0;
+  }
   resetFighterForRound(game.player, 360, 1);
   resetFighterForRound(game.enemy, 920, -1);
 }
@@ -1143,6 +1231,7 @@ function finishRound(game, onFinish) {
       playerRounds: game.playerRounds,
       enemyRounds: game.enemyRounds,
       round: game.round,
+      driveActivations: game.stats.driveActivations,
     });
   }
 }
@@ -1171,6 +1260,7 @@ function updateGame(game, input, dt, onFinish) {
   updateFighterPhysics(game.player, simDt);
   updateFighterPhysics(game.enemy, simDt);
   resolveFighterPushback(game);
+  updateDrive(game, input, dt);
 
   const playerHit = attackHitbox(game.player);
   const enemyHit = attackHitbox(game.enemy);
@@ -1306,16 +1396,19 @@ function drawHud(ctx, game) {
 
   drawHealthBar(ctx, 38, 106, 220, 16, game.player.stamina, '#22c55e');
   drawHealthBar(ctx, 38, 130, 220, 12, game.player.meter, ARENA_COLORS.gold);
+  drawHealthBar(ctx, 38, 148, 220, 10, game.drive?.timer > 0 ? 100 : game.drive?.value || 0, game.drive?.timer > 0 ? '#fef08a' : '#a78bfa');
   drawHealthBar(ctx, WIDTH - 258, 106, 220, 16, game.enemy.stamina, '#22c55e', true);
   drawHealthBar(ctx, WIDTH - 258, 130, 220, 12, game.enemy.meter, ARENA_COLORS.gold, true);
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '800 11px Outfit, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(`Combo ${game.player.combo} · Best ${game.stats.bestCombo} · Wall ${game.stats.wallSplats} · EX ${game.stats.exMoves} · Score ${game.player.score}`, 38, 160);
+  ctx.fillText(`Combo ${game.player.combo} · Best ${game.stats.bestCombo} · Drive ${game.stats.driveActivations} · Score ${game.player.score}`, 38, 178);
   ctx.fillStyle = game.player.parryCooldown <= 0 ? '#67e8f9' : '#94a3b8';
-  ctx.fillText(`Parry ${game.player.parryCooldown <= 0 ? 'ready' : game.player.parryCooldown.toFixed(1)}`, 38, 178);
+  ctx.fillText(`Parry ${game.player.parryCooldown <= 0 ? 'ready' : game.player.parryCooldown.toFixed(1)} · Wall ${game.stats.wallSplats} · EX ${game.stats.exMoves}`, 38, 196);
   ctx.fillStyle = '#fef08a';
-  ctx.fillText(`Counter ${game.stats.counters} · Whiff ${game.stats.whiffPunishes} · Tech ${game.stats.throwTechs} · Break ${game.stats.guardBreaks}`, 38, 196);
+  ctx.fillText(`Counter ${game.stats.counters} · Whiff ${game.stats.whiffPunishes} · Tech ${game.stats.throwTechs} · Break ${game.stats.guardBreaks}`, 38, 214);
+  ctx.fillStyle = game.drive?.timer > 0 ? '#fef08a' : '#c4b5fd';
+  ctx.fillText(game.drive?.timer > 0 ? `DRIVE ${game.drive.timer.toFixed(1)}s` : `Drive ${Math.round(game.drive?.value || 0)}%`, 270, 156);
   ctx.textAlign = 'right';
   ctx.fillText(`Combo ${game.enemy.combo}`, WIDTH - 38, 160);
 
@@ -1424,7 +1517,8 @@ function drawFighter(ctx, fighter, game) {
   const attack = fighter.attack;
   const punch = attack ? Math.sin(Math.min(1, attack.timer / Math.max(0.01, attack.startup + attack.active)) * Math.PI) : 0;
   const guardOffset = fighter.guard > 0 ? 14 : 0;
-  const glow = fighter.cancelFlash > 0 ? '#facc15' : fighter.knowledge > 0 ? '#5eead4' : fighter.invuln > 0 ? '#facc15' : null;
+  const driveGlow = fighter.id === 'player' && game.drive?.timer > 0;
+  const glow = driveGlow ? '#fef08a' : fighter.cancelFlash > 0 ? '#facc15' : fighter.knowledge > 0 ? '#5eead4' : fighter.invuln > 0 ? '#facc15' : null;
 
   ctx.save();
   if (glow) {
@@ -1438,6 +1532,14 @@ function drawFighter(ctx, fighter, game) {
   ctx.beginPath();
   ctx.ellipse(0, 8, 48, 13, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  if (driveGlow) {
+    ctx.strokeStyle = 'rgba(254,240,138,.64)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, -78, 78 + Math.sin(game.elapsed * 12) * 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = fighter.palette.suit;
   drawRoundedRect(ctx, -30, -118 + fighter.crouch * 26, 60, 74 - fighter.crouch * 18, 16);
@@ -1606,6 +1708,12 @@ export default function FaskaFighterSwarm() {
     setBufferedInput(inputRef.current, name, pressed);
   }, []);
 
+  const runPointerAction = useCallback((event, action) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  }, []);
+
   const holdButton = useCallback((name) => ({
     onPointerDown: (event) => {
       event.preventDefault();
@@ -1758,14 +1866,38 @@ export default function FaskaFighterSwarm() {
       }} />
 
       <div className="fighter-modebar" style={{ position: 'fixed', top: canvasTopChrome, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 10, zIndex: 10 }}>
-        <button className="btn-primary" onClick={() => setGameMode('arcade')} style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          aria-pressed={mode === 'arcade'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('arcade'))}
+          onClick={() => setGameMode('arcade')}
+          style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}
+        >
           Normal
         </button>
-        <button className="btn-primary" onClick={() => setGameMode('learn')} style={{ opacity: mode === 'learn' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          aria-pressed={mode === 'learn'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('learn'))}
+          onClick={() => setGameMode('learn')}
+          style={{ opacity: mode === 'learn' ? 1 : 0.55 }}
+        >
           Learncade
         </button>
-        <button className="btn-primary" onClick={restart}>Restart</button>
-        <button className="btn-primary" onClick={() => navigate('/')}>Exit</button>
+        <button
+          className="btn-primary"
+          onPointerDown={(event) => runPointerAction(event, restart)}
+          onClick={restart}
+        >
+          Restart
+        </button>
+        <button
+          className="btn-primary"
+          onPointerDown={(event) => runPointerAction(event, () => navigate('/'))}
+          onClick={() => navigate('/')}
+        >
+          Exit
+        </button>
       </div>
 
       <div className="fighter-touch-controls fighter-stick-controls" style={{
@@ -1808,7 +1940,7 @@ export default function FaskaFighterSwarm() {
           <div style={{ fontSize: 58, fontWeight: 900, color: '#f8fafc' }}>{result.result}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Score {result.score}</div>
           <div style={{ fontSize: 15, color: '#cbd5e1' }}>
-            Runden {result.playerRounds}:{result.enemyRounds} · Kampf {result.round} · Faska {result.playerHealth} HP · Kuro {result.enemyHealth} HP
+            Runden {result.playerRounds}:{result.enemyRounds} · Kampf {result.round} · Drive {result.driveActivations} · Faska {result.playerHealth} HP · Kuro {result.enemyHealth} HP
           </div>
           <button className="btn-primary" onClick={restart}>Noch eine Runde</button>
         </div>

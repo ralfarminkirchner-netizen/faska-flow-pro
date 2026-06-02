@@ -110,6 +110,19 @@ const BOMB_MAZE_GOALS = [
   { id: 'learn_3', label: '3 Antwort-Kacheln', stat: 'learnCorrect', target: 3, mode: 'learn', reward: 1100 },
 ];
 
+const BOMB_MAZE_CONTRACTS = [
+  { id: 'crates_5', label: '5 Kisten in Serie sprengen', stat: 'crates', target: 5, duration: 42, reward: { score: 420, bomb: 1 }, arcadeOnly: true },
+  { id: 'enemies_2', label: '2 Gegner mit Bomben besiegen', stat: 'enemies', target: 2, duration: 46, reward: { score: 560, hp: 1 } },
+  { id: 'remote_1', label: '1 Remote-Zuendung nutzen', stat: 'remoteDetonations', target: 1, duration: 34, reward: { score: 360, range: 1 } },
+  { id: 'kick_1', label: '1 Bombe kicken', stat: 'bombKicks', target: 1, duration: 38, reward: { score: 360, speed: 0.35 } },
+  { id: 'keys_1', label: '1 Schluesselsplitter sichern', stat: 'keys', target: 1, duration: 58, reward: { score: 520, hp: 1, range: 1 } },
+  { id: 'hazards_2', label: '2 Fallen entschaerfen', stat: 'hazardsDisabled', target: 2, duration: 54, reward: { score: 500, speed: 0.45 } },
+  { id: 'dashes_3', label: '3 sichere Dashes', stat: 'dashes', target: 3, duration: 36, reward: { score: 380, speed: 0.35 } },
+  { id: 'chain_1', label: '1 Kettenreaktion ausloesen', stat: 'chainReactions', target: 1, duration: 50, reward: { score: 580, range: 1 }, arcadeOnly: true },
+  { id: 'learn_1', label: '1 Antwort-Kachel richtig', stat: 'learnCorrect', target: 1, duration: 46, reward: { score: 560, bomb: 1, range: 1 }, learnOnly: true },
+  { id: 'guardian_1', label: 'Guardian besiegen', stat: 'guardianDefeated', target: 1, duration: 88, reward: { score: 1100, hp: 1, bomb: 1 }, arcadeOnly: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const lerp = (a, b, t) => a + (b - a) * t;
 const keyOf = (gx, gy) => `${gx},${gy}`;
@@ -262,6 +275,91 @@ function recordStat(game, stat, amount = 1) {
   game.messageTimer = 1.25;
 }
 
+function availableBombContracts(game) {
+  return BOMB_MAZE_CONTRACTS.filter((contract) => {
+    if (contract.learnOnly && game.mode !== 'learn') return false;
+    if (contract.arcadeOnly && game.mode !== 'arcade') return false;
+    return true;
+  });
+}
+
+function bombContractProgress(game) {
+  const contract = game.activeContract;
+  if (!contract) return 0;
+  return clamp((game.stats[contract.stat] || 0) - contract.startValue, 0, contract.target);
+}
+
+function applyBombContractReward(game, reward = {}) {
+  const player = game.player;
+  if (reward.score) game.score += reward.score;
+  if (reward.hp) player.hp = clamp(player.hp + reward.hp, 1, player.maxHp);
+  if (reward.bomb) player.bombs = clamp(player.bombs + reward.bomb, 1, 5);
+  if (reward.range) player.range = clamp(player.range + reward.range, 2, 6);
+  if (reward.speed) player.speed = clamp(player.speed + reward.speed, 7.6, 11.4);
+  game.combo = clamp(game.combo + 0.18, 1, 4);
+}
+
+function startBombContract(game) {
+  const contracts = availableBombContracts(game);
+  if (!contracts.length) return;
+  const template = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...template,
+    startValue: game.stats[template.stat] || 0,
+    timeLeft: template.duration,
+  };
+  game.contractTimer = template.duration;
+  game.message = `Maze-Auftrag: ${template.label}`;
+  game.messageTimer = 1.15;
+  spawnParticles(game, game.player.gx, game.player.gy, '#c4b5fd', 16, 170);
+}
+
+function completeBombContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyBombContractReward(game, contract.reward);
+  game.contractWins += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.8;
+  game.goalNotice = `Auftrag: ${contract.label} +${contract.reward.score || 0}`;
+  game.goalNoticeTimer = 2;
+  game.message = `Auftrag geschafft: ${contract.label}`;
+  game.messageTimer = 1.15;
+  spawnParticles(game, game.player.gx, game.player.gy, '#a78bfa', 24, 190);
+}
+
+function failBombContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.6;
+  game.combo = clamp(game.combo - 0.22, 1, 4);
+  game.message = `Auftrag verpasst: ${contract.label}`;
+  game.messageTimer = 1.05;
+  spawnParticles(game, game.player.gx, game.player.gy, '#fb7185', 14, 150);
+}
+
+function updateBombContract(game, dt) {
+  if (game.phase !== 'play') return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startBombContract(game);
+    return;
+  }
+
+  game.activeContract.timeLeft = Math.max(0, game.activeContract.timeLeft - dt);
+  game.contractTimer = game.activeContract.timeLeft;
+  if (bombContractProgress(game) >= game.activeContract.target) {
+    completeBombContract(game);
+  } else if (game.activeContract.timeLeft <= 0) {
+    failBombContract(game);
+  }
+}
+
 function makeInitialGame(mode = 'arcade') {
   const crates = createCrates();
   const exit = { gx: COLS - 2, gy: ROWS - 2, open: false };
@@ -282,6 +380,12 @@ function makeInitialGame(mode = 'arcade') {
     goalNoticeTimer: 0,
     stats: createStats(),
     goals: createGoals(mode),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.4,
+    contractWins: 0,
+    contractFails: 0,
     message: mode === 'learn' ? 'Lege Bomben, oeffne Wege und tritt auf die richtige Antwort-Kachel.' : 'Sprenge Kisten, besiege Gegner und finde den Ausgang.',
     messageTimer: 2,
     player: {
@@ -462,7 +566,13 @@ function damagePlayer(game, amount = 1) {
   spawnParticles(game, player.gx, player.gy, '#fb7185', 14, 150);
   if (player.hp <= 0) {
     game.phase = 'result';
-    game.result = { title: 'Maze gescheitert', score: game.score, level: game.level };
+    game.result = {
+      title: 'Maze gescheitert',
+      score: game.score,
+      level: game.level,
+      contracts: game.contractWins,
+      contractFails: game.contractFails,
+    };
   }
 }
 
@@ -705,7 +815,13 @@ function updatePlayer(game, dt) {
     if (player.exitTimer > 0.5) {
       game.level += 1;
       game.phase = 'result';
-      game.result = { title: 'Maze geloest', score: game.score + game.level * 500, level: game.level };
+      game.result = {
+        title: 'Maze geloest',
+        score: game.score + game.level * 500,
+        level: game.level,
+        contracts: game.contractWins,
+        contractFails: game.contractFails,
+      };
       game.score += game.level * 500;
     }
   } else {
@@ -872,6 +988,7 @@ function updateGame(game, dt, onFinish) {
   updateHazards(game, dt);
   updateBombs(game, dt);
   updateObjectives(game);
+  updateBombContract(game, dt);
   updateEffects(game, dt);
   if (game.result) onFinish(game.result);
 }
@@ -1176,6 +1293,8 @@ function drawEffects(ctx, game) {
 
 function drawHud(ctx, game) {
   const player = game.player;
+  const contract = game.activeContract;
+  const contractProgress = bombContractProgress(game);
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -1215,6 +1334,42 @@ function drawHud(ctx, game) {
     ctx.textAlign = 'right';
     ctx.fillText(`${progress}/${goal.target}`, WIDTH - 54, y);
   });
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(15,23,42,.9)';
+  drawRoundedRect(ctx, WIDTH - 390, 244, 362, 120, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(196,181,253,.35)';
+  ctx.stroke();
+  ctx.fillStyle = '#c4b5fd';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText(`MAZE-AUFTRAG · ${game.contractWins} OK · ${game.contractFails} FAIL`, WIDTH - 368, 272);
+
+  if (contract) {
+    const ratio = contract.target ? contractProgress / contract.target : 0;
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '900 15px Outfit, sans-serif';
+    ctx.fillText(contract.label, WIDTH - 368, 296);
+    ctx.fillStyle = 'rgba(255,255,255,.14)';
+    drawRoundedRect(ctx, WIDTH - 368, 312, 300, 14, 7);
+    ctx.fill();
+    ctx.fillStyle = ratio >= 1 ? '#86efac' : '#a78bfa';
+    drawRoundedRect(ctx, WIDTH - 368, 312, 300 * clamp(ratio, 0, 1), 14, 7);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText(`Fortschritt ${contractProgress}/${contract.target}`, WIDTH - 368, 348);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = contract.timeLeft < 8 ? '#fb7185' : '#fde68a';
+    ctx.fillText(`${Math.ceil(contract.timeLeft)}s`, WIDTH - 54, 348);
+  } else {
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 14px Outfit, sans-serif';
+    ctx.fillText(`Naechster Auftrag in ${Math.ceil(game.contractCooldown)}s`, WIDTH - 368, 304);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText('Kisten, Gegner, Keys, Fallen oder Lernkacheln bringen Boni.', WIDTH - 368, 330);
+  }
 
   if (game.mode === 'learn') {
     const task = LEARN_TASKS[game.taskIndex % LEARN_TASKS.length];
@@ -1469,6 +1624,9 @@ export default function FaskaBombMazeSwarm() {
         }}>
           <div style={{ fontSize: 56, fontWeight: 900 }}>{result.title}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Level {result.level} · Score {result.score}</div>
+          <div style={{ fontSize: 15, color: '#c4b5fd', fontWeight: 800 }}>
+            Maze-Auftraege {result.contracts || 0}/{(result.contracts || 0) + (result.contractFails || 0)}
+          </div>
           <button className="btn-primary" onClick={restart}>Neues Labyrinth</button>
         </div>
       )}

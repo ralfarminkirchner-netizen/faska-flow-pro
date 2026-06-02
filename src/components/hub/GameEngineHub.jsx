@@ -97,7 +97,7 @@ const GAMES = [
   {
     id: 'arsenal',
     name: 'Faska Arsenal Pro',
-    description: 'Godot-4-Arena-Shooter nach Quake/Unreal-Prinzip mit schnellem Strafing, Pulse/Scatter/Rail/Rocket, Snipern, Bosswellen, Rocket-Impulse, Jump-Pads, Mega-/Quad-Pickups, Kontrollpunkten, Touchsteuerung und Learncade-Saeulen fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
+    description: 'Godot-4-Arena-Shooter nach Quake/Unreal-Prinzip mit schnellem Strafing, Dash-I-Frames, Flow-Multiplikator, Pulse/Scatter/Rail/Rocket, Stagger-Treffern, Seeker-Gegnern, Bossphasen, Rocket-Impulse, Jump-Pads, Mega-/Quad-Pickups, Kontrollpunkten, Touchsteuerung und Learncade-Saeulen mit Fehler-Wiederholung!',
     emoji: '⚡',
     category: 'Arena',
     gradient: 'linear-gradient(135deg, #2563eb, #facc15)',

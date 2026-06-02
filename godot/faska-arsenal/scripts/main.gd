@@ -6,9 +6,13 @@ const PLAYER_R := 22.0
 const ENEMY_R := 20.0
 const BASE_SPEED := 430.0
 const BOOST_SPEED := 620.0
+const DASH_SPEED := 920.0
+const DASH_TIME := 0.16
+const DASH_COOLDOWN := 0.74
 const FRICTION := 7.4
 const TOUCH_DEADZONE := 0.08
 const LEARN_GOAL := 8
+const FLOW_WINDOW := 5.0
 const LESSONS := ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
 
 const TASKS_WORD := [
@@ -101,6 +105,9 @@ var question_index := 0
 var repeat_queue: Array = []
 var score := 0
 var combo := 0
+var flow := 0
+var best_flow := 0
+var flow_timer := 0.0
 var message := ""
 var message_timer := 0.0
 var grace_timer := 0.0
@@ -128,6 +135,9 @@ func reset_game() -> void:
 		"rocket": 8,
 		"quad": 0.0,
 		"air": 0.0,
+		"dash": 0.0,
+		"dash_cd": 0.0,
+		"dash_dir": Vector2.RIGHT,
 		"fire_cd": 0.0,
 		"invuln": 0.0
 	}
@@ -182,6 +192,9 @@ func reset_game() -> void:
 	repeat_queue.clear()
 	score = 0
 	combo = 0
+	flow = 0
+	best_flow = 0
+	flow_timer = 0.0
 	grace_timer = 18.0
 	stats = {"kills": 0, "waves": 0, "nodes": 0, "learn": 0, "rail": 0, "rocket": 0, "quad": 0, "pads": 0}
 	message = "FASKA ARSENAL - Godot 4"
@@ -223,7 +236,13 @@ func update_game(delta: float) -> void:
 	player.fire_cd = max(0.0, float(player.fire_cd) - delta)
 	player.quad = max(0.0, float(player.quad) - delta)
 	player.air = max(0.0, float(player.air) - delta)
+	player.dash = max(0.0, float(player.dash) - delta)
+	player.dash_cd = max(0.0, float(player.dash_cd) - delta)
 	player.invuln = max(0.0, float(player.invuln) - delta)
+	if flow_timer > 0.0:
+		flow_timer = max(0.0, flow_timer - delta)
+	elif flow > 0:
+		flow = 0
 	if float(player.hp) <= 0.0:
 		phase = "over"
 		message = "Arena verloren - R fuer Neustart"
@@ -244,9 +263,15 @@ func update_input(delta: float) -> void:
 		axis += touch_axis
 	if axis.length() > 1.0:
 		axis = axis.normalized()
+	if axis.length() > 0.1:
+		player.dash_dir = axis.normalized()
 	var speed := BOOST_SPEED if Input.is_key_pressed(KEY_SHIFT) or bool(touch_button_state.get("boost", false)) else BASE_SPEED
 	var target_vel := axis * speed
-	player.vel = Vector2(player.vel).lerp(target_vel, min(1.0, delta * FRICTION))
+	if float(player.dash) > 0.0:
+		target_vel = Vector2(player.dash_dir) * DASH_SPEED
+		player.vel = Vector2(player.vel).lerp(target_vel, min(1.0, delta * 14.0))
+	else:
+		player.vel = Vector2(player.vel).lerp(target_vel, min(1.0, delta * FRICTION))
 	move_player(Vector2(player.vel) * delta)
 	if Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE) or bool(touch_button_state.get("fire", false)):
 		fire_current_weapon()
@@ -271,7 +296,37 @@ func move_player(delta_pos: Vector2) -> void:
 			player.vel = push
 			player.air = 0.9
 			stats.pads += 1
+			add_flow(1, "PAD")
 			add_text("JUMP PAD", Vector2(player.pos), Color(0.45, 0.92, 1.0))
+
+func start_dash() -> void:
+	if float(player.dash_cd) > 0.0 or float(player.heat) > 88.0:
+		return
+	var dash_dir := Vector2(player.dash_dir)
+	if dash_dir.length() < 0.1:
+		dash_dir = (aim_world - Vector2(player.pos)).normalized()
+	if dash_dir.length() < 0.1:
+		dash_dir = Vector2.RIGHT
+	player.dash_dir = dash_dir.normalized()
+	player.dash = DASH_TIME
+	player.dash_cd = DASH_COOLDOWN
+	player.invuln = max(float(player.invuln), 0.18)
+	player.heat = min(100.0, float(player.heat) + 10.0)
+	add_flow(1, "DASH")
+	add_text("DASH", Vector2(player.pos), Color(0.45, 0.95, 1.0))
+
+func add_flow(amount: int, label := "") -> void:
+	flow = mini(99, flow + amount)
+	best_flow = maxi(best_flow, flow)
+	flow_timer = FLOW_WINDOW
+	if amount >= 2 or flow % 5 == 0:
+		var text := ("FLOW " + str(flow)) if label == "" else (label + " FLOW " + str(flow))
+		add_text(text, Vector2(player.pos), Color(0.96, 0.9, 0.32))
+
+func flow_multiplier() -> float:
+	if flow < 3:
+		return 1.0
+	return minf(2.6, 1.0 + float(flow) * 0.055)
 
 func spawn_wave() -> void:
 	var count := 5 + wave * 2
@@ -289,7 +344,9 @@ func spawn_wave() -> void:
 		else:
 			pos = Vector2(70.0, rng.randf_range(80.0, ARENA_H - 80.0))
 		var kind := "grunt"
-		if i % 5 == 0 and wave > 1:
+		if i % 9 == 0 and wave > 3:
+			kind = "seeker"
+		elif i % 5 == 0 and wave > 1:
 			kind = "brute"
 		elif i % 7 == 0 and wave > 2:
 			kind = "sniper"
@@ -317,16 +374,25 @@ func spawn_enemy(kind: String, pos: Vector2) -> void:
 		speed = 250.0
 		color = Color(0.76, 0.42, 1.0)
 		radius = 18.0
+	elif kind == "seeker":
+		hp = 34.0 + wave * 2.0
+		speed = 305.0
+		color = Color(0.35, 1.0, 0.48)
+		radius = 17.0
 	elif kind == "boss":
 		hp = 420.0 + wave * 22.0
 		speed = 94.0
 		color = Color(0.95, 0.12, 0.42)
 		radius = 48.0
-	enemies.append({"kind": kind, "pos": pos, "vel": Vector2.ZERO, "hp": hp, "max_hp": hp, "speed": speed, "radius": radius, "color": color, "shoot": rng.randf_range(0.8, 2.2), "contact": 0.0, "phase": rng.randf_range(0.0, TAU)})
+	enemies.append({"kind": kind, "pos": pos, "vel": Vector2.ZERO, "hp": hp, "max_hp": hp, "speed": speed, "radius": radius, "color": color, "shoot": rng.randf_range(0.8, 2.2), "contact": 0.0, "phase": rng.randf_range(0.0, TAU), "stagger": 0.0, "boss_phase": 1})
 
 func update_enemies(delta: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
 		var e = enemies[i]
+		e.stagger = max(0.0, float(e.get("stagger", 0.0)) - delta)
+		if float(e.stagger) > 0.0:
+			enemies[i] = e
+			continue
 		var to_player: Vector2 = Vector2(player.pos) - Vector2(e.pos)
 		var dist: float = max(1.0, to_player.length())
 		var desired: Vector2 = to_player / dist
@@ -334,10 +400,26 @@ func update_enemies(delta: float) -> void:
 			desired = desired.rotated(sin(float(e.phase)) * 0.9)
 		elif String(e.kind) == "sniper" and dist < 440.0:
 			desired = -desired
+		elif String(e.kind) == "seeker":
+			desired = desired.rotated(sin(float(e.phase) * 1.7) * 0.22)
 		elif String(e.kind) == "boss":
+			var ratio: float = float(e.hp) / maxf(1.0, float(e.max_hp))
+			var phase_id := 1
+			if ratio <= 0.32:
+				phase_id = 3
+			elif ratio <= 0.66:
+				phase_id = 2
+			if phase_id != int(e.get("boss_phase", 1)):
+				e.boss_phase = phase_id
+				e.speed = float(e.speed) + 22.0
+				add_flow(2, "BOSS P" + str(phase_id))
+				add_text("BOSS PHASE " + str(phase_id), Vector2(e.pos), Color(1.0, 0.55, 0.88))
 			desired = desired.rotated(sin(float(e.phase) * 0.65) * 0.35)
 		e.phase = float(e.phase) + delta * 2.0
-		e.vel = Vector2(e.vel).lerp(desired * float(e.speed), min(1.0, delta * 3.8))
+		var speed_bonus := 1.0
+		if String(e.kind) == "seeker" and dist < 300.0:
+			speed_bonus = 1.26
+		e.vel = Vector2(e.vel).lerp(desired * float(e.speed) * speed_bonus, min(1.0, delta * 3.8))
 		var next := Vector2(e.pos) + Vector2(e.vel) * delta
 		next.x = clamp(next.x, float(e.radius), ARENA_W - float(e.radius))
 		next.y = clamp(next.y, float(e.radius), ARENA_H - float(e.radius))
@@ -351,16 +433,30 @@ func update_enemies(delta: float) -> void:
 		e.contact = max(0.0, float(e.get("contact", 0.0)) - delta)
 		if grace_timer <= 0.0 and dist < float(e.radius) + PLAYER_R and float(e.contact) <= 0.0:
 			e.contact = 0.72
+			if String(e.kind) == "seeker":
+				damage_player(18.0, "Seeker")
+				explosions.append({"pos": Vector2(e.pos), "radius": 88.0, "life": 0.22, "max": 0.22})
+				spawn_sparks(Vector2(e.pos), Color(0.35, 1.0, 0.48), 18)
+				enemies.remove_at(i)
+				continue
 			damage_player(14.0 * delta, "Kontakt")
 		enemies[i] = e
 
 func fire_enemy_bullet(e) -> void:
 	var dir := (Vector2(player.pos) - Vector2(e.pos)).normalized()
 	if String(e.kind) == "boss":
-		for spread in [-0.22, 0.0, 0.22]:
+		var phase_id := int(e.get("boss_phase", 1))
+		var spreads := [-0.22, 0.0, 0.22]
+		if phase_id == 2:
+			spreads = [-0.36, -0.12, 0.12, 0.36]
+		elif phase_id >= 3:
+			spreads = [-0.48, -0.24, 0.0, 0.24, 0.48]
+		for spread in spreads:
 			enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir.rotated(spread) * 470.0, "life": 2.8, "damage": 10.0, "color": Color(1.0, 0.25, 0.5)})
 	elif String(e.kind) == "sniper":
 		enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 760.0, "life": 2.0, "damage": 15.0, "color": Color(0.35, 0.95, 1.0)})
+	elif String(e.kind) == "seeker":
+		enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 560.0, "life": 1.4, "damage": 8.0, "color": Color(0.35, 1.0, 0.48)})
 	else:
 		enemy_bullets.append({"pos": Vector2(e.pos), "vel": dir * 430.0, "life": 2.5, "damage": 9.0, "color": Color(1.0, 0.2, 0.16)})
 
@@ -451,6 +547,10 @@ func hit_enemy(index: int, damage: float, weapon_id: String, hit_pos: Vector2) -
 		return
 	var e = enemies[index]
 	e.hp = float(e.hp) - damage
+	e.stagger = maxf(float(e.get("stagger", 0.0)), 0.10 + damage * 0.003)
+	var push_dir := (Vector2(e.pos) - hit_pos).normalized()
+	if push_dir.length() > 0.1:
+		e.pos = Vector2(e.pos) + push_dir * minf(30.0, damage * 0.62)
 	spawn_sparks(hit_pos, e.color)
 	if weapon_id == "rail":
 		stats.rail += 1
@@ -473,9 +573,11 @@ func hit_enemy(index: int, damage: float, weapon_id: String, hit_pos: Vector2) -
 			points *= 2
 			stats.quad += 1
 		combo += 1
-		score += points + combo * 18
+		add_flow(2 if String(e.kind) == "boss" else 1, String(e.kind).to_upper())
+		var gained := int(round(float(points + combo * 18) * flow_multiplier()))
+		score += gained
 		stats.kills += 1
-		add_text("+" + str(points), Vector2(e.pos), Color(1.0, 0.9, 0.3))
+		add_text("+" + str(gained), Vector2(e.pos), Color(1.0, 0.9, 0.3))
 		spawn_sparks(Vector2(e.pos), Color(1.0, 0.45, 0.18))
 		enemies.remove_at(index)
 	else:
@@ -495,6 +597,7 @@ func explode(pos: Vector2, radius: float, damage: float, from_player: bool) -> v
 			player.vel = (Vector2(player.pos) - pos).normalized() * 760.0
 			player.air = 0.8
 			player.hp = max(1.0, float(player.hp) - 7.0)
+			add_flow(2, "ROCKET JUMP")
 			add_text("ROCKET JUMP", Vector2(player.pos), Color(1.0, 0.68, 0.25))
 
 func update_explosions(delta: float) -> void:
@@ -542,7 +645,8 @@ func update_control_nodes(delta: float) -> void:
 			if float(node.owner) >= 1.0 and not bool(node.captured):
 				node.captured = true
 				stats.nodes += 1
-				score += 500
+				add_flow(3, String(node.label))
+				score += int(round(500.0 * flow_multiplier()))
 				add_text(String(node.label) + " SECURED", Vector2(node.pos), node.color)
 		else:
 			node.owner = max(0.0, float(node.owner) - delta * 0.08)
@@ -565,7 +669,8 @@ func update_learn_pillars(_delta: float) -> void:
 			var repeated := bool(task.get("repeat", false))
 			if String(pillar.option) == String(pillar.answer):
 				stats.learn += 1
-				score += 820 if repeated else 650
+				add_flow(2, "LERNEN")
+				score += int(round(float(820 if repeated else 650) * flow_multiplier()))
 				player.hp = min(150.0, float(player.hp) + (18.0 if repeated else 14.0))
 				player.armor = min(130.0, float(player.armor) + 8.0)
 				remove_repeat(task)
@@ -663,6 +768,8 @@ func damage_player(amount: float, reason: String) -> void:
 	player.hp = max(0.0, float(player.hp) - left)
 	player.invuln = 0.16
 	combo = 0
+	flow = 0
+	flow_timer = 0.0
 	shake = 1.0
 	add_text(reason, Vector2(player.pos), Color(1.0, 0.24, 0.2))
 
@@ -677,6 +784,8 @@ func _unhandled_input(event) -> void:
 				cycle_lesson()
 			KEY_C:
 				cycle_weapon(1)
+			KEY_K, KEY_X:
+				start_dash()
 			KEY_1:
 				weapon_index = 0
 				current_weapon = WEAPON_ORDER[weapon_index]
@@ -735,6 +844,8 @@ func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
 				fire_current_weapon()
 			elif name == "weapon":
 				cycle_weapon(1)
+			elif name == "boost":
+				start_dash()
 			elif name == "learn":
 				toggle_learncade()
 			elif name == "subject":
@@ -825,8 +936,12 @@ func draw_entities() -> void:
 		elif String(e.kind) == "boss":
 			draw_regular_polygon(p, float(e.radius), 8, e.color, float(e.phase))
 			draw_arc(p, float(e.radius) + 11.0, -PI * 0.5, PI * 1.5, 54, Color(1.0, 0.65, 0.9), 4.0)
+			draw_text_at(p + Vector2(-14, -float(e.radius) - 18), "P" + str(int(e.get("boss_phase", 1))), Color(1.0, 0.85, 0.95), 13)
 		elif String(e.kind) == "sniper":
 			draw_regular_polygon(p, float(e.radius), 4, e.color, float(e.phase))
+		elif String(e.kind) == "seeker":
+			draw_regular_polygon(p, float(e.radius), 6, e.color, -float(e.phase) * 1.4)
+			draw_arc(p, float(e.radius) + 8.0, 0.0, TAU, 32, Color(0.58, 1.0, 0.6, 0.72), 2.0)
 		elif String(e.kind) == "drone":
 			draw_regular_polygon(p, float(e.radius), 3, e.color, float(e.phase))
 		else:
@@ -866,14 +981,15 @@ func draw_effects() -> void:
 		draw_circle(world_to_screen(Vector2(part.pos)), float(part.size), part.color)
 
 func draw_hud() -> void:
-	var hud_w := minf(390.0, size.x - 20.0)
-	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 134)), Color(0.0, 0.0, 0.0, 0.58))
+	var hud_w := minf(430.0, size.x - 20.0)
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 158)), Color(0.0, 0.0, 0.0, 0.58))
 	draw_text_at(Vector2(20, 30), "FASKA ARSENAL PRO", Color(1.0, 0.9, 0.28), 18)
 	draw_bar(Vector2(20, 48), "HP", float(player.hp), 160.0, Color(0.32, 1.0, 0.5))
 	draw_bar(Vector2(20, 70), "ARMOR", float(player.armor), 120.0, Color(0.25, 0.72, 1.0))
 	draw_bar(Vector2(20, 92), "HEAT", float(player.heat), 100.0, Color(1.0, 0.43, 0.2))
-	draw_text_at(Vector2(20, 116), "Score " + str(score) + " Combo " + str(combo) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
-	draw_text_at(Vector2(20, 136), "Fach " + String(LESSONS[lesson_index]) + "  Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + "  Wdh " + str(repeat_queue.size()), Color(0.78, 0.94, 1.0), 13)
+	draw_text_at(Vector2(20, 116), "Score " + str(score) + " Combo " + str(combo) + " Flow " + str(flow) + " x" + str(snappedf(flow_multiplier(), 0.1)), Color(0.86, 0.94, 1.0), 13)
+	draw_text_at(Vector2(20, 136), "Best Flow " + str(best_flow) + "  Dash " + ("bereit" if float(player.dash_cd) <= 0.0 else str(snappedf(float(player.dash_cd), 0.1))), Color(0.98, 0.9, 0.46), 13)
+	draw_text_at(Vector2(20, 156), "Fach " + String(LESSONS[lesson_index]) + "  Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL) + "  Wdh " + str(repeat_queue.size()), Color(0.78, 0.94, 1.0), 13)
 	var status_pos := Vector2(size.x * 0.46, 66)
 	if size.x < 760.0 or size.y > size.x * 1.15:
 		status_pos = Vector2(size.x * 0.39, 160)
@@ -884,7 +1000,7 @@ func draw_hud() -> void:
 		draw_text_at(Vector2(size.x - 288, 32), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.94, 0.98, 1.0), 15)
 		draw_text_at(Vector2(size.x - 288, 54), "Rail " + str(player.rail) + "  Rocket " + str(player.rocket), Color(0.94, 0.98, 1.0), 14)
 		draw_text_at(Vector2(size.x - 288, 76), "Wave " + str(wave) + "  Kills " + str(stats.kills) + "  Nodes " + str(stats.nodes), Color(0.94, 0.98, 1.0), 14)
-		draw_text_at(Vector2(size.x - 288, 98), "Boss: jede 4. Welle", Color(0.98, 0.86, 0.42), 13)
+		draw_text_at(Vector2(size.x - 288, 98), "K/X Dash · Flow fuer Score", Color(0.98, 0.86, 0.42), 13)
 	elif float(player.quad) > 0.0:
 		draw_text_at(status_pos, "QUAD DAMAGE " + str(int(ceil(float(player.quad)))), Color(0.9, 0.55, 1.0), 18)
 

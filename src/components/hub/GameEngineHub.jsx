@@ -264,7 +264,7 @@ const GAMES = [
   {
     id: 'blocks',
     name: 'Faska Blocks Pro',
-    description: 'Falling-Blocks-Pro mit Hold, Ghost, Combos, Bomb-/Laser-/Prisma-Steinen, Board-Blast, Garbage-Druck, Missionen und Learncade-Antwortzonen!',
+    description: 'Falling-Blocks-Pro mit Hold, Ghost, Combos, Bomb-/Laser-/Prisma-Steinen, Board-Blast, aktiven Zeit-Contracts, Medaillen, Garbage-/Virus-Druck und Learncade-Antwortzonen!',
     emoji: '🧱',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #ec4899, #db2777)',

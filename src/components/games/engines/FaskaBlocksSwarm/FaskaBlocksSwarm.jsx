@@ -176,6 +176,74 @@ const MISSION_GOALS = [
   },
 ];
 
+const CONTRACTS = [
+  {
+    id: 'tempoLines',
+    label: '2 Linien in Folge',
+    stat: 'line',
+    target: 2,
+    seconds: 42,
+    reward: { score: 620, focus: 10, blast: 18 },
+  },
+  {
+    id: 'hardDropFlow',
+    label: '3 weite Drops',
+    stat: 'hardDrop',
+    target: 3,
+    seconds: 34,
+    reward: { score: 520, focus: 8, blast: 12 },
+  },
+  {
+    id: 'holdCraft',
+    label: '2 sinnvolle Holds',
+    stat: 'hold',
+    target: 2,
+    seconds: 38,
+    reward: { score: 540, focus: 12, blast: 10 },
+  },
+  {
+    id: 'specialOps',
+    label: '2 Spezialsteine',
+    stat: 'special',
+    target: 2,
+    seconds: 48,
+    reward: { score: 680, focus: 8, blast: 20, fever: 3 },
+  },
+  {
+    id: 'blastControl',
+    label: '1 Board-Blast',
+    stat: 'blast',
+    target: 1,
+    seconds: 52,
+    reward: { score: 700, focus: 10, blast: 25 },
+  },
+  {
+    id: 'virusClean',
+    label: '2 Virusfelder reinigen',
+    stat: 'virus',
+    target: 2,
+    seconds: 50,
+    reward: { score: 760, focus: 14, blast: 18 },
+  },
+  {
+    id: 'learnZones',
+    label: '3 richtige Lernzonen',
+    stat: 'learn',
+    target: 3,
+    seconds: 55,
+    mode: 'learn',
+    reward: { score: 900, focus: 18, blast: 18, fever: 4 },
+  },
+  {
+    id: 'tetraCraft',
+    label: '1 Tetra-Line',
+    stat: 'tetra',
+    target: 1,
+    seconds: 70,
+    reward: { score: 1100, focus: 12, blast: 30, fever: 5 },
+  },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function drawRoundedRect(ctx, x, y, w, h, r) {
@@ -197,7 +265,7 @@ function createGrid() {
 }
 
 function countDangerRows(grid) {
-  return grid.filter((row) => row.some((cell) => cell?.type === 'garbage')).length;
+  return grid.filter((row) => row.some((cell) => cell?.type === 'garbage' || cell?.type === 'virus')).length;
 }
 
 function readHighScore() {
@@ -317,7 +385,7 @@ function makeInitialGame(mode = 'arcade') {
     softDrop: false,
     message: mode === 'learn'
       ? 'Lege den Wort-Stein in das richtige Antwortfeld.'
-      : 'Raeume Linien, halte Combo und nutze Hold/Ghost.',
+      : 'Raeume Linien, erfuelle Contracts und kontrolliere Garbage/Virus.',
     messageTimer: 2.5,
     particles: [],
     floaters: [],
@@ -336,6 +404,15 @@ function makeInitialGame(mode = 'arcade') {
     pressureTimer: 0,
     dangerRows: 0,
     allClears: 0,
+    virusTimer: 0,
+    virusClears: 0,
+    garbageClears: 0,
+    contract: null,
+    contractIndex: -1,
+    contractProgress: 0,
+    contractTimer: 0,
+    contractCooldown: 0.8,
+    contractMedals: 0,
     mission: {
       holdUses: 0,
       hardDrops: 0,
@@ -435,6 +512,7 @@ function holdPiece(game) {
   game.focus = Math.min(100, game.focus + 3);
   game.message = `Hold: ${game.hold.type}`;
   game.messageTimer = 0.6;
+  advanceContract(game, 'hold', 1, BOARD_X + BOARD_W + 76, BOARD_Y + 210);
 }
 
 function hardDrop(game) {
@@ -445,6 +523,7 @@ function hardDrop(game) {
   game.score += Math.max(0, distance) * 3;
   game.mission.hardDrops += 1;
   game.blastCharge = Math.min(100, game.blastCharge + Math.min(8, Math.max(0, distance)));
+  if (distance >= 4) advanceContract(game, 'hardDrop', 1, BOARD_X + game.current.col * CELL, BOARD_Y + targetRow * CELL);
   lockPiece(game);
 }
 
@@ -452,9 +531,102 @@ function addGarbageRow(game) {
   const gap = Math.floor(seededUnit(game.seed, game.lines + 9) * COLS);
   game.seed += 1;
   game.grid.shift();
-  game.grid.push(Array.from({ length: COLS }, (_, col) => (col === gap ? null : { color: '#334155', type: 'garbage' })));
+  game.grid.push(Array.from({ length: COLS }, (_, col) => {
+    if (col === gap) return null;
+    const virus = seededUnit(game.seed + col, game.level + game.dangerRows) > 0.84;
+    return virus
+      ? { color: '#f43f5e', type: 'virus' }
+      : { color: '#334155', type: 'garbage' };
+  }));
   game.dangerRows = countDangerRows(game.grid);
   game.shake = 0.15;
+}
+
+function spreadVirus(game) {
+  const virusCells = [];
+  for (let row = 0; row < ROWS; row += 1) {
+    for (let col = 0; col < COLS; col += 1) {
+      if (game.grid[row][col]?.type === 'virus') virusCells.push({ row, col });
+    }
+  }
+  if (virusCells.length === 0) return;
+  const spreadCount = Math.min(2, 1 + Math.floor(game.level / 5));
+  let spread = 0;
+  for (let i = 0; i < virusCells.length && spread < spreadCount; i += 1) {
+    const source = virusCells[(i + game.seed) % virusCells.length];
+    const neighbors = [
+      { row: source.row - 1, col: source.col },
+      { row: source.row + 1, col: source.col },
+      { row: source.row, col: source.col - 1 },
+      { row: source.row, col: source.col + 1 },
+    ].filter((cell) => cell.row >= 0 && cell.row < ROWS && cell.col >= 0 && cell.col < COLS && !game.grid[cell.row][cell.col]);
+    if (neighbors.length === 0) continue;
+    const target = neighbors[Math.floor(seededUnit(game.seed + i, game.elapsed + source.col) * neighbors.length)];
+    game.grid[target.row][target.col] = { color: '#f43f5e', type: 'virus' };
+    spread += 1;
+    spawnParticles(game, BOARD_X + target.col * CELL + CELL / 2, BOARD_Y + target.row * CELL + CELL / 2, '#f43f5e', 8, 150);
+  }
+  if (spread > 0) {
+    game.seed += 1;
+    game.focus = Math.max(0, game.focus - 6);
+    game.dangerRows = countDangerRows(game.grid);
+    game.message = `Virus breitet sich aus: ${spread}`;
+    game.messageTimer = 0.95;
+  }
+}
+
+function startNextContract(game) {
+  const hasVirus = game.grid.some((row) => row.some((cell) => cell?.type === 'virus'));
+  const candidates = CONTRACTS.filter((contract) => {
+    if (contract.mode && contract.mode !== game.mode) return false;
+    if (contract.id === 'virusClean' && !hasVirus) return false;
+    return true;
+  });
+  if (candidates.length === 0) return;
+  game.contractIndex += 1;
+  game.contract = candidates[game.contractIndex % candidates.length];
+  game.contractProgress = 0;
+  game.contractTimer = game.contract.seconds + Math.min(16, game.level * 1.8);
+  game.message = `Contract: ${game.contract.label}`;
+  game.messageTimer = 1.1;
+}
+
+function advanceContract(game, stat, amount = 1, x = BOARD_X + BOARD_W / 2, y = BOARD_Y + 84) {
+  if (!game.contract || game.contract.stat !== stat) return;
+  game.contractProgress = Math.min(game.contract.target, game.contractProgress + Math.max(1, amount));
+  if (game.contractProgress < game.contract.target) return;
+  completeContract(game, x, y);
+}
+
+function completeContract(game, x, y) {
+  if (!game.contract) return;
+  const reward = game.contract.reward;
+  const bonus = reward.score + game.level * 55 + game.contractMedals * 80;
+  game.score += bonus;
+  game.focus = Math.min(100, game.focus + (reward.focus || 0));
+  game.blastCharge = Math.min(100, game.blastCharge + (reward.blast || 0));
+  game.fever = Math.max(game.fever, reward.fever || 0);
+  game.pressureTimer = Math.max(0, game.pressureTimer - 5);
+  game.contractMedals += 1;
+  addFloater(game, x, y, `Contract +${bonus}`, '#facc15');
+  game.message = `${game.contract.label}: geschafft`;
+  game.messageTimer = 1.15;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.0;
+}
+
+function failContract(game) {
+  if (!game.contract) return;
+  game.focus = Math.max(0, game.focus - 10);
+  game.pressureTimer += 3.2;
+  game.message = `${game.contract.label}: verpasst`;
+  game.messageTimer = 0.95;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.4;
 }
 
 function evaluateLearnPlacement(game, piece, placedBlocks) {
@@ -471,6 +643,7 @@ function evaluateLearnPlacement(game, piece, placedBlocks) {
     game.score += 550 + game.correct * 35;
     game.message = `${piece.task.prompt}: ${piece.task.correct}`;
     game.messageTimer = 1.2;
+    advanceContract(game, 'learn', 1, BOARD_X + avgCol * CELL, BOARD_Y + 80);
     addFloater(game, BOARD_X + avgCol * CELL, BOARD_Y + 80, 'richtig', '#22c55e');
   } else {
     game.wrong += 1;
@@ -529,6 +702,7 @@ function applySpecialModifier(game, piece, placedBlocks) {
   }
 
   game.mission.specialsUsed += 1;
+  advanceContract(game, 'special', 1, BOARD_X + center.col * CELL + CELL / 2, BOARD_Y + center.row * CELL);
   game.score += removed * 90 + 220;
   game.blastCharge = Math.min(100, game.blastCharge + 14);
   game.dangerRows = countDangerRows(game.grid);
@@ -563,11 +737,22 @@ function lockPiece(game) {
 
   game.current = null;
   if (fullRows.length > 0) {
+    const clearedGarbage = fullRows.reduce((sum, row) => sum + game.grid[row].filter((cell) => cell?.type === 'garbage').length, 0);
+    const clearedVirus = fullRows.reduce((sum, row) => sum + game.grid[row].filter((cell) => cell?.type === 'virus').length, 0);
     game.clearedRows = fullRows;
     game.clearTimer = 0.28;
     game.combo += 1;
     game.comboBest = Math.max(game.comboBest, game.combo);
-    if (fullRows.length >= 4) game.tetras += 1;
+    if (fullRows.length >= 4) {
+      game.tetras += 1;
+      advanceContract(game, 'tetra', 1, BOARD_X + BOARD_W / 2, BOARD_Y + fullRows[0] * CELL);
+    }
+    if (clearedGarbage > 0) game.garbageClears += clearedGarbage;
+    if (clearedVirus > 0) {
+      game.virusClears += clearedVirus;
+      advanceContract(game, 'virus', clearedVirus, BOARD_X + BOARD_W / 2, BOARD_Y + fullRows[0] * CELL);
+    }
+    advanceContract(game, 'line', fullRows.length, BOARD_X + BOARD_W / 2, BOARD_Y + fullRows[0] * CELL);
     const table = [0, 120, 360, 620, 1000];
     const points = (table[fullRows.length] || 1200) * game.level + game.combo * 85;
     game.score += game.fever > 0 ? Math.round(points * 1.25) : points;
@@ -645,6 +830,7 @@ function activateBoardBlast(game) {
   game.blastCharge -= 50;
   game.blastCooldown = 4.2;
   game.mission.blasts += 1;
+  advanceContract(game, 'blast', 1, BOARD_X + BOARD_W / 2, BOARD_Y + targetRow * CELL + CELL / 2);
   game.score += 520 + bestFilled * 35;
   game.focus = Math.min(100, game.focus + 8);
   game.dangerRows = countDangerRows(game.grid);
@@ -667,6 +853,33 @@ function updatePressure(game, dt) {
   game.focus = Math.max(0, game.focus - 5);
   game.message = game.mode === 'learn' ? 'Druckreihe - Fokus halten' : 'Garbage-Rush steigt';
   game.messageTimer = 1;
+}
+
+function updateContract(game, dt) {
+  if (game.contract) {
+    game.contractTimer = Math.max(0, game.contractTimer - dt);
+    if (game.contractTimer <= 0) failContract(game);
+    return;
+  }
+  game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+  if (game.contractCooldown <= 0) startNextContract(game);
+}
+
+function updateVirus(game, dt) {
+  if (game.clearTimer > 0) return;
+  const virusCount = game.grid.reduce(
+    (sum, row) => sum + row.filter((cell) => cell?.type === 'virus').length,
+    0,
+  );
+  if (virusCount === 0) {
+    game.virusTimer = 0;
+    return;
+  }
+  const threshold = clamp(18 - game.level * 0.7 + game.focus / 18, 8.5, 20);
+  game.virusTimer += dt;
+  if (game.virusTimer < threshold) return;
+  game.virusTimer = 0;
+  spreadVirus(game);
 }
 
 function refreshMissions(game) {
@@ -707,7 +920,9 @@ function updateGame(game, controls, dt) {
   updateEffects(game, dt);
 
   if (!game.started || game.finished) return;
+  updateContract(game, dt);
   updatePressure(game, dt);
+  updateVirus(game, dt);
 
   if (game.clearTimer > 0) {
     game.clearTimer -= dt;
@@ -829,7 +1044,7 @@ function drawBoard(ctx, game) {
     row.forEach((cell, colIndex) => {
       if (!cell) return;
       const clearing = game.clearedRows.includes(rowIndex);
-      const label = cell.modifier ? MODIFIERS[cell.modifier]?.label : '';
+      const label = cell.modifier ? MODIFIERS[cell.modifier]?.label : cell.type === 'virus' ? '!' : '';
       drawCell(ctx, BOARD_X + colIndex * CELL, BOARD_Y + rowIndex * CELL, clearing ? '#fef3c7' : cell.color, clearing ? 0.8 : 1, label);
     });
   });
@@ -871,19 +1086,20 @@ function drawSidePanels(ctx, game) {
   ctx.fillText(`Score ${game.score}`, 66, 118);
   ctx.fillText(`Linien ${game.lines}  Level ${game.level}`, 66, 146);
   ctx.fillText(`Combo x${Math.max(1, game.combo)}  High ${Math.max(game.highScore, game.score)}`, 66, 174);
-  ctx.fillText(`Tetras ${game.tetras}  Garbage ${game.dangerRows}`, 66, 202);
+  ctx.fillText(`Tetras ${game.tetras}  Gefahr ${game.dangerRows}`, 66, 202);
+  ctx.fillText(`Contracts ${game.contractMedals}  Virus ${game.virusClears}`, 66, 230);
   if (game.mode === 'learn') {
     const task = game.current?.task || currentTask(game);
     ctx.fillStyle = '#67e8f9';
-    ctx.fillText(`${task.subject} - ${task.kind}`, 66, 236);
+    ctx.fillText(`${task.subject} - ${task.kind}`, 66, 260);
     ctx.fillStyle = '#f8fafc';
     ctx.font = '900 17px Outfit, sans-serif';
-    ctx.fillText(`"${task.prompt}"`, 66, 266);
+    ctx.fillText(`"${task.prompt}"`, 66, 290);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 13px Outfit, sans-serif';
-    ctx.fillText(task.sentence, 66, 290, 290);
+    ctx.fillText(task.sentence, 66, 314, 290);
   } else {
-    drawGauge(ctx, 66, 220, 180, 'PRESSURE', game.pressure, '#f472b6');
+    drawGauge(ctx, 66, 248, 180, 'PRESSURE', game.pressure, '#f472b6');
   }
 
   ctx.fillStyle = 'rgba(2,6,23,.76)';
@@ -907,12 +1123,32 @@ function drawSidePanels(ctx, game) {
   drawGauge(ctx, 1044, 370, 150, 'PRESSURE', game.pressure, '#38bdf8');
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText('Missionen', 1044, 414);
+  ctx.fillText('Aktiver Contract', 1044, 414);
+  ctx.font = '800 10px Outfit, sans-serif';
+  if (game.contract) {
+    const ratio = game.contractProgress / Math.max(1, game.contract.target);
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillText(`${game.contract.label}`, 1044, 434);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(`${game.contractProgress}/${game.contract.target} · ${Math.ceil(game.contractTimer)}s`, 1044, 452);
+    ctx.fillStyle = 'rgba(148,163,184,.2)';
+    drawRoundedRect(ctx, 1044, 462, 150, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#22d3ee';
+    drawRoundedRect(ctx, 1044, 462, 150 * clamp(ratio, 0, 1), 10, 5);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Naechstes Ziel wird vorbereitet', 1044, 434);
+  }
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText('Bonusse', 922, 414);
   ctx.font = '800 10px Outfit, sans-serif';
   MISSION_GOALS.slice(0, 3).forEach((goal, index) => {
     const done = game.mission.rewards.includes(goal.id);
     ctx.fillStyle = done ? '#86efac' : '#94a3b8';
-    ctx.fillText(`${done ? 'OK' : '--'} ${goal.label}`, 1044, 434 + index * 16);
+    ctx.fillText(`${done ? 'OK' : '--'} ${goal.label}`, 922, 434 + index * 16);
   });
   ctx.restore();
 }
@@ -962,7 +1198,7 @@ function drawMessage(ctx, game) {
     ctx.fillText(game.finished ? game.message : 'FASKA BLOCKS PRO', WIDTH / 2, 254);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 18px Outfit, sans-serif';
-    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Falling-Blocks-Pro mit Hold, Ghost, Bomb/Laser/Prisma-Steinen, Board-Blast, Drucksystem und Learncade-Zonen.', WIDTH / 2, 296);
+    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Falling-Blocks-Pro mit Hold, Ghost, Spezialsteinen, Board-Blast, Contracts, Virusdruck und Learncade-Zonen.', WIDTH / 2, 296);
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 16px Outfit, sans-serif';
     ctx.fillText('Oben Normal oder Learncade waehlen. X/F = Board-Blast.', WIDTH / 2, 330);
@@ -1047,8 +1283,8 @@ export default function FaskaBlocksSwarm() {
     gameRef.current = makeInitialGame(nextMode);
     gameRef.current.started = true;
     gameRef.current.message = nextMode === 'learn'
-      ? 'Lege Antwort-Steine, nutze Spezialsteine und halte Fokus.'
-      : 'Raeume Linien, nutze Spezialsteine und Board-Blast.';
+      ? 'Lege Antwort-Steine, erfuelle Contracts und halte den Virus klein.'
+      : 'Raeume Linien, erfuelle Contracts und kontrolliere Garbage/Virus.';
     gameRef.current.messageTimer = 1.6;
     syncUi();
   }, [syncUi]);

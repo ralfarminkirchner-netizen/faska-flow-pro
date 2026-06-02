@@ -217,7 +217,7 @@ const GAMES = [
   {
     id: 'taxi-rush',
     name: 'Faska Taxi Rush Pro',
-    description: 'FASKA-FLOW-Crazy-Taxi im Top-Down-Look mit Drift-Boost, Verkehr, Rivalen, Rampen, Speed-Gates, Risk-Shortcuts, Dispatch-Zentrale, Medaillen-Vertraegen, Wort-Fahrgaesten, falschen Ablieferungen, Route-Pfeil, Touchsteuerung und Learncade fuer Deutsch, Mathe, Lesen und Englisch!',
+    description: 'FASKA-FLOW-Crazy-Taxi im Top-Down-Look mit Drift-Boost, Verkehr, Rivalen, Rampen, Speed-Gates, Risk-Shortcuts, Dispatch-Zentrale, Medaillen-Vertraegen, Schichtserien-Bonus fuer saubere Fahrten, Wort-Fahrgaesten, falschen Ablieferungen, Route-Pfeil, Touchsteuerung und Learncade fuer Deutsch, Mathe, Lesen und Englisch!',
     emoji: '🚕',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #facc15, #f97316)',

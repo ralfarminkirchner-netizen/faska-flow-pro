@@ -446,6 +446,7 @@ const TAXI_GOALS = [
   { id: 'jumps-2', label: '2 Spruenge', type: 'stuntJumps', target: 2, reward: 460 },
   { id: 'speed-3', label: '3 Speed-Gates', type: 'speedGates', target: 3, reward: 430 },
   { id: 'perfect-2', label: '2 perfekte Dropoffs', type: 'perfectDropoffs', target: 2, reward: 560 },
+  { id: 'shift-streak-3', label: '3er Schichtserie', type: 'bestShiftStreak', target: 3, reward: 720 },
   { id: 'learn-3', label: 'richtige Woerter', type: 'learnCorrect', target: 3, reward: 620, learnOnly: true },
 ];
 
@@ -461,6 +462,7 @@ const DISPATCH_CONTRACTS = [
   { id: 'dispatch-rival', label: '1 Rivalen-Pass', type: 'rivalPasses', target: 1, duration: 42, reward: { score: 390, boost: 28, reputation: 1 } },
   { id: 'dispatch-clean', label: '1 saubere Lieferung', type: 'cleanDeliveries', target: 1, duration: 68, reward: { score: 520, repair: 14, reputation: 2 } },
   { id: 'dispatch-perfect', label: '1 perfekter Dropoff', type: 'perfectDropoffs', target: 1, duration: 82, reward: { score: 640, boost: 32, time: 8, reputation: 2 } },
+  { id: 'dispatch-streak', label: '2 Serienfahrten halten', type: 'shiftStreak', target: 2, duration: 96, reward: { score: 720, boost: 32, time: 8, reputation: 2 } },
   { id: 'dispatch-learn', label: '1 richtiges Wort liefern', type: 'learnCorrect', target: 1, duration: 64, reward: { score: 560, boost: 24, time: 7, reputation: 1 }, learnOnly: true },
 ];
 
@@ -647,6 +649,7 @@ function makeInitialGame(mode = 'arcade') {
     wrongPads: 0,
     wrongPadCooldown: 0,
     reputation: 0,
+    shiftStreak: 0,
     crashCooldown: 0,
     activeContract: null,
     contractIndex: 0,
@@ -670,6 +673,9 @@ function makeInitialGame(mode = 'arcade') {
       shortcuts: 0,
       styleTips: 0,
       perfectDropoffs: 0,
+      shiftStreak: 0,
+      bestShiftStreak: 0,
+      streakBreaks: 0,
     },
     goals: TAXI_GOALS
       .filter((goal) => mode === 'learn' || !goal.learnOnly)
@@ -809,8 +815,35 @@ function addFareHeat(game, amount, label, color = '#fef08a') {
   }
 }
 
+function breakShiftStreak(game, label = 'Serie gebrochen') {
+  if (!game.carrying || game.shiftStreak <= 0) return;
+  game.shiftStreak = 0;
+  game.stats.shiftStreak = 0;
+  game.stats.streakBreaks += 1;
+  addFloater(game, game.player.x, game.player.y - 92, label, '#fb7185');
+}
+
+function advanceShiftStreak(game, cleanFare) {
+  const strongDelivery = cleanFare && game.passengerMood >= 70;
+  if (!strongDelivery) {
+    breakShiftStreak(game, 'Serie weg');
+    return 0;
+  }
+
+  game.shiftStreak += 1;
+  game.stats.shiftStreak = game.shiftStreak;
+  game.stats.bestShiftStreak = Math.max(game.stats.bestShiftStreak, game.shiftStreak);
+  const streakBonus = Math.round(120 + game.shiftStreak * 95 + game.passengerMood * 0.55 + game.routeGatesCollected * 28);
+  game.reputation += game.shiftStreak >= 3 ? 1 : 0;
+  addFloater(game, game.player.x, game.player.y - 112, `SERIE x${game.shiftStreak}`, '#fef08a');
+  spawnParticles(game, game.player.x, game.player.y, '#fef08a', 18 + Math.min(game.shiftStreak, 5) * 3, 260);
+  return streakBonus;
+}
+
 function recordFareIncident(game, amount = 1) {
-  if (game.carrying) game.fareIncidents += amount;
+  if (!game.carrying) return;
+  game.fareIncidents += amount;
+  breakShiftStreak(game);
 }
 
 function pushSkid(game, x, y, angle, alpha) {
@@ -866,7 +899,8 @@ function scoreDelivery(game, job, cleanBonus) {
   const comboBonus = game.combo * 70;
   const routeBonus = game.routeGates.filter((gate) => gate.collected).length * 55;
   const moodBonus = Math.round(game.passengerMood * (game.mode === 'learn' ? 1.8 : 1.25));
-  const reward = job.reward + timeBonus + comboBonus + cleanBonus + routeBonus + moodBonus + styleTip;
+  const streakBonus = advanceShiftStreak(game, cleanFare);
+  const reward = job.reward + timeBonus + comboBonus + cleanBonus + routeBonus + moodBonus + styleTip + streakBonus;
   game.score += reward;
   game.reputation += Math.round((game.passengerMood / 100) * 2 + (cleanBonus > 100 ? 1 : 0));
   game.jobIndex += 1;
@@ -879,7 +913,9 @@ function scoreDelivery(game, job, cleanBonus) {
   game.pickupDamage = game.player.damage;
   game.time = Math.min(game.mode === 'learn' ? 130 : 112, game.time + (game.mode === 'learn' ? 18 : 15));
   game.player.boost = Math.min(100, game.player.boost + 34);
-  game.message = game.mode === 'learn' ? `Richtig: ${job.cargo} -> ${job.target}` : `${job.target} erreicht`;
+  game.message = game.mode === 'learn'
+    ? `Richtig: ${job.cargo} -> ${job.target}${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`
+    : `${job.target} erreicht${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`;
   game.messageTimer = 1.2;
   addFloater(game, game.player.x, game.player.y - 48, `+${reward}`, '#facc15');
   spawnParticles(game, game.player.x, game.player.y, job.color, 24, 280);
@@ -1942,7 +1978,7 @@ function drawHud(ctx, game) {
     ctx.fillText(`${Math.ceil(game.time)}s`, panelRight, 52);
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 13px Outfit, sans-serif';
-    ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · x${Math.max(1, game.combo)} · Tip ${Math.round(game.fareHeat)}`, panelRight, 78);
+    ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Serie x${game.shiftStreak} · Tip ${Math.round(game.fareHeat)}`, panelRight, 78);
     ctx.textAlign = 'left';
     ctx.fillStyle = job.color;
     drawFittedText(ctx, mission, panelLeft, 108, 334, 18, 11);
@@ -1973,7 +2009,7 @@ function drawHud(ctx, game) {
     ctx.fill();
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 10px Outfit, sans-serif';
-    ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · M${game.contractMedals}` : `Medaillen ${game.contractMedals} · Verpasst ${game.contractFails}`, panelLeft, 323);
+    ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · M${game.contractMedals}` : `Medaillen ${game.contractMedals} · Serie-Best ${game.stats.bestShiftStreak}`, panelLeft, 323);
 
     const meterY = HEIGHT - 116;
     ctx.fillStyle = 'rgba(2,6,23,.78)';
@@ -2025,10 +2061,10 @@ function drawHud(ctx, game) {
   ctx.fillText(`${Math.ceil(game.time)}s`, WIDTH - 44, 84);
   ctx.fillStyle = '#67e8f9';
   ctx.font = '900 16px Outfit, sans-serif';
-  ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Combo x${Math.max(1, game.combo)} · Rep ${game.reputation}`, WIDTH - 44, 116);
+  ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Combo x${Math.max(1, game.combo)} · Serie x${game.shiftStreak} · Rep ${game.reputation}`, WIDTH - 44, 116);
   ctx.fillStyle = '#fef08a';
   ctx.font = '900 13px Outfit, sans-serif';
-  ctx.fillText(`Style-Tip ${Math.round(game.fareHeat)} · Incidents ${game.fareIncidents}`, WIDTH - 44, 138);
+  ctx.fillText(`Style-Tip ${Math.round(game.fareHeat)} · Incidents ${game.fareIncidents} · Best ${game.stats.bestShiftStreak}`, WIDTH - 44, 138);
 
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(2,6,23,.76)';
@@ -2056,7 +2092,7 @@ function drawHud(ctx, game) {
   ctx.fill();
   ctx.fillStyle = contract && game.contractTimer < 8 ? '#fb7185' : '#cbd5e1';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · Medaillen ${game.contractMedals}` : `Medaillen ${game.contractMedals} · Verpasst ${game.contractFails}`, 44, 376);
+  ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · Medaillen ${game.contractMedals}` : `Medaillen ${game.contractMedals} · Verpasst ${game.contractFails} · Serie-Best ${game.stats.bestShiftStreak}`, 44, 376);
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
   drawRoundedRect(ctx, WIDTH - 640, HEIGHT - 92, 616, 66, 16);
@@ -2326,6 +2362,7 @@ export default function FaskaTaxiRushSwarm() {
             deliveries: gameRef.current.deliveries,
             reputation: gameRef.current.reputation,
             wrongPads: gameRef.current.wrongPads,
+            bestShiftStreak: gameRef.current.stats.bestShiftStreak,
           });
         }
       } catch (err) {
@@ -2447,7 +2484,7 @@ export default function FaskaTaxiRushSwarm() {
         }}>
           <div style={{ fontSize: 52, fontWeight: 900, color: '#f8fafc' }}>{endState.message}</div>
           <div style={{ fontSize: 28, color: '#facc15', fontWeight: 900 }}>
-            Score {endState.score} · Fahrten {endState.deliveries} · Rep {endState.reputation} · Fehler {endState.wrongPads}
+            Score {endState.score} · Fahrten {endState.deliveries} · Rep {endState.reputation} · Serie {endState.bestShiftStreak} · Fehler {endState.wrongPads}
           </div>
           <button className="btn-primary" onClick={restart}>Noch eine Fahrt</button>
         </div>

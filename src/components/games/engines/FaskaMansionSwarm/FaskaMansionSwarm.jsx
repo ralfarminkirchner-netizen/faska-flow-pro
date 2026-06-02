@@ -282,6 +282,22 @@ const MANSION_GOALS = [
   { id: 'relic', label: 'Siegel bergen', stat: 'relics', target: 1, reward: 700 },
 ];
 
+const MANSION_CONTRACTS = [
+  { id: 'card-route', label: '1 Schluesselkarte sichern', stat: 'keys', target: 1, duration: 68, maxStat: 3, reward: { score: 360, flashlight: 14, dread: -5 } },
+  { id: 'safe-room', label: '1 Safe Room erreichen', stat: 'safeRooms', target: 1, duration: 58, maxStat: 3, reward: { score: 300, hp: 6, stamina: 24, noise: -18 } },
+  { id: 'quiet-door', label: '1 Tuer leise oeffnen', stat: 'silentDoors', target: 1, duration: 50, maxStat: 4, reward: { score: 340, flashlight: 12, dread: -6 } },
+  { id: 'focus-stuns', label: '2 Gegner mit Licht stoppen', stat: 'flashStuns', target: 2, duration: 40, reward: { score: 360, flashlight: 18, stamina: 12 } },
+  { id: 'precision', label: '2 Praezisions-Treffer', stat: 'precisionShots', target: 2, duration: 42, reward: { score: 440, ammo: 3, dread: -5 } },
+  { id: 'hunter', label: '1 Gegner ausschalten', stat: 'kills', target: 1, duration: 56, reward: { score: 390, ammo: 4, hp: 4 } },
+  { id: 'puzzle', label: '1 Villa-Raetsel loesen', stat: 'puzzles', target: 1, duration: 70, maxStat: 3, reward: { score: 470, ammo: 4, dread: -10, noise: -15 } },
+  { id: 'cache', label: '1 Koffer knacken', stat: 'caches', target: 1, duration: 64, maxStat: 3, reward: { score: 410, ammo: 6, shells: 1 } },
+  { id: 'barricade', label: '1 Fenster verbarrikadieren', stat: 'barricades', target: 1, duration: 58, maxStat: 3, reward: { score: 340, boards: 1, dread: -7 } },
+  { id: 'trap', label: '1 Falle wirken lassen', stat: 'traps', target: 1, duration: 62, maxStat: 3, reward: { score: 430, hp: 5, dread: -9 } },
+  { id: 'learn-gate', label: '1 Learncade-Gate loesen', stat: 'correctGates', target: 1, duration: 46, reward: { score: 430, ammo: 3, flashlight: 20, hp: 4 }, learnOnly: true },
+  { id: 'relic', label: 'Das Siegel bergen', stat: 'relics', target: 1, duration: 110, maxStat: 1, reward: { score: 700, shells: 2, hp: 8, dread: -12 } },
+  { id: 'boss', label: 'Hausmeister besiegen', stat: 'bossKills', target: 1, duration: 80, maxStat: 1, requiresRelic: true, reward: { score: 900, hp: 12, dread: -22 } },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const angleDistance = (a, b) => Math.abs(normalizeAngle(a - b));
@@ -344,6 +360,12 @@ function makeInitialGame(mode = 'arcade') {
       bossKills: 0,
     },
     goals: MANSION_GOALS.map((goal) => ({ ...goal, done: false })),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.1,
+    contractWins: 0,
+    contractFails: 0,
     particles: [],
     player: {
       x: 150,
@@ -452,6 +474,97 @@ function recordStat(game, stat, amount = 1) {
     spawnParticles(game, game.player.x, game.player.y, '#fef3c7', 14);
   });
   return completedGoal;
+}
+
+function availableMansionContracts(game) {
+  return MANSION_CONTRACTS.filter((contract) => {
+    if (contract.learnOnly && game.mode !== 'learn') return false;
+    if (contract.requiresRelic && !game.player.hasRelic) return false;
+    if (contract.maxStat && (game.stats[contract.stat] || 0) >= contract.maxStat) return false;
+    return true;
+  });
+}
+
+function mansionContractProgress(game) {
+  if (!game.activeContract) return 0;
+  const current = game.stats[game.activeContract.stat] || 0;
+  return clamp(current - game.activeContract.startValue, 0, game.activeContract.target);
+}
+
+function applyMansionReward(game, reward = {}) {
+  const player = game.player;
+  if (reward.score) player.score += reward.score;
+  if (reward.hp) player.hp = clamp(player.hp + reward.hp, 0, 100);
+  if (reward.stamina) player.stamina = clamp(player.stamina + reward.stamina, 0, 100);
+  if (reward.flashlight) player.flashlight = clamp(player.flashlight + reward.flashlight, 0, 100);
+  if (reward.ammo) player.reserveAmmo = Math.min(30, player.reserveAmmo + reward.ammo);
+  if (reward.shells) player.shotgunShells = Math.min(12, player.shotgunShells + reward.shells);
+  if (reward.herbs) player.herbs = Math.min(5, player.herbs + reward.herbs);
+  if (reward.boards) player.boards = Math.min(6, player.boards + reward.boards);
+  if (reward.dread) game.dread = clamp(game.dread + reward.dread, 8, 100);
+  if (reward.noise) game.noise = clamp(game.noise + reward.noise, 0, 100);
+}
+
+function startMansionContract(game) {
+  const contracts = availableMansionContracts(game);
+  if (!contracts.length) {
+    game.contractCooldown = 4;
+    return;
+  }
+  const template = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...template,
+    startValue: game.stats[template.stat] || 0,
+  };
+  game.contractTimer = template.duration;
+  game.message = `Auftrag: ${template.label}`;
+  game.messageTimer = 1.1;
+  spawnParticles(game, game.player.x, game.player.y, '#bae6fd', 14);
+}
+
+function completeMansionContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyMansionReward(game, contract.reward);
+  game.contractWins += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.8;
+  game.message = `Auftrag geschafft: ${contract.label}`;
+  game.messageTimer = 1.2;
+  spawnParticles(game, game.player.x, game.player.y, '#fef3c7', 22);
+}
+
+function failMansionContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.6;
+  game.dread = clamp(game.dread + 5, 8, 100);
+  game.noise = clamp(game.noise + 8, 0, 100);
+  game.message = `Auftrag verpasst: ${contract.label}`;
+  game.messageTimer = 1;
+  spawnParticles(game, game.player.x, game.player.y, '#fb7185', 12);
+}
+
+function updateMansionContract(game, dt) {
+  if (game.phase !== 'run') return;
+
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startMansionContract(game);
+    return;
+  }
+
+  game.contractTimer = Math.max(0, game.contractTimer - dt);
+  if (mansionContractProgress(game) >= game.activeContract.target) {
+    completeMansionContract(game);
+  } else if (game.contractTimer <= 0) {
+    failMansionContract(game);
+  }
 }
 
 function currentSafeRoom(game) {
@@ -1376,6 +1489,7 @@ function updateGame(game, input, dt, onFinish) {
   updateEnemies(game, dt);
   updateBoss(game, dt);
   updateLearnGates(game, dt);
+  updateMansionContract(game, dt);
   updateParticles(game, dt);
   updateCamera(game);
 
@@ -1386,6 +1500,8 @@ function updateGame(game, input, dt, onFinish) {
       title: 'Villa verlassen',
       score: game.player.score + 1600 + Math.round(game.player.hp * 8),
       hp: Math.round(game.player.hp),
+      contracts: game.contractWins,
+      contractFails: game.contractFails,
     };
     onFinish(game.result);
   } else if (rectsOverlap(playerRect(game.player), exit) && game.player.hasRelic) {
@@ -1397,6 +1513,8 @@ function updateGame(game, input, dt, onFinish) {
       title: 'Run verloren',
       score: game.player.score,
       hp: 0,
+      contracts: game.contractWins,
+      contractFails: game.contractFails,
     };
     onFinish(game.result);
   }
@@ -1925,6 +2043,8 @@ function drawFittedText(ctx, text, x, y, maxWidth, maxSize = 16, minSize = 10, w
 
 function drawHud(ctx, game) {
   const player = game.player;
+  const contract = game.activeContract;
+  const contractProgress = mansionContractProgress(game);
   ctx.save();
   ctx.fillStyle = 'rgba(2,6,23,.82)';
   drawRoundedRect(ctx, 28, 22, 448, 314, 18);
@@ -2007,6 +2127,35 @@ function drawHud(ctx, game) {
     ctx.fillStyle = goal.done ? '#ccfbf1' : '#94a3b8';
     drawFittedText(ctx, goal.label, WIDTH - 268, y, 214, 12, 10, 800);
   });
+
+  ctx.fillStyle = 'rgba(2,6,23,.78)';
+  drawRoundedRect(ctx, WIDTH - 336, 342, 308, 118, 18);
+  ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '900 13px Outfit, sans-serif';
+  ctx.fillText(`SURVIVAL-AUFTRAG · ${game.contractWins} OK · ${game.contractFails} FAIL`, WIDTH - 314, 370);
+  if (contract) {
+    const progress = clamp(contractProgress / contract.target, 0, 1);
+    ctx.fillStyle = '#cbd5e1';
+    drawFittedText(ctx, contract.label, WIDTH - 314, 394, 254, 13, 10, 800);
+    ctx.fillStyle = 'rgba(51,65,85,.9)';
+    drawRoundedRect(ctx, WIDTH - 314, 408, 260, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = progress >= 1 ? '#22c55e' : '#facc15';
+    drawRoundedRect(ctx, WIDTH - 314, 408, 260 * progress, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(`${contractProgress}/${contract.target}`, WIDTH - 314, 438);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.ceil(game.contractTimer)}s`, WIDTH - 54, 438);
+    ctx.textAlign = 'left';
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText('Naechste Lage wird vorbereitet', WIDTH - 314, 398);
+    ctx.fillText(`${Math.ceil(game.contractCooldown)}s`, WIDTH - 314, 424);
+  }
 
   if (game.messageTimer > 0) {
     ctx.textAlign = 'center';
@@ -2280,7 +2429,7 @@ export default function FaskaMansionSwarm() {
         }}>
           <div style={{ fontSize: 54, fontWeight: 900, color: '#f8fafc' }}>{result.title}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Score {result.score}</div>
-          <div style={{ fontSize: 15, color: '#cbd5e1' }}>HP {result.hp}</div>
+          <div style={{ fontSize: 15, color: '#cbd5e1' }}>HP {result.hp} · Auftraege {result.contracts}/{result.contracts + result.contractFails}</div>
           <button className="btn-primary" onClick={restart}>Neuer Lauf</button>
         </div>
       )}

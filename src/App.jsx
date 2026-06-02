@@ -118,8 +118,9 @@ export default function App() {
         <Route path="/game/descent-godot" element={<FaskaDescentGodot />} />
         <Route path="/game/parkour" element={<FaskaParkourGodot />} />
         <Route path="/game/parkour-react" element={<FaskaParkourSwarm />} />
-        <Route path="/game/mansion" element={<FaskaMansionGodot />} />
+        <Route path="/game/mansion" element={<FaskaMansionSwarm />} />
         <Route path="/game/mansion-react" element={<FaskaMansionSwarm />} />
+        <Route path="/game/mansion-godot" element={<FaskaMansionGodot />} />
         <Route path="/game/rally" element={<FaskaRallySwarm />} />
         <Route path="/game/rally-react" element={<FaskaRallySwarm />} />
         <Route path="/game/rally-godot" element={<FaskaRallyGodot />} />

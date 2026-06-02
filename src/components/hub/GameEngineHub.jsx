@@ -107,7 +107,7 @@ const GAMES = [
   {
     id: 'descent',
     name: 'Faska Descent Pro',
-    description: 'Godot-4-6DOF-Tunnel-Shooter nach Descent/Star-Fox-Prinzip mit freier X/Y-Fluglage, Roll-Gefuehl, Pulse Laser, Scatter, Rail Lance, Lock-on-Raketen, Shield-Pulse, Flow-Ringen, Bosskern, Fehler-Wiederholung, Touchsteuerung und Learncade-Gates fuer Deutsch, Mathe, Satzbau, Lesen, Komposita, Englisch und Sachkunde!',
+    description: 'Godot-4-6DOF-Tunnel-Shooter nach Descent/Star-Fox-Prinzip mit freier X/Y-Fluglage, Barrel-Roll-Ausweichen, Pulse Laser, Scatter, Rail Lance, Lock-on-Raketen, Shield-Pulse, Hunter-Gegnern, Flow-Combo, Boss-Phasen, Fehler-Wiederholung, Touchsteuerung und Learncade-Gates fuer Deutsch, Mathe, Satzbau, Lesen, Komposita, Englisch und Sachkunde!',
     emoji: '🛸',
     category: 'Shooter',
     gradient: 'linear-gradient(135deg, #0f172a, #0891b2)',

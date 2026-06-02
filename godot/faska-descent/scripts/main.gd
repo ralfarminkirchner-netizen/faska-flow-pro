@@ -310,6 +310,9 @@ const TUNNEL_RADIUS := 2.55
 const PROJECTION_SCALE := 1420.0
 const BASE_SPEED := 16.0
 const BOOST_SPEED := 26.0
+const BARREL_TIME := 0.52
+const BARREL_COOLDOWN := 1.25
+const FLOW_WINDOW := 5.4
 
 var font
 var rng := RandomNumberGenerator.new()
@@ -326,6 +329,8 @@ var touch_button_state := {
 	"missile": false,
 	"pulse": false,
 	"weapon": false,
+	"roll_l": false,
+	"roll_r": false,
 	"learn": false,
 	"subject": false
 }
@@ -349,6 +354,8 @@ var phase := "run"
 var boss_spawned := false
 var boss_defeated := false
 var question_index := 0
+var flow_timer := 0.0
+var best_flow := 0
 var message := ""
 var message_timer := 0.0
 var shake := 0.0
@@ -368,6 +375,10 @@ func reset_game() -> void:
 		"vx": 0.0,
 		"vy": 0.0,
 		"roll": 0.0,
+		"barrel": 0.0,
+		"barrel_cd": 0.0,
+		"barrel_dir": 1.0,
+		"grace": 6.0,
 		"shield": 100.0,
 		"heat": 0.0,
 		"missiles": 5,
@@ -398,21 +409,23 @@ func reset_game() -> void:
 	current_weapon = "laser"
 	weapon_index = 0
 	fire_cooldown = 0.0
-	spawn_timer = 0.2
-	ring_timer = 2.0
+	spawn_timer = 1.4
+	ring_timer = 2.8
 	gate_timer = 4.0
 	distance = 0.0
 	phase = "run"
 	boss_spawned = false
 	boss_defeated = false
 	question_index = 0
+	flow_timer = 0.0
+	best_flow = 0
 	message = "FASKA DESCENT - Godot 4"
 	message_timer = 2.2
 	shake = 0.0
 	for i in range(7):
-		spawn_enemy(16.0 + float(i) * 5.2)
+		spawn_enemy(48.0 + float(i) * 7.2)
 	for i in range(3):
-		spawn_flow_ring(22.0 + float(i) * 15.0)
+		spawn_flow_ring(36.0 + float(i) * 16.0)
 
 func _process(delta: float) -> void:
 	if not has_focus():
@@ -451,7 +464,10 @@ func handle_continuous_input(delta: float) -> void:
 		roll_input -= 1.0
 	if Input.is_key_pressed(KEY_E):
 		roll_input += 1.0
-	player.roll = lerp(float(player.roll), roll_input * 0.72 - float(player.vx) * 0.22, min(1.0, delta * 5.0))
+	var roll_target := roll_input * 0.72 - float(player.vx) * 0.22
+	if float(player.get("barrel", 0.0)) > 0.0:
+		roll_target += float(player.get("barrel_dir", 1.0)) * 1.24
+	player.roll = lerp(float(player.roll), roll_target, min(1.0, delta * 5.0))
 	if (Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_SPACE) or is_touch_down("fire")) and phase == "run":
 		fire_weapon()
 	if boost_pressed() and phase == "run":
@@ -460,6 +476,13 @@ func handle_continuous_input(delta: float) -> void:
 func update_run(delta: float) -> void:
 	fire_cooldown = max(0.0, fire_cooldown - delta)
 	player.heat = max(0.0, float(player.heat) - delta * 25.0)
+	player.barrel = max(0.0, float(player.get("barrel", 0.0)) - delta)
+	player.barrel_cd = max(0.0, float(player.get("barrel_cd", 0.0)) - delta)
+	player.grace = max(0.0, float(player.get("grace", 0.0)) - delta)
+	if flow_timer > 0.0:
+		flow_timer = max(0.0, flow_timer - delta)
+	elif int(player.combo) > 0:
+		break_flow()
 	var boosted := boost_pressed() and float(player.heat) < 96.0
 	var speed := BOOST_SPEED if boosted else BASE_SPEED
 	distance += speed * delta
@@ -490,11 +513,15 @@ func spawn_enemy(z_value: float) -> void:
 	var kind := "drone"
 	var hp := 28.0
 	var radius := 0.18
-	if pick > 0.78:
+	if pick > 0.88:
+		kind = "hunter"
+		hp = 42.0
+		radius = 0.21
+	elif pick > 0.72:
 		kind = "sentinel"
 		hp = 54.0
 		radius = 0.24
-	elif pick > 0.58:
+	elif pick > 0.52:
 		kind = "mine"
 		hp = 18.0
 		radius = 0.2
@@ -554,6 +581,7 @@ func spawn_boss() -> void:
 		"max_hp": float(player.boss_hp),
 		"radius": 0.62,
 		"phase": 0.0,
+		"boss_phase": 1,
 		"attack": 1.1
 	})
 	message = "Bosskern online - Schilde brechen!"
@@ -576,15 +604,40 @@ func update_entities(delta: float, speed: float) -> void:
 			if float(e.attack) <= 0.0 and float(e.z) < 44.0:
 				e.attack = rng.randf_range(1.1, 2.0)
 				spawn_bolt(float(e.x), float(e.y), float(e.z) - 0.8)
+		elif kind == "hunter":
+			e.x = lerp(float(e.x), float(player.x) + sin(float(e.phase) * 1.6) * 0.18, delta * 0.72)
+			e.y = lerp(float(e.y), float(player.y) + cos(float(e.phase) * 1.3) * 0.16, delta * 0.72)
+			e.attack = float(e.attack) - delta
+			if float(e.attack) <= 0.0 and float(e.z) < 48.0:
+				e.attack = rng.randf_range(0.72, 1.28)
+				spawn_bolt(float(e.x), float(e.y), float(e.z) - 0.9)
 		elif kind == "boss":
 			e.z = max(17.5, float(e.z))
-			e.x = sin(float(e.phase) * 0.9) * 0.24
-			e.y = cos(float(e.phase) * 1.1) * 0.14
+			var hp_ratio: float = clamp(float(e.hp) / float(e.max_hp), 0.0, 1.0)
+			var phase_level := 1
+			if hp_ratio < 0.34:
+				phase_level = 3
+			elif hp_ratio < 0.67:
+				phase_level = 2
+			if int(e.get("boss_phase", 1)) != phase_level:
+				e.boss_phase = phase_level
+				spawn_flow_ring(float(e.z) + 7.5)
+				add_text("BOSS PHASE " + str(phase_level), Color(1.0, 0.75, 0.18))
+			e.x = sin(float(e.phase) * (0.85 + float(phase_level) * 0.28)) * (0.2 + float(phase_level) * 0.08)
+			e.y = cos(float(e.phase) * (1.05 + float(phase_level) * 0.18)) * (0.12 + float(phase_level) * 0.05)
 			e.attack = float(e.attack) - delta
 			if float(e.attack) <= 0.0:
-				e.attack = 0.75
-				for offset in [-0.35, 0.0, 0.35]:
-					spawn_bolt(float(e.x) + offset, float(e.y), float(e.z) - 1.0)
+				var cadence := 0.78
+				var offsets := [-0.34, 0.0, 0.34]
+				if phase_level == 2:
+					cadence = 0.56
+					offsets = [-0.46, -0.16, 0.16, 0.46]
+				elif phase_level == 3:
+					cadence = 0.42
+					offsets = [-0.58, -0.29, 0.0, 0.29, 0.58]
+				e.attack = cadence
+				for offset in offsets:
+					spawn_bolt(float(e.x) + offset, float(e.y) + sin(float(e.phase) + float(offset) * 4.0) * 0.12, float(e.z) - 1.0)
 		if kind == "bolt":
 			e.z = float(e.z) - speed * delta * 0.55
 			e.x = lerp(float(e.x), float(player.x), delta * 0.62)
@@ -612,29 +665,62 @@ func resolve_near_entity(e) -> void:
 	if kind == "ring":
 		if distance_to_player(e) < 0.42:
 			player.rings += 1
-			player.score += 220
-			player.combo += 1
-			add_text("FLOW +" + str(player.combo), Color(0.45, 0.95, 1.0))
+			add_flow(1, "RING")
+			player.score += int(round(220.0 * combo_multiplier()))
 			player.heat = max(0.0, float(player.heat) - 18.0)
 		else:
-			player.combo = 0
+			break_flow()
 	elif kind == "pickup":
 		if distance_to_player(e) < 0.36:
 			player.shield = min(100.0, float(player.shield) + 16.0)
 			player.missiles += 1
-			player.score += 160
+			add_flow(1, "SUPPLY")
+			player.score += int(round(160.0 * combo_multiplier()))
 			add_text("SUPPLY", Color(0.45, 1.0, 0.55))
 	elif kind == "gate":
 		resolve_gate(e)
 	elif kind == "bolt":
 		if distance_to_player(e) < 0.32:
-			damage_player(8.0, "Treffer")
+			damage_player(6.0, "Treffer")
 	elif kind != "boss":
 		if distance_to_player(e) < 0.35:
-			damage_player(14.0, "Kollision")
+			damage_player(9.0, "Kollision")
 
 func distance_to_player(e) -> float:
 	return Vector2(float(e.x) - float(player.x), float(e.y) - float(player.y)).length()
+
+func add_flow(amount: int, label: String) -> void:
+	player.combo = int(player.combo) + amount
+	player.best_combo = max(int(player.best_combo), int(player.combo))
+	best_flow = max(best_flow, int(player.combo))
+	flow_timer = FLOW_WINDOW
+	if label != "":
+		add_text(label + " x" + str(player.combo), Color(0.45, 0.95, 1.0))
+
+func break_flow() -> void:
+	player.combo = 0
+	flow_timer = 0.0
+
+func combo_multiplier() -> float:
+	return 1.0 + min(1.75, float(player.combo) * 0.055)
+
+func barrel_state() -> String:
+	if float(player.get("barrel", 0.0)) > 0.0:
+		return "ROLL"
+	if float(player.get("barrel_cd", 0.0)) > 0.0:
+		return "CD " + str(int(float(player.get("barrel_cd", 0.0)) * 10.0) + 1)
+	return "READY"
+
+func start_barrel_roll(dir: float) -> void:
+	if phase != "run":
+		return
+	if float(player.get("barrel_cd", 0.0)) > 0.0 or float(player.heat) > 90.0:
+		return
+	player.barrel = BARREL_TIME
+	player.barrel_cd = BARREL_COOLDOWN
+	player.barrel_dir = dir
+	player.heat = min(100.0, float(player.heat) + 12.0)
+	add_flow(1, "BARREL")
 
 func resolve_gate(gate) -> void:
 	var question = gate.question
@@ -650,16 +736,17 @@ func resolve_gate(gate) -> void:
 		var repeated := bool(question.get("repeat", false))
 		player.gates += 1
 		correct_gates += 1
-		player.score += 760 if repeated else 520
+		add_flow(2, "GATE")
+		var gate_points := 760 if repeated else 520
+		player.score += int(round(float(gate_points) * combo_multiplier()))
 		player.shield = min(100.0, float(player.shield) + 10.0)
-		player.combo += 2
 		_remove_repeat(question)
 		question_index = (question_index + 1) % question_bank().size()
 		var ok_text := ("WDH OK: " + chosen) if repeated else ("RICHTIG: " + chosen)
 		add_text(ok_text, Color(0.47, 1.0, 0.58))
 		message = ("Wiederholung geloest: " + chosen) if repeated else ("Richtig: " + chosen)
 		if correct_gates > 0 and correct_gates % LEARN_GOAL == 0:
-			player.score += 1300
+			player.score += int(round(1300.0 * combo_multiplier()))
 			add_text("LERNZIEL +" + str(LEARN_GOAL), Color(1.0, 0.9, 0.26))
 	else:
 		mistakes += 1
@@ -714,7 +801,7 @@ func find_lock_target() -> int:
 	for i in range(entities.size()):
 		var e = entities[i]
 		var kind := String(e.kind)
-		if kind not in ["drone", "sentinel", "mine", "boss"]:
+		if kind not in ["drone", "sentinel", "hunter", "mine", "boss"]:
 			continue
 		if float(e.z) < 5.0 or float(e.z) > 55.0:
 			continue
@@ -767,7 +854,7 @@ func find_hit_for_shot(shot) -> int:
 	for i in range(entities.size()):
 		var e = entities[i]
 		var kind := String(e.kind)
-		if kind not in ["drone", "sentinel", "mine", "boss"]:
+		if kind not in ["drone", "sentinel", "hunter", "mine", "boss"]:
 			continue
 		var z_hit: bool = abs(float(shot.z) - float(e.z)) < 1.4
 		if not z_hit:
@@ -789,16 +876,19 @@ func apply_hit(index: int, damage: float, source: String) -> void:
 		var points := 260
 		if kind == "sentinel":
 			points = 430
+		elif kind == "hunter":
+			points = 520
 		elif kind == "mine":
 			points = 160
 		elif kind == "boss":
 			points = 2500
-		player.score += points + int(player.combo) * 30
-		player.combo += 1
-		player.best_combo = max(int(player.best_combo), int(player.combo))
+		add_flow(2 if kind == "boss" else 1, kind.to_upper())
+		player.score += int(round(float(points) * combo_multiplier())) + int(player.combo) * 24
 		player.kills += 1
 		add_text("+" + str(points), Color(1.0, 0.9, 0.35))
 		spawn_sparks(project_point(float(e.x), float(e.y), float(e.z)), Color(1.0, 0.42, 0.22))
+		if kind == "mine":
+			mine_blast(e, index)
 		if kind == "boss":
 			boss_defeated = true
 			phase = "win"
@@ -811,9 +901,31 @@ func apply_hit(index: int, damage: float, source: String) -> void:
 	else:
 		entities[index] = e
 
+func mine_blast(source, source_index: int) -> void:
+	for j in range(entities.size()):
+		if j == source_index:
+			continue
+		var target = entities[j]
+		var kind := String(target.kind)
+		if kind not in ["drone", "sentinel", "hunter"]:
+			continue
+		var gap := Vector2(float(target.x) - float(source.x), float(target.y) - float(source.y)).length()
+		var z_gap: float = abs(float(target.z) - float(source.z))
+		if gap < 0.46 and z_gap < 4.8:
+			target.hp = float(target.hp) - 22.0
+			entities[j] = target
+	spawn_sparks(project_point(float(source.x), float(source.y), float(source.z)), Color(1.0, 0.78, 0.2), 18)
+
 func damage_player(amount: float, reason: String) -> void:
+	if float(player.get("grace", 0.0)) > 0.0:
+		return
+	if float(player.get("barrel", 0.0)) > 0.0:
+		player.score += 120
+		add_flow(1, "EVADE")
+		shake = max(shake, 0.35)
+		return
 	player.shield = max(0.0, float(player.shield) - amount)
-	player.combo = 0
+	break_flow()
 	shake = 1.0
 	add_text(reason + " -" + str(int(amount)), Color(1.0, 0.3, 0.25))
 
@@ -828,7 +940,8 @@ func pulse_clear() -> void:
 			entities.remove_at(i)
 			cleared += 1
 	if cleared > 0:
-		player.score += cleared * 90
+		add_flow(cleared, "PULSE")
+		player.score += int(round(float(cleared) * 90.0 * combo_multiplier()))
 		add_text("PULSE CLEAR x" + str(cleared), Color(0.65, 0.85, 1.0))
 	else:
 		add_text("Pulse leer", Color(0.58, 0.68, 0.9))
@@ -927,6 +1040,10 @@ func _unhandled_input(event) -> void:
 				cycle_weapon()
 			KEY_F:
 				cycle_lesson()
+			KEY_Q:
+				start_barrel_roll(-1.0)
+			KEY_E:
+				start_barrel_roll(1.0)
 
 func _gui_input(event) -> void:
 	if not should_show_touch():
@@ -991,6 +1108,10 @@ func handle_touch_press(pointer_id: int, pos: Vector2) -> void:
 				cycle_weapon()
 			elif name == "subject":
 				cycle_lesson()
+			elif name == "roll_l":
+				start_barrel_roll(-1.0)
+			elif name == "roll_r":
+				start_barrel_roll(1.0)
 
 func should_show_touch() -> bool:
 	return size.x <= 1100.0 or size.x < size.y
@@ -1014,6 +1135,8 @@ func touch_button_centers() -> Dictionary:
 		"weapon": Vector2(size.x - 268.0 * s, size.y - 104.0 * s),
 		"subject": Vector2(size.x - 268.0 * s, size.y - 194.0 * s),
 		"learn": Vector2(size.x - 180.0 * s, size.y - 284.0 * s),
+		"roll_l": Vector2(size.x - 268.0 * s, size.y - 284.0 * s),
+		"roll_r": Vector2(size.x - 92.0 * s, size.y - 284.0 * s),
 	}
 
 func touch_button_rects() -> Dictionary:
@@ -1099,9 +1222,11 @@ func draw_enemy(e) -> void:
 	var color := Color(0.96, 0.18, 0.18)
 	if kind == "sentinel":
 		color = Color(0.76, 0.34, 1.0)
+	elif kind == "hunter":
+		color = Color(1.0, 0.26, 0.48)
 	elif kind == "mine":
 		color = Color(1.0, 0.62, 0.18)
-	var sides := 4 if kind != "mine" else 8
+	var sides := 5 if kind == "hunter" else (4 if kind != "mine" else 8)
 	var points := []
 	for i in range(sides):
 		var a := (float(i) / float(sides)) * TAU + float(e.phase)
@@ -1122,7 +1247,7 @@ func draw_boss(e) -> void:
 	var hp_ratio: float = clamp(float(e.hp) / float(e.max_hp), 0.0, 1.0)
 	draw_rect(Rect2(Vector2(size.x * 0.24, 82.0), Vector2(size.x * 0.52, 12.0)), Color(0.14, 0.02, 0.03, 0.9))
 	draw_rect(Rect2(Vector2(size.x * 0.24, 82.0), Vector2(size.x * 0.52 * hp_ratio, 12.0)), Color(1.0, 0.17, 0.12))
-	draw_text(Vector2(size.x * 0.24, 76.0), "REAKTORBOSS")
+	draw_text(Vector2(size.x * 0.24, 76.0), "REAKTORBOSS P" + str(int(e.get("boss_phase", 1))))
 
 func draw_ring(e) -> void:
 	var pos := project_point(float(e.x), float(e.y), float(e.z))
@@ -1179,23 +1304,27 @@ func draw_player_reticle() -> void:
 	draw_line(ret + Vector2(0, -18), ret + Vector2(0, -6), Color(0.8, 0.95, 1.0), 2.0)
 	draw_line(ret + Vector2(0, 6), ret + Vector2(0, 18), Color(0.8, 0.95, 1.0), 2.0)
 	draw_circle(ret, 4.0, Color(1.0, 0.94, 0.3))
+	if float(player.get("barrel", 0.0)) > 0.0:
+		draw_arc(ret, 30.0, -PI * 0.2, PI * 1.55, 44, Color(1.0, 0.92, 0.25), 4.0)
 
 func draw_hud() -> void:
 	var compact := should_show_touch()
 	var ui := 1.42 if size.y > size.x * 1.15 else 1.0
 	var hud_w := minf(size.x - 20.0, 560.0 if compact else 530.0)
-	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, (132.0 if compact else 116.0) * ui)), Color(0.0, 0.0, 0.0, 0.62))
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, (158.0 if compact else 146.0) * ui)), Color(0.0, 0.0, 0.0, 0.62))
 	draw_text(Vector2(18, 28 * ui), "FASKA DESCENT PRO", Color(1.0, 0.93, 0.32), int(18 * ui))
 	draw_bar(Vector2(18, 42 * ui), "SHIELD", float(player.shield), 100.0, Color(0.28, 0.92, 1.0), ui)
 	draw_bar(Vector2(18, 66 * ui), "HEAT", float(player.heat), 100.0, Color(1.0, 0.48, 0.2), ui)
 	draw_text(Vector2(18, 101 * ui), "Score %s  Combo %s  Mode %s" % [str(player.score), str(player.combo), mode], Color(0.86, 0.92, 1.0), int(13 * ui))
 	draw_text(Vector2(18, 123 * ui), "Fach %s  Ziel %d/%d  Fehler %d  Wdh %d" % [LESSONS[lesson_index], correct_gates % LEARN_GOAL, LEARN_GOAL, mistakes, repeat_queue.size()], Color(0.72, 0.94, 1.0), int(12 * ui))
+	draw_text(Vector2(18, 145 * ui), "Best %s  Flow %s  Barrel %s" % [str(player.best_combo), str(best_flow), barrel_state()], Color(0.72, 0.86, 1.0), int(12 * ui))
 	if not compact:
-		draw_rect(Rect2(Vector2(size.x - 312.0, 10.0), Vector2(298.0, 92.0)), Color(0.0, 0.0, 0.0, 0.55))
+		draw_rect(Rect2(Vector2(size.x - 312.0, 10.0), Vector2(298.0, 114.0)), Color(0.0, 0.0, 0.0, 0.55))
 		draw_text(Vector2(size.x - 302.0, 30.0), "Weapon " + String(WEAPONS[current_weapon].label), Color(0.95, 0.98, 1.0), 14)
 		draw_text(Vector2(size.x - 302.0, 52.0), "Missiles " + str(player.missiles) + "  Kills " + str(player.kills), Color(0.95, 0.98, 1.0), 14)
 		draw_text(Vector2(size.x - 302.0, 74.0), "Dist " + str(int(distance)) + "  Gates " + str(player.gates), Color(0.95, 0.98, 1.0), 14)
-		draw_text(Vector2(size.x - 302.0, 96.0), "F Fach  C Waffe  L Learncade", Color(0.7, 0.8, 0.95), 12)
+		draw_text(Vector2(size.x - 302.0, 96.0), "Q/E Barrel  K Rakete  X Pulse", Color(0.7, 0.8, 0.95), 12)
+		draw_text(Vector2(size.x - 302.0, 116.0), "F Fach  C Waffe  L Learncade", Color(0.7, 0.8, 0.95), 12)
 	if mode == "Learncade":
 		var panel_y := 206.0 if size.y > size.x * 1.15 else (142.0 if compact else 116.0)
 		var panel_w := minf(size.x - 24.0, 720.0)
@@ -1221,6 +1350,8 @@ func draw_touch_controls() -> void:
 		"missile": "MISS",
 		"pulse": "PULSE",
 		"weapon": "WPN",
+		"roll_l": "ROLL<",
+		"roll_r": "ROLL>",
 		"subject": "FACH",
 		"learn": "LERN"
 	}
@@ -1282,8 +1413,8 @@ func update_particles(delta: float) -> void:
 		else:
 			floating_text[i] = t
 
-func spawn_sparks(pos: Vector2, color: Color) -> void:
-	for i in range(12):
+func spawn_sparks(pos: Vector2, color: Color, count: int = 12) -> void:
+	for i in range(count):
 		particles.append({
 			"pos": pos,
 			"vel": Vector2(rng.randf_range(-90.0, 90.0), rng.randf_range(-80.0, 80.0)),

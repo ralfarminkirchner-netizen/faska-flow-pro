@@ -227,7 +227,7 @@ const GAMES = [
   {
     id: 'epic-rpg',
     name: 'Faska Bruno & Luna Quest Pro',
-    description: 'Top-Down-Action-RPG mit Bruno/Luna-Wechsel, Dash, Relikt-Upgrades, Energie-Spezialfaehigkeiten, Boss-Phasen, Minion-Wellen, feindlicher Magie, Beute, Missionen und Learncade-Schreinen!',
+    description: 'Top-Down-Action-RPG mit Bruno/Luna-Wechsel, Dash, aktiven Zeitauftraegen, Medaillen-Belohnungen, Relikt-Upgrades, Energie-Spezialfaehigkeiten, Boss-Phasen, Minion-Wellen, feindlicher Magie, Beute und Learncade-Schreinen!',
     emoji: '🐰',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #22c55e, #a855f7)',

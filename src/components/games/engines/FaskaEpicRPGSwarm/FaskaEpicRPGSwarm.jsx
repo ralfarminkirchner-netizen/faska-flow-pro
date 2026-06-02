@@ -140,6 +140,20 @@ const MISSION_GOALS = [
   { id: 'shrines-5', label: '5 Lern-Schreine', stat: 'shrines', target: 5, reward: 1000, learnOnly: true },
 ];
 
+const ACTIVE_CONTRACTS = [
+  { id: 'hero-switches', label: '4 Bruno/Luna-Wechsel', stat: 'heroSwitches', target: 4, time: 38, reward: { score: 520, energy: 24 } },
+  { id: 'dash-flow', label: '5 Dashes ausfuehren', stat: 'dashes', target: 5, time: 42, reward: { score: 620, energy: 20 } },
+  { id: 'moon-hits', label: '5 Luna-Treffer landen', stat: 'projectileHits', target: 5, time: 46, reward: { score: 720, energy: 28 } },
+  { id: 'bruno-combo', label: '3 Bruno-Nahkampf-Treffer', stat: 'meleeHits', target: 3, time: 45, reward: { score: 680, hp: 18 } },
+  { id: 'enemy-clear', label: '3 Gegner besiegen', stat: 'defeats', target: 3, time: 58, reward: { score: 840, hp: 22, energy: 18 } },
+  { id: 'special-burst', label: '2 Spezialfaehigkeiten', stat: 'specials', target: 2, time: 56, reward: { score: 780, energy: 34 } },
+  { id: 'crystal-route', label: '2 Kristalle sichern', stat: 'crystals', target: 2, time: 62, reward: { score: 640, hp: 18 } },
+  { id: 'coin-route', label: '3 Muenzen sammeln', stat: 'coins', target: 3, time: 58, reward: { score: 560, energy: 18 } },
+  { id: 'relic-scout', label: '1 Relikt bergen', stat: 'relics', target: 1, time: 70, reward: { score: 900, energy: 36, potions: 1 } },
+  { id: 'boss-break', label: '1 Boss-Phase brechen', stat: 'bossPhases', target: 1, time: 76, reward: { score: 1050, hp: 28, energy: 40 } },
+  { id: 'learn-shrines', label: '3 Schreine loesen', stat: 'shrines', target: 3, time: 82, reward: { score: 1100, hp: 28, energy: 36 }, mode: 'learn' },
+];
+
 const ENEMY_TEMPLATES = {
   slime: { hp: 32, damage: 8, speed: 78, r: 22, color: '#22c55e', xp: 18, score: 80 },
   bat: { hp: 24, damage: 10, speed: 132, r: 18, color: '#8b5cf6', xp: 22, score: 100 },
@@ -252,6 +266,15 @@ function createStats() {
     specials: 0,
     bossPhases: 0,
     shrines: 0,
+    coins: 0,
+    hearts: 0,
+    defeats: 0,
+    bossKills: 0,
+    heroSwitches: 0,
+    dashes: 0,
+    potions: 0,
+    meleeHits: 0,
+    projectileHits: 0,
   };
 }
 
@@ -261,8 +284,79 @@ function createGoals(mode) {
     .map((goal) => ({ ...goal, done: false }));
 }
 
+function availableContracts(mode) {
+  return ACTIVE_CONTRACTS.filter((contract) => !contract.mode || contract.mode === mode);
+}
+
+function applyContractReward(game, reward) {
+  const player = game.player;
+  game.score += reward.score || 0;
+  if (reward.hp) player.hp = clamp(player.hp + reward.hp, 0, player.maxHp);
+  if (reward.energy) player.energy = clamp(player.energy + reward.energy, 0, 100);
+  if (reward.potions) player.potions = clamp(player.potions + reward.potions, 0, 5);
+}
+
+function startNextContract(game) {
+  const pool = availableContracts(game.mode);
+  if (pool.length === 0) return;
+  const contract = pool[game.contractIndex % pool.length];
+  game.contractIndex += 1;
+  game.contract = { ...contract };
+  game.contractProgress = 0;
+  game.contractTimer = contract.time;
+  game.message = `Zeitauftrag: ${contract.label}`;
+  game.messageTimer = 1.35;
+  addFloating(game, 'AUFTRAG', game.player.x, game.player.y - 62, '#facc15');
+}
+
+function completeContract(game) {
+  const contract = game.contract;
+  if (!contract) return;
+  applyContractReward(game, contract.reward);
+  game.contractMedals += 1;
+  game.message = `Auftrag geschafft +${contract.reward.score || 0}`;
+  game.messageTimer = 1.35;
+  addFloating(game, 'ZEITBONUS', game.player.x, game.player.y - 68, '#fde68a');
+  addBurst(game, game.player.x, game.player.y, '#fde68a', 20);
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.2;
+}
+
+function failContract(game) {
+  const contract = game.contract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.message = `Auftrag verpasst: ${contract.label}`;
+  game.messageTimer = 1.2;
+  addFloating(game, 'ZEIT ABGELAUFEN', game.player.x, game.player.y - 62, '#fb7185');
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.4;
+}
+
+function progressContract(game, stat, amount = 1) {
+  if (!game.started || game.finished || !game.contract || game.contract.stat !== stat) return;
+  game.contractProgress = Math.min(game.contract.target, game.contractProgress + amount);
+  if (game.contractProgress >= game.contract.target) completeContract(game);
+}
+
+function updateContract(game, dt) {
+  if (!game.started || game.finished) return;
+  if (!game.contract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startNextContract(game);
+    return;
+  }
+  game.contractTimer = Math.max(0, game.contractTimer - dt);
+  if (game.contractTimer <= 0) failContract(game);
+}
+
 function recordStat(game, stat, amount = 1) {
   game.stats[stat] = (game.stats[stat] || 0) + amount;
+  progressContract(game, stat, amount);
   const completed = game.goals.find((goal) => !goal.done && goal.stat === stat && game.stats[stat] >= goal.target);
   if (!completed) return;
   completed.done = true;
@@ -286,6 +380,13 @@ function makeInitialGame(mode = 'arcade') {
     highScore: readHighScore(),
     stats: createStats(),
     goals: createGoals(mode),
+    contract: null,
+    contractIndex: 0,
+    contractProgress: 0,
+    contractTimer: 0,
+    contractCooldown: 1.4,
+    contractMedals: 0,
+    contractFails: 0,
     player: {
       x: 405,
       y: 940,
@@ -444,10 +545,12 @@ function defeatEnemy(game, enemy) {
   enemy.alive = false;
   game.defeated += 1;
   game.score += enemy.score;
+  recordStat(game, 'defeats');
   gainXp(game, enemy.xp);
   addFloating(game, `+${enemy.score}`, enemy.x, enemy.y, '#facc15');
   addBurst(game, enemy.x, enemy.y, enemy.color, enemy.type === 'boss' ? 34 : 16);
   if (enemy.type === 'boss') {
+    recordStat(game, 'bossKills');
     game.score += 600;
     maybeFinishGame(game);
   }
@@ -509,6 +612,7 @@ function switchHero(game) {
   player.hp = Math.max(1, Math.round(player.maxHp * previousRatio));
   game.message = `${hero.name} ist dran.`;
   game.messageTimer = 1.1;
+  recordStat(game, 'heroSwitches');
   addBurst(game, player.x, player.y, hero.accent, 14);
 }
 
@@ -518,6 +622,7 @@ function drinkPotion(game) {
   player.potions -= 1;
   player.hp = Math.min(player.maxHp, player.hp + 42);
   player.itemCd = 0.8;
+  recordStat(game, 'potions');
   addFloating(game, '+HEAL', player.x, player.y - 34, '#22c55e');
   addBurst(game, player.x, player.y, '#22c55e', 12);
 }
@@ -597,6 +702,7 @@ function tryAttack(game, controls) {
       damageEnemy(game, enemy, hero.damage + player.level * 4, player.facing);
     }
   }
+  if (hitAny) recordStat(game, 'meleeHits');
   addBurst(game, player.x + Math.cos(player.facing) * 52, player.y + Math.sin(player.facing) * 52, hitAny ? '#facc15' : '#f59e0b', hitAny ? 14 : 6);
 }
 
@@ -609,6 +715,7 @@ function updateProjectiles(game, dt) {
       if (!enemy.alive || projectile.life <= 0 || dist(projectile, enemy) > enemy.r + 8) continue;
       projectile.pierce = (projectile.pierce || 1) - 1;
       if (projectile.pierce <= 0) projectile.life = 0;
+      recordStat(game, 'projectileHits');
       damageEnemy(game, enemy, projectile.damage, Math.atan2(projectile.vy, projectile.vx));
       addBurst(game, projectile.x, projectile.y, projectile.color, 8);
     }
@@ -663,6 +770,7 @@ function updatePlayer(game, controls, dt) {
     player.dashCd = 0.9;
     player.invulnerable = Math.max(player.invulnerable, 0.22);
     player.energy = clamp(player.energy + 4, 0, 100);
+    recordStat(game, 'dashes');
     addBurst(game, player.x, player.y, hero.accent, 10);
   }
   player.vx += moveX * speed * 4.1 * dt;
@@ -763,11 +871,13 @@ function collectPickups(game) {
       addBurst(game, pickup.x, pickup.y, '#67e8f9', 12);
     } else if (pickup.type === 'heart') {
       player.hp = Math.min(player.maxHp, player.hp + 28);
+      recordStat(game, 'hearts');
       addFloating(game, '+HP', pickup.x, pickup.y, '#22c55e');
       addBurst(game, pickup.x, pickup.y, '#22c55e', 10);
     } else {
       player.coins += 1;
       game.score += 60;
+      recordStat(game, 'coins');
       addFloating(game, '+60', pickup.x, pickup.y, '#facc15');
       addBurst(game, pickup.x, pickup.y, '#facc15', 8);
     }
@@ -855,6 +965,7 @@ function updateGame(game, controls, dt) {
   game.elapsed += dt;
   game.messageTimer = Math.max(0, game.messageTimer - dt);
   game.shake = Math.max(0, game.shake - dt * 2.6);
+  updateContract(game, dt);
   updateParticles(game, dt);
   updateProjectiles(game, dt);
   updateHostileProjectiles(game, dt);
@@ -1255,6 +1366,7 @@ function drawHud(ctx, game) {
   const player = game.player;
   const hero = currentHero(game);
   const task = currentTask(game);
+  const contract = game.contract;
   const bossAlive = game.enemies.some((enemy) => enemy.type === 'boss' && enemy.alive);
   ctx.save();
   ctx.fillStyle = 'rgba(2,6,23,.78)';
@@ -1286,7 +1398,7 @@ function drawHud(ctx, game) {
   }
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, 982, 42, 260, 344, 18);
+  drawRoundedRect(ctx, 982, 42, 260, 432, 18);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 18px Outfit, sans-serif';
@@ -1301,12 +1413,32 @@ function drawHud(ctx, game) {
   drawGauge(ctx, 1032, 240, 160, 'DASH', 1 - player.dashCd / 0.9, '#38bdf8');
   drawGauge(ctx, 1032, 270, 160, 'ATTACK', 1 - player.attackCd / hero.cooldown, '#facc15');
   drawGauge(ctx, 1032, 300, 160, 'SPECIAL', 1 - player.specialCd / 3.8, '#f0abfc');
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '900 15px Outfit, sans-serif';
+  ctx.fillText('Zeitauftrag', 1032, 344);
+  if (contract) {
+    const progress = contract.target ? game.contractProgress / contract.target : 0;
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(contract.label, 1032, 366);
+    drawGauge(ctx, 1032, 386, 160, `${game.contractProgress}/${contract.target}`, progress, '#facc15');
+    ctx.fillStyle = game.contractTimer < 10 ? '#fb7185' : '#cbd5e1';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(`${Math.ceil(game.contractTimer)}s  Medaillen ${game.contractMedals}`, 1032, 424);
+  } else {
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText(`naechster in ${Math.ceil(game.contractCooldown)}s`, 1032, 366);
+    ctx.fillText(`Medaillen ${game.contractMedals}  Verpasst ${game.contractFails}`, 1032, 388);
+  }
+
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '800 11px Outfit, sans-serif';
   game.goals.slice(0, 3).forEach((goal, index) => {
     const value = Math.min(goal.target, game.stats[goal.stat] || 0);
     ctx.fillStyle = goal.done ? '#86efac' : '#e2e8f0';
-    ctx.fillText(`${goal.done ? 'OK' : `${value}/${goal.target}`} ${goal.label}`, 1032, 338 + index * 17);
+    ctx.fillText(`${goal.done ? 'OK' : `${value}/${goal.target}`} ${goal.label}`, 1032, 446 + index * 17);
   });
 
   ctx.fillStyle = 'rgba(2,6,23,.72)';
@@ -1314,7 +1446,7 @@ function drawHud(ctx, game) {
   ctx.fill();
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '800 13px Outfit, sans-serif';
-  ctx.fillText('Top-Down-Action-RPG: wechseln, ausweichen, angreifen, Kristalle sammeln und Schreine loesen', 62, HEIGHT - 34);
+  ctx.fillText('Top-Down-Action-RPG: wechseln, ausweichen, angreifen, Auftraege schaffen und Schreine loesen', 62, HEIGHT - 34);
   ctx.restore();
 }
 
@@ -1336,8 +1468,8 @@ function drawMessage(ctx, game) {
     if (game.finished) {
       ctx.fillText(`Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}`, WIDTH / 2, 294);
     } else {
-      ctx.fillText('Wechsel, Dash, Beute, Spezialfaehigkeiten und Schreine.', WIDTH / 2, 318);
-      ctx.fillText('Relikte und Boss-Phasen sind aktiv.', WIDTH / 2, 346);
+      ctx.fillText('Wechsel, Dash, Beute, Spezialfaehigkeiten, Zeitauftraege und Schreine.', WIDTH / 2, 318);
+      ctx.fillText('Relikte, Boss-Phasen und aktive Belohnungen sind aktiv.', WIDTH / 2, 346);
     }
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 15px Outfit, sans-serif';
@@ -1597,25 +1729,44 @@ export default function FaskaEpicRPGSwarm() {
       </div>
 
       {showTouchControls && (
-        <div style={{
-          position: 'fixed',
-          left: 18,
-          bottom: 18,
-          display: 'grid',
-          gridTemplateColumns: '64px 64px 64px',
-          gap: 8,
-          zIndex: 5,
-        }}>
-          <div />
-          <button type="button" aria-label="Hoch" style={touchButton} {...holdButton('up')}>Up</button>
-          <div />
-          <button type="button" aria-label="Links" style={touchButton} {...holdButton('left')}>L</button>
-          <button type="button" aria-label="Runter" style={touchButton} {...holdButton('down')}>D</button>
-          <button type="button" aria-label="Rechts" style={touchButton} {...holdButton('right')}>R</button>
-          <button type="button" aria-label="Angriff" style={touchButton} {...holdButton('attack')}>Hit</button>
-          <button type="button" aria-label="Dash" style={touchButton} {...holdButton('dash')}>Dash</button>
-          <button type="button" aria-label="Spezial" style={touchButton} onPointerDown={(event) => { event.preventDefault(); activateSpecial(gameRef.current); }}>Spec</button>
-        </div>
+        <>
+          <div style={{
+            position: 'fixed',
+            left: 18,
+            bottom: 18,
+            display: 'grid',
+            gridTemplateColumns: '64px 64px 64px',
+            gap: 8,
+            zIndex: 5,
+          }}>
+            <div />
+            <button type="button" aria-label="Hoch" style={touchButton} {...holdButton('up')}>Up</button>
+            <div />
+            <button type="button" aria-label="Links" style={touchButton} {...holdButton('left')}>L</button>
+            <button type="button" aria-label="Runter" style={touchButton} {...holdButton('down')}>D</button>
+            <button type="button" aria-label="Rechts" style={touchButton} {...holdButton('right')}>R</button>
+          </div>
+          <div style={{
+            position: 'fixed',
+            right: 18,
+            bottom: 24,
+            display: 'grid',
+            gridTemplateColumns: '74px 74px',
+            gap: 10,
+            zIndex: 5,
+          }}>
+            <button type="button" aria-label="Angriff" style={{ ...touchButton, width: 74, height: 62 }} {...holdButton('attack')}>Hit</button>
+            <button type="button" aria-label="Dash" style={{ ...touchButton, width: 74, height: 62 }} {...holdButton('dash')}>Dash</button>
+            <button
+              type="button"
+              aria-label="Spezial"
+              style={{ ...touchButton, width: 158, height: 62, gridColumn: '1 / span 2' }}
+              onPointerDown={(event) => { event.preventDefault(); activateSpecial(gameRef.current); }}
+            >
+              Spec
+            </button>
+          </div>
+        </>
       )}
 
       {!ui.started && (

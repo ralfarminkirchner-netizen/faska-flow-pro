@@ -137,7 +137,7 @@ const GAMES = [
   {
     id: 'gadget-quest',
     name: 'Faska Gadget Quest Pro',
-    description: 'Godot-4-Gadget-Platformer nach Ratchet-&-Astrobot-Prinzip mit sauberer Side-Scroller-Physik, Wrench, Blaster, Hoverboots, Dash, Grapple-Ankern, Upgrade-Stationen, Kisten, Bolts, Energie, Gegnern, Bossbot, Sternentor, Touchsteuerung und Learncade-Terminals fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
+    description: 'Godot-4-Action-Platformer nach Ratchet-&-Astrobot-Prinzip mit Normalmodus zuerst, Stomp-Angriffen, Dash-Hits, Wrench-Chain, Blaster, Hoverboots, Grapple-Ankern, Upgrade-Stationen, Kisten, Bolts, Energie, Combo-Multiplikator, dreiphasigem Bossbot, Sternentor, Touchsteuerung und optionalen Learncade-Terminals fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung!',
     emoji: '🛠️',
     category: 'Platformer',
     gradient: 'linear-gradient(135deg, #2563eb, #f97316)',

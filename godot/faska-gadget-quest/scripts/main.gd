@@ -12,6 +12,9 @@ const DASH_SPEED := 760.0
 const MAX_HP := 120.0
 const MAX_ENERGY := 100.0
 const LEARN_GOAL := 9
+const COMBO_WINDOW := 4.8
+const MAX_COMBO_MULTIPLIER := 4.0
+const STOMP_BOUNCE := -535.0
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
 
@@ -150,6 +153,8 @@ var mode := "Normal"
 var phase := "run"
 var score := 0
 var combo := 0
+var combo_timer := 0.0
+var run_clock := 0.0
 var message := ""
 var message_timer := 0.0
 var shake := 0.0
@@ -189,11 +194,15 @@ func reset_game() -> void:
 		"grapple": 0.0,
 		"grapple_target": Vector2.ZERO,
 		"overcharge": 0.0,
+		"melee_chain": 0,
+		"melee_chain_timer": 0.0,
 		"upgrades": {"blaster": false, "hover": false, "dash": false, "grapple": false}
 	}
 	camera = Vector2.ZERO
 	score = 0
 	combo = 0
+	combo_timer = 0.0
+	run_clock = 0.0
 	phase = "run"
 	mode = "Normal"
 	message = "Sammle Bolts, kaufe Gadgets und erreiche das Sternentor."
@@ -217,11 +226,15 @@ func reset_game() -> void:
 		if String(enemies[i].kind) == "turret":
 			hp = 4.0
 		elif String(enemies[i].kind) == "boss":
-			hp = 18.0
+			hp = 28.0
 		enemies[i]["hp"] = hp
 		enemies[i]["max_hp"] = hp
 		enemies[i]["dir"] = -1 if i % 2 == 0 else 1
 		enemies[i]["shot"] = 0.8 + float(i) * 0.18
+		enemies[i]["phase"] = 1
+		enemies[i]["charge"] = 0.0
+		enemies[i]["charge_dir"] = -1
+		enemies[i]["summon"] = 3.6
 		enemies[i]["hurt"] = 0.0
 	shots.clear()
 	particles.clear()
@@ -249,6 +262,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func update_game(delta: float) -> void:
+	run_clock += delta
 	update_player(delta)
 	update_enemies(delta)
 	update_shots(delta)
@@ -282,6 +296,9 @@ func update_player(delta: float) -> void:
 	player.hover = max(0.0, float(player.hover) - delta)
 	player.grapple = max(0.0, float(player.grapple) - delta)
 	player.overcharge = max(0.0, float(player.overcharge) - delta)
+	player.melee_chain_timer = max(0.0, float(player.melee_chain_timer) - delta)
+	if float(player.melee_chain_timer) <= 0.0:
+		player.melee_chain = 0
 	if touch_button_state.get("dash", false):
 		start_dash()
 	if touch_button_state.get("atk", false):
@@ -397,10 +414,18 @@ func start_attack() -> void:
 		return
 	player.attack_cd = 0.34
 	player.attack = 0.16
-	var hit_rect := Rect2(Vector2(player.pos) + Vector2(float(player.facing) * 34.0 - 32.0, -34.0), Vector2(72.0, 62.0))
+	player.melee_chain = min(3, int(player.melee_chain) + 1)
+	player.melee_chain_timer = 0.58
+	var chain := int(player.melee_chain)
+	var attack_width := 78.0 + float(chain) * 12.0
+	var hit_x := Vector2(player.pos).x + (12.0 if int(player.facing) > 0 else -12.0 - attack_width)
+	var hit_rect := Rect2(Vector2(hit_x, Vector2(player.pos).y - 36.0), Vector2(attack_width, 68.0))
+	var wrench_damage := 1.7 + float(chain) * 0.35
+	if float(player.overcharge) > 0.0:
+		wrench_damage *= 1.25
 	for i in range(enemies.size() - 1, -1, -1):
 		if enemy_rect(enemies[i]).intersects(hit_rect):
-			hit_enemy(i, 2.0, "wrench")
+			hit_enemy(i, wrench_damage, "wrench")
 	for i in range(crates.size() - 1, -1, -1):
 		if not bool(crates[i].open) and crate_rect(crates[i]).intersects(hit_rect):
 			open_crate(i)
@@ -413,7 +438,10 @@ func fire_blaster() -> void:
 	player.shot_cd = 0.24 if bool(player.upgrades.blaster) else 0.38
 	player.ammo = max(0, int(player.ammo) - 1)
 	var dir := Vector2(float(player.facing), 0.0)
-	shots.append({"pos": Vector2(player.pos) + Vector2(float(player.facing) * 28.0, -8.0), "vel": dir * 820.0, "life": 1.2, "from_player": true, "damage": 1.4 if bool(player.upgrades.blaster) else 1.0, "color": Color(0.98, 0.78, 0.22)})
+	var shot_damage := 1.4 if bool(player.upgrades.blaster) else 1.0
+	if float(player.overcharge) > 0.0:
+		shot_damage *= 1.35
+	shots.append({"pos": Vector2(player.pos) + Vector2(float(player.facing) * 28.0, -8.0), "vel": dir * 820.0, "life": 1.2, "from_player": true, "damage": shot_damage, "radius": 6.0, "color": Color(0.98, 0.78, 0.22)})
 
 func start_grapple() -> void:
 	if not bool(player.upgrades.grapple):
@@ -446,7 +474,8 @@ func interact() -> void:
 				station.bought = true
 				player.upgrades[String(station.id)] = true
 				stats.upgrades += 1
-				score += 650
+				add_combo(2)
+				award_score(650, p, "UPGRADE")
 				add_text(String(station.label), p, Color(0.95, 0.82, 0.25))
 			else:
 				add_text("Noch " + str(cost - int(player.bolts)) + " Bolts", p, Color(1.0, 0.6, 0.25))
@@ -461,6 +490,8 @@ func update_enemies(delta: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
 		var e = enemies[i]
 		e.hurt = max(0.0, float(e.hurt) - delta)
+		e.charge = max(0.0, float(e.get("charge", 0.0)) - delta)
+		e.summon = max(0.0, float(e.get("summon", 2.0)) - delta)
 		var kind := String(e.kind)
 		if kind == "turret":
 			e.shot = float(e.shot) - delta
@@ -468,11 +499,25 @@ func update_enemies(delta: float) -> void:
 				e.shot = 1.15
 				fire_enemy_shot(e)
 		elif kind == "boss":
+			var ratio: float = clamp(float(e.hp) / float(e.max_hp), 0.0, 1.0)
+			e.phase = 3 if ratio < 0.34 else (2 if ratio < 0.68 else 1)
 			e.shot = float(e.shot) - delta
-			e.x = float(e.x) + sin(Time.get_ticks_msec() * 0.002) * 20.0 * delta
+			if float(e.charge) > 0.0:
+				e.x = float(e.x) + float(e.charge_dir) * (250.0 + float(e.phase) * 70.0) * delta
+			else:
+				var chase_dir: float = sign(Vector2(player.pos).x - float(e.x))
+				e.x = float(e.x) + chase_dir * (28.0 + float(e.phase) * 14.0) * delta + sin(run_clock * 2.1) * 24.0 * delta
+			e.x = clamp(float(e.x), float(e.min), float(e.max))
 			if float(e.shot) <= 0.0:
-				e.shot = 0.8
-				fire_enemy_shot(e)
+				e.shot = 1.12 if int(e.phase) == 1 else (0.88 if int(e.phase) == 2 else 0.68)
+				fire_boss_pattern(e, int(e.phase))
+				if int(e.phase) >= 3:
+					e.charge = 0.36
+					e.charge_dir = -1 if Vector2(player.pos).x < float(e.x) else 1
+					add_text("BOSS DASH", Vector2(float(e.x), float(e.y)), Color(1.0, 0.44, 0.16))
+			if int(e.phase) >= 2 and float(e.summon) <= 0.0:
+				e.summon = 4.6 if int(e.phase) == 2 else 3.5
+				spawn_boss_minion(Vector2(float(e.x), float(e.y)))
 		else:
 			e.x = float(e.x) + float(e.dir) * (120.0 if kind == "drone" else 155.0) * delta
 			if float(e.x) < float(e.min) or float(e.x) > float(e.max):
@@ -480,13 +525,58 @@ func update_enemies(delta: float) -> void:
 			if kind == "drone":
 				e.y = float(e.y) + sin(Time.get_ticks_msec() * 0.004 + float(i)) * 20.0 * delta
 		if enemy_rect(e).intersects(player_rect()):
+			if can_stomp_enemy(e):
+				player.vel = Vector2(Vector2(player.vel).x, STOMP_BOUNCE)
+				player.energy = min(MAX_ENERGY, float(player.energy) + 12.0)
+				add_combo(1)
+				hit_enemy(i, 2.2 if kind != "boss" else 1.4, "stomp")
+				continue
+			elif float(player.dash) > 0.0:
+				player.vel = Vector2(Vector2(player.vel).x * -0.25, -260.0)
+				add_combo(1)
+				hit_enemy(i, 1.45 if kind != "boss" else 1.1, "dash")
+				continue
 			damage_player(10.0 if kind != "boss" else 18.0, "Bot")
 		enemies[i] = e
 
 func fire_enemy_shot(e) -> void:
 	var start := Vector2(float(e.x), float(e.y) - 26.0)
 	var dir := (Vector2(player.pos) - start).normalized()
-	shots.append({"pos": start, "vel": dir * 420.0, "life": 2.2, "from_player": false, "damage": 9.0, "color": Color(1.0, 0.25, 0.2)})
+	shots.append({"pos": start, "vel": dir * 420.0, "life": 2.2, "from_player": false, "damage": 9.0, "radius": 6.0, "color": Color(1.0, 0.25, 0.2)})
+
+func fire_boss_pattern(e, boss_phase: int) -> void:
+	var start := Vector2(float(e.x), float(e.y) - 34.0)
+	var dir := (Vector2(player.pos) - start).normalized()
+	var angles := [-0.18, 0.0, 0.18] if boss_phase >= 2 else [0.0]
+	for angle in angles:
+		shots.append({"pos": start, "vel": dir.rotated(angle) * (430.0 + float(boss_phase) * 35.0), "life": 2.3, "from_player": false, "damage": 9.0 + float(boss_phase), "radius": 7.0, "color": Color(1.0, 0.22, 0.16)})
+	if boss_phase >= 3:
+		for j in range(3):
+			var drop_x: float = clamp(Vector2(player.pos).x + float(j - 1) * 82.0, float(e.min), float(e.max))
+			shots.append({"pos": Vector2(drop_x, float(e.y) - 135.0 - float(j) * 20.0), "vel": Vector2(rng.randf_range(-55.0, 55.0), 520.0), "life": 1.45, "from_player": false, "damage": 12.0, "radius": 10.0, "color": Color(1.0, 0.58, 0.18)})
+	add_text("PHASE " + str(boss_phase), start, Color(1.0, 0.62, 0.18))
+
+func spawn_boss_minion(pos: Vector2) -> void:
+	var side := -1 if rng.randf() < 0.5 else 1
+	var spawn_x: float = clamp(pos.x + float(side) * rng.randf_range(95.0, 180.0), 4400.0, WORLD_W - 120.0)
+	var minion := {
+		"x": spawn_x,
+		"y": FLOOR_Y - 46.0,
+		"min": max(4330.0, spawn_x - 180.0),
+		"max": min(WORLD_W - 90.0, spawn_x + 180.0),
+		"kind": "roller",
+		"hp": 2.0,
+		"max_hp": 2.0,
+		"dir": side,
+		"shot": 1.2,
+		"phase": 1,
+		"charge": 0.0,
+		"charge_dir": side,
+		"summon": 9.0,
+		"hurt": 0.0
+	}
+	enemies.append(minion)
+	add_text("BOT DROP", pos, Color(1.0, 0.58, 0.18))
 
 func update_shots(delta: float) -> void:
 	for i in range(shots.size() - 1, -1, -1):
@@ -525,8 +615,8 @@ func hit_enemy(index: int, damage: float, source: String) -> void:
 		if String(e.kind) == "boss":
 			points = 2400
 			add_text("BOSSBOT DOWN", Vector2(e.x, e.y), Color(0.95, 0.82, 0.25))
-		score += points + combo * 18
-		combo += 1
+		add_combo(1 if String(e.kind) != "boss" else 4)
+		award_score(points, Vector2(float(e.x), float(e.y)), "KILL")
 		stats.kills += 1
 		drop_bolts(Vector2(float(e.x), float(e.y)), 4 if String(e.kind) != "boss" else 12)
 		enemies.remove_at(index)
@@ -541,8 +631,7 @@ func update_pickups(_delta: float) -> void:
 		if p.distance_to(Vector2(bolt.pos)) < 42.0:
 			bolt.taken = true
 			player.bolts += 1
-			score += 70
-			add_text("+Bolt", p, Color(0.95, 0.82, 0.25))
+			award_score(70, p, "+Bolt")
 
 func drop_bolts(pos: Vector2, amount: int) -> void:
 	for i in range(amount):
@@ -553,7 +642,8 @@ func open_crate(index: int) -> void:
 		return
 	crates[index].open = true
 	stats.crates += 1
-	score += 140
+	add_combo(1)
+	award_score(140, Vector2(crates[index].pos), "CRATE")
 	var kind := String(crates[index].kind)
 	if kind == "ammo":
 		player.ammo = min(24, int(player.ammo) + 5)
@@ -579,7 +669,8 @@ func resolve_terminal(terminal) -> void:
 	var task: Dictionary = terminal.task
 	if String(terminal.label) == String(terminal.answer):
 		stats.learn += 1
-		score += 650
+		add_combo(2)
+		award_score(650, Vector2(terminal.pos), "LEARN")
 		player.energy = MAX_ENERGY
 		player.ammo = min(24, int(player.ammo) + 3)
 		if bool(terminal.repeat):
@@ -666,6 +757,7 @@ func damage_player(amount: float, reason: String) -> void:
 	player.hp = max(0.0, float(player.hp) - amount)
 	player.hurt_cd = 0.75
 	combo = 0
+	combo_timer = 0.0
 	shake = 0.8
 	add_text(reason + " -" + str(int(amount)), Vector2(player.pos), Color(1.0, 0.24, 0.18))
 	if float(player.hp) <= 0.0:
@@ -678,6 +770,26 @@ func boss_defeated() -> bool:
 		if String(e.kind) == "boss":
 			return false
 	return true
+
+func can_stomp_enemy(e) -> bool:
+	if Vector2(player.vel).y < 130.0:
+		return false
+	var p_rect := player_rect()
+	var e_rect := enemy_rect(e)
+	return p_rect.position.y + p_rect.size.y * 0.72 < e_rect.position.y + e_rect.size.y * 0.38
+
+func add_combo(amount: int) -> void:
+	combo = min(99, combo + amount)
+	combo_timer = COMBO_WINDOW
+
+func combo_multiplier() -> float:
+	return min(MAX_COMBO_MULTIPLIER, 1.0 + floor(float(combo) / 4.0) * 0.5)
+
+func award_score(base: int, pos: Vector2 = Vector2.ZERO, label := "") -> void:
+	var gained := int(round(float(base) * combo_multiplier()))
+	score += gained
+	if label != "":
+		add_text(label + " +" + str(gained), pos, Color(0.95, 0.82, 0.25))
 
 func _unhandled_input(event) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -768,6 +880,10 @@ func should_show_touch_controls() -> bool:
 func update_effects(delta: float) -> void:
 	message_timer = max(0.0, message_timer - delta)
 	shake = max(0.0, shake - delta * 6.5)
+	if combo_timer > 0.0:
+		combo_timer = max(0.0, combo_timer - delta)
+	elif combo > 0:
+		combo = 0
 	for i in range(floaters.size() - 1, -1, -1):
 		var f = floaters[i]
 		f.life = float(f.life) - delta
@@ -923,6 +1039,9 @@ func draw_enemies() -> void:
 		if kind == "boss":
 			draw_rect(rect, Color(color, 0.9))
 			draw_arc(rect.get_center(), 58.0, 0.0, TAU, 40, Color(1.0, 0.55, 0.12), 3.0)
+			draw_text_at(rect.position + Vector2(13, -8), "PHASE " + str(e.get("phase", 1)), Color(1.0, 0.72, 0.24), 12)
+			if float(e.get("charge", 0.0)) > 0.0:
+				draw_line(rect.get_center() + Vector2(-48, 0), rect.get_center() + Vector2(48, 0), Color(1.0, 0.76, 0.12), 5.0)
 		elif kind == "turret":
 			draw_regular_polygon(rect.get_center(), 25.0, 3, color, -PI * 0.5)
 		else:
@@ -934,7 +1053,8 @@ func draw_enemies() -> void:
 func draw_shots() -> void:
 	for shot in shots:
 		var p := world_to_screen(Vector2(shot.pos))
-		draw_circle(p, 6.0, shot.color)
+		var radius := float(shot.get("radius", 6.0))
+		draw_circle(p, radius, shot.color)
 		draw_line(p - Vector2(shot.vel).normalized() * 16.0, p, shot.color, 3.0)
 
 func draw_player() -> void:
@@ -959,19 +1079,21 @@ func draw_particles() -> void:
 
 func draw_hud() -> void:
 	var hud_w: float = min(420.0, size.x - 20.0)
-	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 150)), Color(0.0, 0.0, 0.0, 0.62))
+	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, 174)), Color(0.0, 0.0, 0.0, 0.62))
 	draw_text_at(Vector2(20, 31), "FASKA GADGET QUEST PRO", Color(0.55, 0.9, 1.0), 18)
 	draw_bar(Vector2(20, 52), "HP", float(player.hp), MAX_HP, Color(0.25, 1.0, 0.55))
 	draw_bar(Vector2(20, 74), "ENERGY", float(player.energy), MAX_ENERGY, Color(0.35, 0.82, 1.0))
-	draw_text_at(Vector2(20, 108), "Score " + str(score) + " Combo " + str(combo) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
+	draw_text_at(Vector2(20, 108), "Score " + str(score) + " Combo " + str(combo) + " x" + str(combo_multiplier()) + " Mode " + mode, Color(0.86, 0.94, 1.0), 13)
 	draw_text_at(Vector2(20, 130), "Bolts " + str(player.bolts) + " Ammo " + str(player.ammo) + " Lernen " + str(stats.learn) + "/" + str(LEARN_GOAL), Color(0.94, 0.88, 0.55), 13)
 	draw_text_at(Vector2(20, 150), "Fach " + String(LESSONS[lesson_index]) + " Wdh " + str(repeat_queue.size()), Color(0.78, 0.92, 1.0), 12)
+	draw_text_at(Vector2(20, 170), objective_text(), Color(0.96, 0.98, 1.0), 12)
 	if size.x > 760.0 and size.y <= size.x * 1.15:
-		draw_rect(Rect2(Vector2(size.x - 310, 10), Vector2(296, 116)), Color(0.0, 0.0, 0.0, 0.55))
+		draw_rect(Rect2(Vector2(size.x - 310, 10), Vector2(296, 136)), Color(0.0, 0.0, 0.0, 0.55))
 		draw_text_at(Vector2(size.x - 298, 32), "Upgrades", Color(0.95, 0.98, 1.0), 15)
 		draw_text_at(Vector2(size.x - 298, 55), "BL " + yesno(player.upgrades.blaster) + "  HV " + yesno(player.upgrades.hover), Color(0.94, 0.98, 1.0), 13)
 		draw_text_at(Vector2(size.x - 298, 76), "GR " + yesno(player.upgrades.grapple) + "  DA " + yesno(player.upgrades.dash), Color(0.94, 0.98, 1.0), 13)
-		draw_text_at(Vector2(size.x - 298, 98), "Bossbot am Sternentor", Color(0.95, 0.78, 0.35), 13)
+		draw_text_at(Vector2(size.x - 298, 98), "Stomp/Dash zaehlen offensiv", Color(0.95, 0.78, 0.35), 13)
+		draw_text_at(Vector2(size.x - 298, 120), "Bossbot hat 3 Phasen", Color(0.95, 0.78, 0.35), 13)
 
 func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color) -> void:
 	draw_text_at(pos, label, Color(0.76, 0.82, 0.9), 12)
@@ -1023,6 +1145,21 @@ func draw_messages() -> void:
 
 func yesno(value) -> String:
 	return "ON" if bool(value) else "--"
+
+func objective_text() -> String:
+	if mode == "Learncade":
+		return "Lernziel: richtiges Terminal beruehren - " + String(LESSONS[lesson_index])
+	if not bool(player.upgrades.blaster):
+		return "Ziel: 5 Bolts sammeln und BLASTER+ kaufen."
+	if not bool(player.upgrades.hover):
+		return "Ziel: Hoverboots kaufen und Luftwege oeffnen."
+	if not bool(player.upgrades.grapple):
+		return "Ziel: Grapple-Anker erreichen und GRAPPLE+ kaufen."
+	if not bool(player.upgrades.dash):
+		return "Ziel: DASH+ kaufen, dann Boss-Arena."
+	if not boss_defeated():
+		return "Ziel: Bossbot - Stomp, Dash, Blaster, Wrench."
+	return "Ziel: Sternentor rechts betreten."
 
 func spawn_sparks(pos: Vector2, color: Color, count := 9) -> void:
 	for i in range(count):

@@ -55,6 +55,19 @@ const RALLY_GOALS = [
   { id: 'line-6', label: '6 Ideallinien', type: 'lineGates', target: 6, reward: 740, mode: 'arcade' },
 ];
 
+const RALLY_CONTRACTS = [
+  { id: 'apex-2', label: '2 Apex sauber treffen', type: 'apexes', target: 2, duration: 34, reward: { score: 420, nitro: 18, time: 2 } },
+  { id: 'drift-2', label: '2 Drift-Boosts setzen', type: 'drifts', target: 2, duration: 36, reward: { score: 390, nitro: 22 } },
+  { id: 'super-drift-1', label: '1 Super-Drift laden', type: 'superDrifts', target: 1, duration: 44, reward: { score: 520, nitro: 26, time: 1.5 } },
+  { id: 'overtake-2', label: '2 Rivalen ueberholen', type: 'overtakes', target: 2, duration: 42, reward: { score: 460, nitro: 14, damage: -4 } },
+  { id: 'hairpin-1', label: '1 Hairpin mit Handbremse', type: 'hairpins', target: 1, duration: 48, reward: { score: 500, nitro: 24, damage: -5 } },
+  { id: 'shift-2', label: '2 perfekte Schaltpunkte', type: 'perfectShifts', target: 2, duration: 38, reward: { score: 430, nitro: 16 } },
+  { id: 'draft-1', label: '1 Windschatten-Boost', type: 'drafts', target: 1, duration: 46, reward: { score: 470, nitro: 18, time: 1.5 } },
+  { id: 'hazard-2', label: '2 Gefahren sauber meiden', type: 'hazardsAvoided', target: 2, duration: 50, reward: { score: 410, damage: -7, time: 1 } },
+  { id: 'checkpoint-1', label: '1 Split erreichen', type: 'checkpoints', target: 1, duration: 58, reward: { score: 480, time: 2.5, damage: -3 } },
+  { id: 'learn-1', label: '1 Antwort-Gate richtig', type: 'learnCorrect', target: 1, duration: 48, reward: { score: 520, nitro: 20, time: 2, damage: -3 }, learnOnly: true },
+];
+
 const COURSE_ZONES = [
   { from: 0, to: 14500, name: 'Tarmac Sprint', surface: 'Asphalt', grip: 1, road: '#334155', shoulder: '#92400e', sky: '#0e7490' },
   { from: 14500, to: 29500, name: 'Forest Gravel', surface: 'Schotter', grip: 0.78, road: '#4b5563', shoulder: '#713f12', sky: '#166534' },
@@ -207,6 +220,86 @@ function recordGoal(game, type, amount = 1) {
   });
 }
 
+function availableRallyContracts(mode) {
+  return RALLY_CONTRACTS.filter((contract) => mode === 'learn' || !contract.learnOnly);
+}
+
+function rallyContractProgress(game) {
+  if (!game.activeContract) return 0;
+  const current = game.stats[game.activeContract.type] || 0;
+  return clamp(current - game.activeContract.startValue, 0, game.activeContract.target);
+}
+
+function applyRallyReward(game, reward = {}) {
+  if (reward.score) game.score += reward.score;
+  if (reward.nitro) game.nitro = clamp(game.nitro + reward.nitro, 0, 100);
+  if (reward.time) game.timeLeft = clamp(game.timeLeft + reward.time, 0, 165);
+  if (reward.damage) game.damage = clamp(game.damage + reward.damage, 0, 100);
+  if (reward.speed) game.speed = clamp(game.speed + reward.speed, 0, MAX_SPEED + 180);
+  game.combo = clamp(game.combo + 0.18, 1, 5);
+  game.bestCombo = Math.max(game.bestCombo, game.combo);
+}
+
+function startRallyContract(game) {
+  const contracts = availableRallyContracts(game.mode);
+  if (!contracts.length) return;
+  const template = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...template,
+    startValue: game.stats[template.type] || 0,
+  };
+  game.contractTimer = template.duration;
+  game.message = `Auftrag: ${template.label}`;
+  game.messageTimer = 1.1;
+  addFloater(game, CENTER_X, 190, 'ETAPPEN-AUFTRAG', '#bae6fd');
+}
+
+function completeRallyContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyRallyReward(game, contract.reward);
+  game.contractMedals += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.4;
+  game.message = `Auftrag geschafft: ${contract.label}`;
+  game.messageTimer = 1.25;
+  addFloater(game, CENTER_X, 206, `Auftrag +${contract.reward.score || 0}`, '#fde68a');
+  spawnParticles(game, CENTER_X, HEIGHT - 120, '#facc15', 18);
+}
+
+function failRallyContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.8;
+  game.damage = clamp(game.damage + 3, 0, 100);
+  game.combo = 1;
+  game.message = `Auftrag verpasst: ${contract.label}`;
+  game.messageTimer = 1.05;
+  addFloater(game, CENTER_X, 206, 'Auftrag verpasst', '#fecaca');
+}
+
+function updateRallyContract(game, dt) {
+  if (game.phase !== 'race') return;
+
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startRallyContract(game);
+    return;
+  }
+
+  game.contractTimer = Math.max(0, game.contractTimer - dt);
+  if (rallyContractProgress(game) >= game.activeContract.target) {
+    completeRallyContract(game);
+  } else if (game.contractTimer <= 0) {
+    failRallyContract(game);
+  }
+}
+
 function buildGates(mode) {
   const gates = [];
   for (let index = 0; index < 13; index += 1) {
@@ -303,6 +396,12 @@ function makeInitialGame(mode = 'arcade') {
     stageEvents: buildStageEvents(),
     goals: makeRallyGoals(mode),
     stats: makeRallyStats(),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.2,
+    contractMedals: 0,
+    contractFails: 0,
     rivals: makeRivals(),
     result: null,
   };
@@ -702,7 +801,6 @@ function updateGame(game, input, dt, onFinish) {
   updateRivals(game, dt);
   updateGates(game);
   updateStageEvents(game);
-  updateParticles(game, dt);
 
   while (game.checkpointIndex < CHECKPOINTS.length && game.distance >= CHECKPOINTS[game.checkpointIndex]) {
     const addTime = Math.round(11 + game.cleanGates * 0.8 + (game.mode === 'learn' ? 2 : 0));
@@ -719,6 +817,9 @@ function updateGame(game, input, dt, onFinish) {
     spawnParticles(game, CENTER_X, HEIGHT - 120, '#facc15', 22);
   }
 
+  updateRallyContract(game, dt);
+  updateParticles(game, dt);
+
   if (game.distance >= STAGE_LENGTH || game.damage >= 100 || game.timeLeft <= 0) {
     const won = game.damage < 100 && game.timeLeft > 0;
     game.phase = 'result';
@@ -732,6 +833,8 @@ function updateGame(game, input, dt, onFinish) {
       mistakes: game.mistakes,
       bestCombo: game.bestCombo.toFixed(2),
       bestSpeed: Math.round(game.bestSpeed * 0.38),
+      contractMedals: game.contractMedals,
+      contractFails: game.contractFails,
       goalsDone: game.goals.filter((goal) => goal.done).length,
       goalsTotal: game.goals.length,
     };
@@ -1100,6 +1203,8 @@ function drawHud(ctx, game) {
   const progress = clamp((game.distance / STAGE_LENGTH) * 100, 0, 100);
   const gate = nextActiveGate(game);
   const zone = zoneAt(game.distance);
+  const contract = game.activeContract;
+  const contractProgress = rallyContractProgress(game);
 
   ctx.save();
   ctx.fillStyle = '#020617';
@@ -1161,7 +1266,39 @@ function drawHud(ctx, game) {
   ctx.font = '800 12px Outfit, sans-serif';
   ctx.fillText('CHECKPOINT', WIDTH - 302, 175);
   ctx.fillText(`${game.checkpointIndex}/${CHECKPOINTS.length} · Fehler ${game.mistakes}`, WIDTH - 302, 195);
-  drawGoalList(ctx, game, WIDTH - 326, 222, 298);
+
+  ctx.fillStyle = 'rgba(2,6,23,.78)';
+  drawRoundedRect(ctx, WIDTH - 326, 222, 298, 106, 16);
+  ctx.fill();
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '900 11px Outfit, sans-serif';
+  ctx.fillText(`ETAPPEN-AUFTRAG · ${game.contractMedals} OK · ${game.contractFails} FAIL`, WIDTH - 302, 245);
+  if (contract) {
+    const contractRatio = clamp(contractProgress / contract.target, 0, 1);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '900 13px Outfit, sans-serif';
+    ctx.fillText(contract.label, WIDTH - 302, 268);
+    ctx.fillStyle = 'rgba(51,65,85,.92)';
+    drawRoundedRect(ctx, WIDTH - 302, 282, 248, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = contractRatio >= 1 ? '#22c55e' : '#facc15';
+    drawRoundedRect(ctx, WIDTH - 302, 282, 248 * contractRatio, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(`${contractProgress}/${contract.target}`, WIDTH - 302, 312);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.ceil(game.contractTimer)}s`, WIDTH - 54, 312);
+    ctx.textAlign = 'left';
+  } else {
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '900 13px Outfit, sans-serif';
+    ctx.fillText('Naechster Auftrag wird vorbereitet', WIDTH - 302, 272);
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = '800 12px Outfit, sans-serif';
+    ctx.fillText(`${Math.ceil(game.contractCooldown)}s bis zur neuen Aufgabe`, WIDTH - 302, 300);
+  }
+  drawGoalList(ctx, game, WIDTH - 326, 344, 298);
 
   if (game.messageTimer > 0) {
     ctx.textAlign = 'center';
@@ -1427,7 +1564,7 @@ export default function FaskaRallySwarm() {
             Rang {result.rank}/8 · Ueberholungen {result.overtakes} · Fehler {result.mistakes} · Schaden {result.damage}% · Distanz {result.distance}
           </div>
           <div style={{ fontSize: 15, color: '#a7f3d0', fontWeight: 800 }}>
-            Best Speed {result.bestSpeed} km/h · Best Combo x{result.bestCombo} · Meisterungen {result.goalsDone}/{result.goalsTotal}
+            Best Speed {result.bestSpeed} km/h · Best Combo x{result.bestCombo} · Auftraege {result.contractMedals}/{result.contractMedals + result.contractFails} · Meisterungen {result.goalsDone}/{result.goalsTotal}
           </div>
           <button className="btn-primary" onClick={restart}>Neue Etappe</button>
         </div>

@@ -207,12 +207,12 @@ const GAMES = [
   {
     id: 'rally',
     name: 'Faska Rally Pro',
-    description: 'Godot-4-Pseudo-3D-Rally nach Sega-Rally/OutRun-Prinzip mit grosser Fullscreen-Streckenprojektion, Driftwertung, Near-Miss-Boni, Ueberholungen, Boost-Pads, Oel/Matsch/Pylonen, Sektor-Splits, Touchsteuerung und Learncade-Antwortspuren fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
+    description: 'FASKA-FLOW-Canvas-Pseudo-3D-Rally nach Sega-Rally/OutRun-Prinzip mit Fullscreen-Streckenprojektion, Driftwertung, Rivalen, Windschatten, Apex- und Hairpin-Events, rotierenden Etappen-Auftraegen, Sektor-Splits, Touchsteuerung und Learncade-Antwortspuren fuer Deutsch, Mathe, Sachkunde und Englisch!',
     emoji: '🏁',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #0ea5e9, #facc15)',
     path: '/game/rally',
-    engine: 'Godot 4',
+    engine: 'Canvas',
   },
   {
     id: 'taxi-rush',

@@ -11,6 +11,7 @@ const MAX_SUPER := 100.0
 const MOVE_SPEED := 285.0
 const ROLL_SPEED := 620.0
 const LEARN_GOAL := 10
+const STYLE_WINDOW := 5.6
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
 const LANES = [340.0, 430.0, 520.0, 610.0]
@@ -26,6 +27,8 @@ const ENEMY_PROFILES = {
 	"kicker": {"hp": 72.0, "speed": 106.0, "damage": 11.0, "range": 58.0, "score": 170, "color": "#38bdf8"},
 	"brute": {"hp": 148.0, "speed": 72.0, "damage": 18.0, "range": 68.0, "score": 320, "color": "#f97316"},
 	"knife": {"hp": 62.0, "speed": 138.0, "damage": 10.0, "range": 48.0, "score": 210, "color": "#facc15"},
+	"shield": {"hp": 92.0, "speed": 88.0, "damage": 13.0, "range": 52.0, "score": 280, "color": "#60a5fa"},
+	"duelist": {"hp": 88.0, "speed": 148.0, "damage": 14.0, "range": 58.0, "score": 340, "color": "#f472b6"},
 	"thrower": {"hp": 66.0, "speed": 82.0, "damage": 9.0, "range": 210.0, "score": 240, "color": "#22c55e"},
 	"medic": {"hp": 84.0, "speed": 78.0, "damage": 6.0, "range": 44.0, "score": 260, "color": "#f0abfc"},
 	"boss": {"hp": 780.0, "speed": 80.0, "damage": 22.0, "range": 78.0, "score": 1800, "color": "#a78bfa"}
@@ -137,9 +140,15 @@ var wave := 0
 var score := 0
 var combo := 0
 var combo_timer := 0.0
+var style_points := 0
+var style_timer := 0.0
+var best_style_rank := "D"
+var wave_damage_taken := 0.0
 var lesson_index := 0
 var question_index := 0
 var learn_correct := 0
+var learn_streak := 0
+var best_learn_streak := 0
 var elapsed := 0.0
 var shake := 0.0
 var message := ""
@@ -204,11 +213,17 @@ func reset_game() -> void:
 	score = 0
 	combo = 0
 	combo_timer = 0.0
+	style_points = 0
+	style_timer = 0.0
+	best_style_rank = "D"
+	wave_damage_taken = 0.0
 	lesson_index = 0
 	question_index = 0
 	learn_correct = 0
+	learn_streak = 0
+	best_learn_streak = 0
 	active_task.clear()
-	stats = {"kills": 0, "parries": 0, "throws": 0, "supers": 0, "props": 0, "weapons": 0, "wrong": 0}
+	stats = {"kills": 0, "parries": 0, "throws": 0, "supers": 0, "props": 0, "weapons": 0, "wrong": 0, "perfect": 0}
 	message = "FASKA BRAWLER PRO - Raeume die Strasse frei."
 	message_timer = 2.5
 	mission_notice = ""
@@ -244,6 +259,8 @@ func update_run(delta: float) -> void:
 		ensure_learn_gates()
 		check_learn_answers()
 	if enemies.size() == 0:
+		if wave > 0:
+			award_wave_clear()
 		spawn_wave()
 	if player.hp <= 0.0:
 		phase = "over"
@@ -257,6 +274,9 @@ func update_timers(delta: float) -> void:
 	combo_timer = maxf(0.0, combo_timer - delta)
 	if combo_timer <= 0.0:
 		combo = 0
+	style_timer = maxf(0.0, style_timer - delta)
+	if style_timer <= 0.0:
+		style_points = 0
 
 func update_player(delta: float) -> void:
 	var axis := read_move_axis()
@@ -296,6 +316,8 @@ func update_player(delta: float) -> void:
 		start_attack("kick")
 	if key_once(KEY_U) or consume_touch_edge("grab"):
 		start_attack("grab")
+	if key_once(KEY_O) or consume_touch_edge("launch"):
+		start_attack("launch")
 	if key_once(KEY_I) or consume_touch_edge("super"):
 		start_attack("super")
 
@@ -347,6 +369,13 @@ func start_attack(kind: String) -> void:
 		cost = 18.0
 		cooldown = 0.58
 		knock = 116.0
+	elif kind == "launch":
+		damage = 26.0
+		range = 78.0
+		lane = 70.0
+		cost = 20.0
+		cooldown = 0.52
+		knock = 38.0
 	elif kind == "super":
 		if player.super < MAX_SUPER:
 			message = "Supermeter nicht voll."
@@ -391,19 +420,34 @@ func hit_targets(kind: String, damage: float, range: float, lane: float, knock: 
 		var in_front: bool = sign(dx) == int(player.facing) or absf(dx) < 34.0 or kind == "super"
 		if absf(dx) <= range and dy <= lane and in_front:
 			hit_any = true
-			enemy.hp -= damage
+			var effective_damage := damage
+			if enemy.type == "shield" and kind not in ["grab", "launch", "super"]:
+				effective_damage *= 0.36
+				add_floater(enemy.pos + Vector2(0, -70), "Schild!", Color.html("#bfdbfe"))
+			if float(enemy.get("air", 0.0)) > 0.0 and kind != "launch":
+				effective_damage *= 1.18
+				score += 75
+				award_style(34, "AIR")
+			enemy.hp -= effective_damage
 			enemy.stun = 0.24 if kind != "grab" else 0.55
+			if kind == "launch":
+				enemy.stun = 0.62
+				enemy.air = 0.72
+				award_style(28, "LAUNCH")
+				add_floater(enemy.pos + Vector2(0, -72), "LAUNCH", Color.html("#fde68a"))
 			enemy.hit = 0.18
 			enemy.pos.x = clampf(enemy.pos.x + float(player.facing) * knock, 70.0, WORLD_W - 70.0)
 			enemy.pos.y = clampf(enemy.pos.y + rng.randf_range(-18.0, 18.0), FLOOR_TOP + 30.0, FLOOR_BOTTOM - 25.0)
-			player.super = minf(MAX_SUPER, player.super + damage * 0.18)
+			player.super = minf(MAX_SUPER, player.super + effective_damage * 0.18)
 			score += 18
 			combo += 1
 			combo_timer = 2.1
+			award_style(8 + mini(combo, 12), "")
 			if combo % 6 == 0:
 				add_floater(enemy.pos + Vector2(0, -60), str(combo) + " COMBO", Color.html("#facc15"))
 			if kind == "grab":
 				stats.throws += 1
+				award_style(24, "THROW")
 			spawn_particles(enemy.pos + Vector2(0.0, -28.0), Color.html("#fde68a"), 10, 190.0)
 			if enemy.hp <= 0.0:
 				defeat_enemy(enemy)
@@ -424,6 +468,42 @@ func hit_targets(kind: String, damage: float, range: float, lane: float, knock: 
 		score += 22
 	else:
 		combo = 0
+		style_points = max(0, style_points - 12)
+
+func award_style(points: int, label: String) -> void:
+	style_points = mini(220, style_points + points)
+	style_timer = STYLE_WINDOW
+	var rank := style_rank()
+	if style_rank_value(rank) > style_rank_value(best_style_rank):
+		best_style_rank = rank
+		if rank in ["A", "S"]:
+			add_floater(player.pos + Vector2(0, -106), "STYLE " + rank, Color.html("#facc15"))
+	if label != "":
+		add_floater(player.pos + Vector2(0, -92), label, Color.html("#fde68a"))
+
+func style_rank() -> String:
+	if style_points >= 160:
+		return "S"
+	if style_points >= 110:
+		return "A"
+	if style_points >= 68:
+		return "B"
+	if style_points >= 32:
+		return "C"
+	return "D"
+
+func style_rank_value(rank: String) -> int:
+	match rank:
+		"S":
+			return 4
+		"A":
+			return 3
+		"B":
+			return 2
+		"C":
+			return 1
+		_:
+			return 0
 
 func defeat_enemy(enemy: Dictionary) -> void:
 	enemy.dead = true
@@ -463,6 +543,7 @@ func update_enemies(delta: float) -> void:
 			continue
 		enemy.stun = maxf(0.0, enemy.stun - delta)
 		enemy.hit = maxf(0.0, enemy.hit - delta)
+		enemy.air = maxf(0.0, float(enemy.get("air", 0.0)) - delta)
 		enemy.attack_cd = maxf(0.0, enemy.attack_cd - delta)
 		enemy.special_cd = maxf(0.0, enemy.special_cd - delta)
 		if enemy.stun > 0.0:
@@ -521,10 +602,12 @@ func take_damage(amount: float, source: Vector2, attacker = null) -> void:
 	if player.guard and from_front:
 		if player.parry > 0.0 and attacker != null:
 			attacker.stun = 0.75
+			attacker.air = maxf(float(attacker.get("air", 0.0)), 0.26)
 			attacker.hp -= 18.0
 			stats.parries += 1
 			player.super = minf(MAX_SUPER, player.super + 18.0)
 			score += 90
+			award_style(42, "PARRY")
 			add_floater(player.pos + Vector2(0, -82), "PARRY", Color.html("#67e8f9"))
 			spawn_particles(player.pos + Vector2(float(player.facing) * 24.0, -24.0), Color.html("#67e8f9"), 14, 210.0)
 			if attacker.hp <= 0.0:
@@ -539,6 +622,8 @@ func take_damage(amount: float, source: Vector2, attacker = null) -> void:
 		player.pos.x = clampf(player.pos.x - sign(source.x - player.pos.x) * 38.0, 70.0, WORLD_W - 70.0)
 		combo = 0
 	player.hp -= amount
+	wave_damage_taken += amount
+	style_points = max(0, style_points - int(amount * 0.9))
 	shake = maxf(shake, 0.12)
 	spawn_particles(player.pos + Vector2(0, -20), Color.html("#fecaca"), 8, 170.0)
 
@@ -601,15 +686,31 @@ func cleanup_enemies() -> void:
 			alive.append(enemy)
 	enemies = alive
 
+func award_wave_clear() -> void:
+	var base := 280 + wave * 55
+	score += base
+	award_style(26, "WAVE")
+	if wave_damage_taken <= 0.0:
+		score += 700
+		stats.perfect += 1
+		award_style(70, "PERFECT")
+		mission_notice = "Perfect Wave +" + str(700)
+		mission_timer = 2.4
+	elif combo >= 8:
+		score += combo * 22
+		mission_notice = "Combo-Bonus +" + str(combo * 22)
+		mission_timer = 1.8
+
 func spawn_wave() -> void:
 	wave += 1
+	wave_damage_taken = 0.0
 	var boss_wave := wave % 4 == 0
 	if boss_wave:
 		spawn_enemy("boss", Vector2(clampf(player.pos.x + 520.0, 420.0, WORLD_W - 240.0), 510.0))
 		message = "Boss-Welle " + str(wave) + ": Parry und Super nutzen."
 		message_timer = 2.2
 		return
-	var pattern = ["grunt", "kicker", "knife", "thrower", "grunt", "brute", "medic", "kicker"]
+	var pattern = ["grunt", "kicker", "knife", "shield", "thrower", "duelist", "grunt", "brute", "medic", "kicker"]
 	var count := mini(8, 3 + wave)
 	for i in range(count):
 		var side := 1 if i % 2 == 0 else -1
@@ -622,6 +723,10 @@ func spawn_wave() -> void:
 			kind = "grunt"
 		if wave < 3 and kind == "medic":
 			kind = "kicker"
+		if wave < 3 and kind == "shield":
+			kind = "grunt"
+		if wave < 4 and kind == "duelist":
+			kind = "knife"
 		spawn_enemy(kind, Vector2(x, y))
 	message = "Welle " + str(wave) + " - " + str(count) + " Gegner"
 	message_timer = 1.45
@@ -644,6 +749,7 @@ func spawn_enemy(kind: String, pos: Vector2) -> void:
 		"attack_cd": 0.7 + rng.randf() * 0.9,
 		"special_cd": 0.8 + rng.randf() * 1.2,
 		"stun": 0.0,
+		"air": 0.0,
 		"hit": 0.0,
 		"wind": 0.0,
 		"dead": false
@@ -720,8 +826,16 @@ func resolve_gate(gate: Dictionary) -> void:
 	if bool(gate.correct):
 		score += 520
 		learn_correct += 1
+		learn_streak += 1
+		best_learn_streak = maxi(best_learn_streak, learn_streak)
 		player.hp = minf(MAX_HP, player.hp + 12.0)
 		player.super = minf(MAX_SUPER, player.super + 12.0)
+		if learn_streak > 0 and learn_streak % 3 == 0:
+			player.stamina = MAX_STAMINA
+			player.super = minf(MAX_SUPER, player.super + 18.0)
+			score += 360
+			award_style(36, "LEARN")
+			add_floater(gate.pos + Vector2(0, -88), "Serie +" + str(learn_streak), Color.html("#fde68a"))
 		add_floater(gate.pos + Vector2(0, -60), "richtig +520", Color.html("#bbf7d0"))
 		spawn_particles(gate.pos, Color.html("#22c55e"), 18, 180.0)
 		if learn_correct == LEARN_GOAL:
@@ -730,6 +844,7 @@ func resolve_gate(gate: Dictionary) -> void:
 			score += 1600
 	else:
 		stats.wrong += 1
+		learn_streak = 0
 		repeat_queue.append(active_task.duplicate(true))
 		player.hp -= 10.0
 		add_floater(gate.pos + Vector2(0, -60), "nochmal spaeter", Color.html("#fecaca"))
@@ -838,7 +953,8 @@ func button_layout() -> Array:
 		{"id": "kick", "label": "K\nKick", "rect": Rect2(Vector2(x + w + gap, y + h + gap), Vector2(w, h))},
 		{"id": "guard", "label": "G\nBlock", "rect": Rect2(Vector2(x + (w + gap) * 2.0, y + h + gap), Vector2(w, h))},
 		{"id": "grab", "label": "U\nWurf", "rect": Rect2(Vector2(x, y + (h + gap) * 2.0), Vector2(w, h))},
-		{"id": "roll", "label": "Space\nRolle", "rect": Rect2(Vector2(x + w + gap, y + (h + gap) * 2.0), Vector2(w, h))}
+		{"id": "roll", "label": "Space\nRolle", "rect": Rect2(Vector2(x + w + gap, y + (h + gap) * 2.0), Vector2(w, h))},
+		{"id": "launch", "label": "O\nLift", "rect": Rect2(Vector2(x + (w + gap) * 2.0, y + (h + gap) * 2.0), Vector2(w, h))}
 	]
 
 func world_x(x: float) -> float:
@@ -1016,7 +1132,8 @@ func draw_player() -> void:
 func draw_enemy(enemy: Dictionary) -> void:
 	var pos: Vector2 = enemy.pos
 	var x := world_x(pos.x)
-	var y := pos.y
+	var air_lift := sin(clampf(float(enemy.get("air", 0.0)) / 0.72, 0.0, 1.0) * PI) * 46.0
+	var y := pos.y - air_lift
 	var color := Color.html(str(enemy.color))
 	if float(enemy.hit) > 0.0:
 		color = color.lerp(Color.WHITE, 0.55)
@@ -1032,6 +1149,10 @@ func draw_enemy(enemy: Dictionary) -> void:
 	draw_circle(Vector2(x + float(enemy.facing) * 8.0 * scale, y - 84.0 * scale), 3.0 * scale, Color.html("#fde68a"))
 	if enemy.type == "thrower":
 		draw_circle(Vector2(x + float(enemy.facing) * 28.0, y - 58.0), 7.0, Color.html("#bbf7d0"))
+	elif enemy.type == "shield":
+		draw_arc(Vector2(x + float(enemy.facing) * 25.0, y - 57.0), 25.0, -1.28, 1.28, 22, Color.html("#bfdbfe"), 6.0)
+	elif enemy.type == "duelist":
+		draw_line(Vector2(x + float(enemy.facing) * 15.0, y - 58.0), Vector2(x + float(enemy.facing) * 48.0, y - 76.0), Color.html("#fbcfe8"), 4.0)
 	elif enemy.type == "medic":
 		draw_line(Vector2(x - 13.0, y - 55.0), Vector2(x + 13.0, y - 55.0), Color.html("#f8fafc"), 4.0)
 		draw_line(Vector2(x, y - 68.0), Vector2(x, y - 42.0), Color.html("#f8fafc"), 4.0)
@@ -1060,6 +1181,9 @@ func draw_attack_flash(origin: Vector2, kind: String, facing: int) -> void:
 	elif kind == "grab":
 		reach = 58.0
 		col = Color(0.94, 0.42, 0.94, 0.42)
+	elif kind == "launch":
+		reach = 94.0
+		col = Color(0.99, 0.88, 0.32, 0.58)
 	elif kind == "super":
 		reach = 170.0
 		col = Color(0.99, 0.82, 0.18, 0.58)
@@ -1074,26 +1198,28 @@ func draw_ellipse_shadow(pos: Vector2, rx: float, ry: float, color: Color) -> vo
 	draw_polygon(points, PackedColorArray([color]))
 
 func draw_hud() -> void:
-	var panel := Rect2(16, 14, minf(size.x - 32.0, 690.0), 94.0)
+	var panel := Rect2(16, 14, minf(size.x - 32.0, 720.0), 126.0)
 	draw_rect(panel, Color(0.02, 0.05, 0.09, 0.74), true)
 	draw_rect(panel, Color(0.78, 0.88, 1.0, 0.22), false, 2.0)
-	draw_string(font, Vector2(30, 39), "FASKA BRAWLER PRO", HORIZONTAL_ALIGNMENT_LEFT, 260.0, 22, Color.html("#f8fafc"))
-	draw_bar(Vector2(30, 54), 190.0, "HP", player.hp / MAX_HP, Color.html("#fb7185"))
-	draw_bar(Vector2(240, 54), 180.0, "AUS", player.stamina / MAX_STAMINA, Color.html("#67e8f9"))
-	draw_bar(Vector2(440, 54), 180.0, "SUPER", player.super / MAX_SUPER, Color.html("#facc15"))
+	draw_string(font, Vector2(30, 38), "FASKA BRAWLER PRO", HORIZONTAL_ALIGNMENT_LEFT, 260.0, 22, Color.html("#f8fafc"))
+	draw_bar(Vector2(30, 70), 190.0, "HP", player.hp / MAX_HP, Color.html("#fb7185"))
+	draw_bar(Vector2(240, 70), 180.0, "AUS", player.stamina / MAX_STAMINA, Color.html("#67e8f9"))
+	draw_bar(Vector2(440, 70), 180.0, "SUPER", player.super / MAX_SUPER, Color.html("#facc15"))
 	var info := "Welle " + str(wave) + "   Gegner " + str(enemies.size()) + "   Score " + str(score)
-	draw_string(font, Vector2(30, 98), info, HORIZONTAL_ALIGNMENT_LEFT, 520.0, 17, Color.html("#cbd5e1"))
-	var mode_panel := Rect2(size.x - 330.0, 14.0, 314.0, 94.0)
+	draw_string(font, Vector2(30, 114), info, HORIZONTAL_ALIGNMENT_LEFT, 520.0, 17, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(440, 114), "Style " + style_rank() + " / Best " + best_style_rank + "   Perfect " + str(stats.perfect), HORIZONTAL_ALIGNMENT_LEFT, 270.0, 17, Color.html("#fef3c7"))
+	var mode_panel := Rect2(size.x - 350.0, 14.0, 334.0, 126.0)
 	draw_rect(mode_panel, Color(0.02, 0.05, 0.09, 0.74), true)
 	draw_rect(mode_panel, Color(0.78, 0.88, 1.0, 0.22), false, 2.0)
-	draw_string(font, mode_panel.position + Vector2(14, 26), mode + "  |  " + str(LESSONS[lesson_index]), HORIZONTAL_ALIGNMENT_LEFT, 280.0, 18, Color.html("#fef3c7"))
-	draw_string(font, mode_panel.position + Vector2(14, 50), "Richtig: " + str(learn_correct) + "/" + str(LEARN_GOAL) + "  Wiederholung: " + str(repeat_queue.size()), HORIZONTAL_ALIGNMENT_LEFT, 280.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, mode_panel.position + Vector2(14, 28), mode + "  |  " + str(LESSONS[lesson_index]), HORIZONTAL_ALIGNMENT_LEFT, 280.0, 18, Color.html("#fef3c7"))
+	draw_string(font, mode_panel.position + Vector2(14, 56), "Richtig: " + str(learn_correct) + "/" + str(LEARN_GOAL) + "  Wdh: " + str(repeat_queue.size()) + "  Serie: " + str(learn_streak) + "/" + str(best_learn_streak), HORIZONTAL_ALIGNMENT_LEFT, 310.0, 14, Color.html("#cbd5e1"))
 	var weapon_text := "Waffe: Faust"
 	if player.weapon != "":
 		weapon_text = "Waffe: " + str(WEAPONS[player.weapon].label) + " " + str(player.weapon_durability)
-	draw_string(font, mode_panel.position + Vector2(14, 74), weapon_text, HORIZONTAL_ALIGNMENT_LEFT, 280.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, mode_panel.position + Vector2(14, 82), weapon_text, HORIZONTAL_ALIGNMENT_LEFT, 310.0, 14, Color.html("#cbd5e1"))
+	draw_string(font, mode_panel.position + Vector2(14, 108), "O Launcher  G Parry  I Super", HORIZONTAL_ALIGNMENT_LEFT, 310.0, 13, Color.html("#cbd5e1"))
 	if mode == "Lernen" and active_task.size() > 0:
-		var qpanel := Rect2(160.0, 126.0, size.x - 320.0, 66.0)
+		var qpanel := Rect2(160.0, 148.0, size.x - 320.0, 66.0)
 		draw_rect(qpanel, Color(0.92, 0.96, 1.0, 0.9), true)
 		draw_rect(qpanel, Color(0.25, 0.58, 1.0, 0.52), false, 3.0)
 		draw_string(font, qpanel.position + Vector2(14, 25), str(active_task.prompt), HORIZONTAL_ALIGNMENT_LEFT, qpanel.size.x - 28.0, 20, Color.html("#0f172a"))

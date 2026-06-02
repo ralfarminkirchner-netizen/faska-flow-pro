@@ -449,6 +449,21 @@ const TAXI_GOALS = [
   { id: 'learn-3', label: 'richtige Woerter', type: 'learnCorrect', target: 3, reward: 620, learnOnly: true },
 ];
 
+const DISPATCH_CONTRACTS = [
+  { id: 'dispatch-drift', label: '2s Drift fahren', type: 'driftSeconds', target: 2, duration: 30, reward: { score: 260, boost: 26, time: 3 } },
+  { id: 'dispatch-route', label: '3 Route-Gates treffen', type: 'routeGates', target: 3, duration: 36, reward: { score: 300, boost: 18, time: 4 } },
+  { id: 'dispatch-near', label: '2 Near Misses', type: 'nearMiss', target: 2, duration: 32, reward: { score: 340, boost: 22, reputation: 1 } },
+  { id: 'dispatch-turbo', label: '1 Turbo-Pad nehmen', type: 'turboPads', target: 1, duration: 26, reward: { score: 220, boost: 34 } },
+  { id: 'dispatch-jump', label: '1 Sprung schaffen', type: 'stuntJumps', target: 1, duration: 36, reward: { score: 360, boost: 16, time: 3 } },
+  { id: 'dispatch-speed', label: '1 Speed-Gate', type: 'speedGates', target: 1, duration: 34, reward: { score: 330, boost: 20, reputation: 1 } },
+  { id: 'dispatch-shortcut', label: '1 Shortcut nutzen', type: 'shortcuts', target: 1, duration: 45, reward: { score: 420, boost: 22, time: 5 } },
+  { id: 'dispatch-pickups', label: '2 Street-Boni sammeln', type: 'pickups', target: 2, duration: 38, reward: { score: 280, repair: 8, boost: 14 } },
+  { id: 'dispatch-rival', label: '1 Rivalen-Pass', type: 'rivalPasses', target: 1, duration: 42, reward: { score: 390, boost: 28, reputation: 1 } },
+  { id: 'dispatch-clean', label: '1 saubere Lieferung', type: 'cleanDeliveries', target: 1, duration: 68, reward: { score: 520, repair: 14, reputation: 2 } },
+  { id: 'dispatch-perfect', label: '1 perfekter Dropoff', type: 'perfectDropoffs', target: 1, duration: 82, reward: { score: 640, boost: 32, time: 8, reputation: 2 } },
+  { id: 'dispatch-learn', label: '1 richtiges Wort liefern', type: 'learnCorrect', target: 1, duration: 64, reward: { score: 560, boost: 24, time: 7, reputation: 1 }, learnOnly: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const lerp = (a, b, t) => a + (b - a) * t;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -633,6 +648,12 @@ function makeInitialGame(mode = 'arcade') {
     wrongPadCooldown: 0,
     reputation: 0,
     crashCooldown: 0,
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 2.1,
+    contractMedals: 0,
+    contractFails: 0,
     stats: {
       deliveries: 0,
       cleanDeliveries: 0,
@@ -669,6 +690,76 @@ function makeInitialGame(mode = 'arcade') {
 
 function statValue(game, goal) {
   return game.stats[goal.type] || 0;
+}
+
+function availableDispatchContracts(mode) {
+  return DISPATCH_CONTRACTS.filter((contract) => mode === 'learn' || !contract.learnOnly);
+}
+
+function dispatchProgress(game) {
+  if (!game.activeContract) return 0;
+  return Math.max(0, (game.stats[game.activeContract.type] || 0) - (game.activeContract.startValue || 0));
+}
+
+function applyDispatchReward(game, reward) {
+  game.score += reward.score || 0;
+  game.player.boost = clamp(game.player.boost + (reward.boost || 0), 0, 100);
+  game.time = Math.min(game.mode === 'learn' ? 136 : 116, game.time + (reward.time || 0));
+  game.player.damage = Math.max(0, game.player.damage - (reward.repair || 0));
+  game.reputation += reward.reputation || 0;
+}
+
+function startDispatchContract(game) {
+  const pool = availableDispatchContracts(game.mode);
+  if (pool.length === 0) return;
+  const contract = pool[game.contractIndex % pool.length];
+  game.contractIndex += 1;
+  game.activeContract = { ...contract, startValue: game.stats[contract.type] || 0 };
+  game.contractTimer = contract.duration;
+  game.message = `Dispatch: ${contract.label}`;
+  game.messageTimer = 1.05;
+  addFloater(game, game.player.x, game.player.y - 92, 'DISPATCH', '#fde68a');
+}
+
+function completeDispatchContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyDispatchReward(game, contract.reward || {});
+  game.contractMedals += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.2;
+  game.message = `Dispatch geschafft +${contract.reward?.score || 0}`;
+  game.messageTimer = 1.1;
+  addFloater(game, game.player.x, game.player.y - 96, 'MEDAILLE', '#fde68a');
+  spawnParticles(game, game.player.x, game.player.y, '#fde68a', 22, 260);
+}
+
+function failDispatchContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.6;
+  game.message = `Dispatch verpasst: ${contract.label}`;
+  game.messageTimer = 1.0;
+  addFloater(game, game.player.x, game.player.y - 86, 'zu spaet', '#fb7185');
+}
+
+function updateDispatchContract(game, dt) {
+  if (game.finished) return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startDispatchContract(game);
+    return;
+  }
+  if (dispatchProgress(game) >= game.activeContract.target) {
+    completeDispatchContract(game);
+    return;
+  }
+  game.contractTimer = Math.max(0, game.contractTimer - dt);
+  if (game.contractTimer <= 0) failDispatchContract(game);
 }
 
 function completeTaxiGoal(game, goal) {
@@ -1159,6 +1250,7 @@ function updateGame(game, keys, dt) {
   }
   updateEffects(game, dt);
   if (game.finished) return;
+  updateDispatchContract(game, dt);
 
   const player = game.player;
   const previousX = player.x;
@@ -1821,6 +1913,9 @@ function drawHud(ctx, game) {
   const job = currentJob(game);
   const target = getActiveTarget(game);
   const reveal = game.mode !== 'learn' || shouldRevealTarget(job);
+  const contract = game.activeContract;
+  const contractValue = contract ? Math.min(contract.target, dispatchProgress(game)) : 0;
+  const contractRatio = contract ? clamp(contractValue / contract.target, 0, 1) : 0;
   const mission = game.carrying
     ? game.mode === 'learn'
       ? reveal
@@ -1855,16 +1950,30 @@ function drawHud(ctx, game) {
     drawFittedText(ctx, game.mode === 'learn' ? `${job.subject}: ${job.hint}` : job.hint, panelLeft, 130, 334, 13, 9, 800);
 
     ctx.fillStyle = 'rgba(2,6,23,.72)';
-    drawRoundedRect(ctx, panelX, 152, panelW, 122, 18);
+    drawRoundedRect(ctx, panelX, 152, panelW, 176, 18);
     ctx.fill();
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '900 12px Outfit, sans-serif';
     ctx.fillText('PRO-MISSIONEN', panelLeft, 178);
-    game.goals.slice(0, 5).forEach((goal, index) => {
+    game.goals.slice(0, 4).forEach((goal, index) => {
       const progress = Math.floor(statValue(game, goal));
       ctx.fillStyle = goal.done ? '#86efac' : '#cbd5e1';
       ctx.fillText(`${goal.done ? 'OK' : `${Math.min(progress, goal.target)}/${goal.target}`} ${goal.label}`, panelLeft, 200 + index * 15);
     });
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText('DISPATCH', panelLeft, 270);
+    ctx.fillStyle = contract ? '#fef3c7' : '#cbd5e1';
+    drawFittedText(ctx, contract ? contract.label : `naechster in ${Math.ceil(game.contractCooldown)}s`, panelLeft, 292, 240, 12, 9, 900);
+    ctx.fillStyle = 'rgba(148,163,184,.22)';
+    drawRoundedRect(ctx, panelLeft, 302, 224, 9, 5);
+    ctx.fill();
+    ctx.fillStyle = contract ? '#facc15' : '#64748b';
+    drawRoundedRect(ctx, panelLeft, 302, 224 * (contract ? contractRatio : 1 - clamp(game.contractCooldown / 2.1, 0, 1)), 9, 5);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 10px Outfit, sans-serif';
+    ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · M${game.contractMedals}` : `Medaillen ${game.contractMedals} · Verpasst ${game.contractFails}`, panelLeft, 323);
 
     const meterY = HEIGHT - 116;
     ctx.fillStyle = 'rgba(2,6,23,.78)';
@@ -1923,16 +2032,31 @@ function drawHud(ctx, game) {
 
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(2,6,23,.76)';
-  drawRoundedRect(ctx, 22, 162, 486, 152, 18);
+  drawRoundedRect(ctx, 22, 162, 486, 220, 18);
   ctx.fill();
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '900 13px Outfit, sans-serif';
   ctx.fillText('PRO-MISSIONEN', 44, 190);
-  game.goals.slice(0, 8).forEach((goal, index) => {
+  game.goals.slice(0, 6).forEach((goal, index) => {
     const progress = goal.type === 'driftSeconds' ? Math.floor(statValue(game, goal)) : Math.floor(statValue(game, goal));
     ctx.fillStyle = goal.done ? '#86efac' : '#cbd5e1';
     ctx.fillText(`${goal.done ? 'OK' : `${Math.min(progress, goal.target)}/${goal.target}`} ${goal.label}`, 44, 212 + index * 15);
   });
+  ctx.fillStyle = '#fde68a';
+  ctx.font = '900 13px Outfit, sans-serif';
+  ctx.fillText('DISPATCH-ZENTRALE', 44, 318);
+  ctx.fillStyle = contract ? '#fef3c7' : '#cbd5e1';
+  ctx.font = '900 14px Outfit, sans-serif';
+  ctx.fillText(contract ? contract.label : `Naechster Auftrag in ${Math.ceil(game.contractCooldown)}s`, 44, 342, 330);
+  ctx.fillStyle = 'rgba(148,163,184,.22)';
+  drawRoundedRect(ctx, 44, 354, 280, 10, 5);
+  ctx.fill();
+  ctx.fillStyle = contract ? '#facc15' : '#64748b';
+  drawRoundedRect(ctx, 44, 354, 280 * (contract ? contractRatio : 1 - clamp(game.contractCooldown / 2.1, 0, 1)), 10, 5);
+  ctx.fill();
+  ctx.fillStyle = contract && game.contractTimer < 8 ? '#fb7185' : '#cbd5e1';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · Medaillen ${game.contractMedals}` : `Medaillen ${game.contractMedals} · Verpasst ${game.contractFails}`, 44, 376);
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
   drawRoundedRect(ctx, WIDTH - 640, HEIGHT - 92, 616, 66, 16);

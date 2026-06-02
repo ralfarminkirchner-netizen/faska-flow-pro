@@ -105,6 +105,8 @@ const SOULS_GOALS = [
   { id: 'counter-2', label: '2 Guard-Counter', type: 'guardCounters', target: 2, reward: 560 },
   { id: 'riposte-1', label: 'Riposte setzen', type: 'ripostes', target: 1, reward: 760 },
   { id: 'backstab-1', label: 'Backstab treffen', type: 'backstabs', target: 1, reward: 700 },
+  { id: 'punish-3', label: '3 Punish-Treffer', type: 'punishHits', target: 3, reward: 680 },
+  { id: 'stance-2', label: '2 Stance-Breaks', type: 'stanceBreaks', target: 2, reward: 820 },
   { id: 'dodge-2', label: 'perfekte Rollen', type: 'perfectDodges', target: 2, reward: 520 },
   { id: 'shade-3', label: '3 Schatten bannen', type: 'shades', target: 3, reward: 560 },
   { id: 'sigils-2', label: '2 Eid-Siegel entzuenden', type: 'sigils', target: 2, reward: 620 },
@@ -121,6 +123,8 @@ const SOULS_CONTRACTS = [
   { id: 'parry-1', label: '1 Parry erzwingen', type: 'parries', target: 1, duration: 44, reward: { score: 520, focus: 32, stamina: 18 } },
   { id: 'counter-1', label: '1 Guard-Counter landen', type: 'guardCounters', target: 1, duration: 40, reward: { score: 460, focus: 24, stamina: 20 } },
   { id: 'riposte-1', label: '1 Riposte oder Backstab', type: 'criticalHits', target: 1, duration: 54, reward: { score: 720, focus: 36, health: 16 } },
+  { id: 'punish-2', label: '2 Punish-Treffer landen', type: 'punishHits', target: 2, duration: 42, reward: { score: 560, focus: 28, stamina: 26 } },
+  { id: 'stance-1', label: '1 Stance-Break erzwingen', type: 'stanceBreaks', target: 1, duration: 58, reward: { score: 760, focus: 34, health: 14 } },
   { id: 'sigil-1', label: '1 Eid-Siegel entzuenden', type: 'sigils', target: 1, duration: 50, reward: { score: 500, focus: 28, health: 12 } },
   { id: 'shade-2', label: '2 Schatten bannen', type: 'shades', target: 2, duration: 46, reward: { score: 480, focus: 24, stamina: 24 } },
   { id: 'rally-12', label: '12 Rally-HP zurueckholen', type: 'rallyHealed', target: 12, duration: 42, reward: { score: 430, focus: 20, health: 12 } },
@@ -184,6 +188,9 @@ function makeInitialGame(mode = 'arcade') {
       lockToggleCooldown: 0,
       hurtTimer: 0,
       runeBuff: 0,
+      punishWindow: 0,
+      punishStacks: 0,
+      punishPulse: 0,
       guard: 0,
       lockOn: true,
       score: 0,
@@ -220,6 +227,8 @@ function makeInitialGame(mode = 'arcade') {
       runes: 0,
       hits: 0,
       focusHits: 0,
+      punishHits: 0,
+      stanceBreaks: 0,
       criticalHits: 0,
       rolls: 0,
       estusUsed: 0,
@@ -417,6 +426,18 @@ function addFloater(game, x, y, text, color = '#facc15') {
   });
 }
 
+function openPunishWindow(game, source, stacks = 1, duration = 1.35) {
+  const player = game.player;
+  if (game.phase !== 'fight' || player.hp <= 0 || game.boss.hp <= 0) return;
+  player.punishWindow = Math.max(player.punishWindow, duration);
+  player.punishStacks = clamp(Math.max(player.punishStacks, stacks), 1, 3);
+  player.punishPulse = 0.34;
+  player.focus = clamp(player.focus + 5 + player.punishStacks * 2, 0, 100);
+  game.message = `${source}: Punish-Fenster`;
+  game.messageTimer = 0.72;
+  addFloater(game, player.x, player.y - 66, `PUNISH x${player.punishStacks}`, '#fef08a');
+}
+
 function spawnHazard(game, x, y, radius = 62, life = 4.2) {
   game.hazards.push({
     x: clamp(x, ARENA.x + 52, ARENA.x + ARENA.w - 52),
@@ -498,18 +519,46 @@ function playerAttackHit(game) {
   const buff = player.runeBuff > 0 ? 1.38 : 1;
   const bossInFront = (boss.x - player.x) * player.facing > -20;
   const bossHit = distance(player, boss) <= attack.range + 58 && bossInFront;
+  const punishActive = bossHit
+    && player.punishWindow > 0
+    && attack.type !== 'riposte'
+    && attack.type !== 'backstab';
+  const punishStacks = punishActive ? Math.max(1, player.punishStacks) : 0;
   let hitSomething = false;
 
   if (bossHit) {
-    const damage = attack.damage * buff * (boss.stagger > 0 ? 1.45 : 1);
+    const punishDamage = punishActive ? 1 + punishStacks * 0.18 : 1;
+    const damage = attack.damage * buff * (boss.stagger > 0 ? 1.45 : 1) * punishDamage;
+    const postureDamage = (
+      attack.type === 'riposte' || attack.type === 'backstab'
+        ? 0
+        : attack.type === 'focus'
+          ? 42
+          : attack.type === 'counter'
+            ? 36
+            : attack.type === 'heavy'
+              ? 24
+              : 12
+    ) + (punishActive ? 12 + punishStacks * 8 : 0);
     boss.hp = clamp(boss.hp - damage, 0, boss.maxHp);
-    boss.posture = clamp(boss.posture - (attack.type === 'riposte' || attack.type === 'backstab' ? 0 : attack.type === 'focus' ? 42 : attack.type === 'counter' ? 36 : attack.type === 'heavy' ? 24 : 12), 0, 100);
+    boss.posture = clamp(boss.posture - postureDamage, 0, 100);
     boss.hurtTimer = 0.22;
     boss.vx += player.facing * (attack.type === 'riposte' ? 120 : attack.type === 'focus' ? 360 : attack.type === 'heavy' ? 260 : 140);
     player.focus = clamp(player.focus + (attack.type === 'focus' ? 0 : 11), 0, 100);
     player.score += Math.round(damage * 16);
     game.stats.hits += 1;
     if (attack.type === 'focus') game.stats.focusHits += 1;
+    if (punishActive) {
+      game.stats.punishHits += 1;
+      player.focus = clamp(player.focus + 14 + punishStacks * 4, 0, 100);
+      player.stamina = clamp(player.stamina + 12 + punishStacks * 4, 0, 100);
+      player.score += 180 + punishStacks * 90;
+      addFloater(game, boss.x, boss.y - 120, `PUNISH x${punishStacks}`, '#fef08a');
+      spawnSparks(game, boss.x, boss.y - 26, '#fef08a', 12 + punishStacks * 4);
+      player.punishWindow = 0;
+      player.punishStacks = 0;
+      player.punishPulse = 0;
+    }
     hitSomething = true;
     spawnSparks(game, boss.x, boss.y - 18, attack.type === 'riposte' || attack.type === 'backstab' ? '#fef3c7' : attack.type === 'focus' ? '#38bdf8' : attack.type === 'counter' || attack.type === 'heavy' ? '#facc15' : '#93c5fd', attack.type === 'focus' || attack.type === 'riposte' || attack.type === 'backstab' ? 22 : 12);
     if (attack.type === 'counter') {
@@ -588,10 +637,15 @@ function playerAttackHit(game) {
     boss.posture = 65;
     boss.windup = null;
     boss.attack = null;
-    game.message = 'Boss taumelt!';
+    game.stats.stanceBreaks += 1;
+    game.message = 'Stance-Break!';
     game.messageTimer = 1.1;
-    player.focus = clamp(player.focus + 24, 0, 100);
-    spawnSparks(game, boss.x, boss.y, '#fef3c7', 18);
+    player.focus = clamp(player.focus + 30, 0, 100);
+    player.stamina = clamp(player.stamina + 22, 0, 100);
+    player.score += 420;
+    addFloater(game, boss.x, boss.y - 118, 'STANCE BREAK', '#fef3c7');
+    spawnSparks(game, boss.x, boss.y, '#fef3c7', 26);
+    evaluateSoulsGoals(game);
   }
 }
 
@@ -680,6 +734,11 @@ function updatePlayer(game, input, dt) {
   player.runeBuff = Math.max(0, player.runeBuff - dt);
   player.rally = Math.max(0, player.rally - 5.5 * dt);
   player.guardCounterWindow = Math.max(0, player.guardCounterWindow - dt);
+  player.punishWindow = Math.max(0, player.punishWindow - dt);
+  player.punishPulse = Math.max(0, player.punishPulse - dt);
+  if (player.punishWindow <= 0) {
+    player.punishStacks = 0;
+  }
 
   if (player.attack) {
     player.attack.timer += dt;
@@ -889,9 +948,9 @@ function bossAttackHits(game) {
     player.focus = clamp(player.focus + 34, 0, 100);
     player.score += 280;
     game.stats.parries += 1;
+    game.stats.stanceBreaks += 1;
     game.cameraShake = 12;
-    game.message = 'Parry!';
-    game.messageTimer = 1.1;
+    openPunishWindow(game, 'Parry', 3, 1.45);
     spawnSparks(game, player.x, player.y - 10, '#93c5fd', 20);
     evaluateSoulsGoals(game);
     return;
@@ -924,6 +983,9 @@ function bossAttackHits(game) {
     }
     player.guard = 0;
     player.hurtTimer = 0.5;
+    player.punishWindow = 0;
+    player.punishStacks = 0;
+    player.punishPulse = 0;
     game.message = 'Guard Break';
     game.messageTimer = 0.75;
     spawnSparks(game, player.x, player.y, '#fb7185', 16);
@@ -934,6 +996,9 @@ function bossAttackHits(game) {
   player.rally = clamp(player.rally + Math.min(previousHp, damage) * 0.72, 0, 34);
   player.hurtTimer = 0.38;
   player.invuln = 0.55;
+  player.punishWindow = 0;
+  player.punishStacks = 0;
+  player.punishPulse = 0;
   const dir = normalize(player.x - boss.x, player.y - boss.y);
   player.vx = dir.x * 440;
   player.vy = dir.y * 440;
@@ -957,8 +1022,7 @@ function rewardPerfectDodge(game) {
   player.stamina = clamp(player.stamina + 16, 0, 100);
   player.score += 140;
   game.stats.perfectDodges += 1;
-  game.message = 'Perfekte Rolle';
-  game.messageTimer = 0.75;
+  openPunishWindow(game, 'Perfekte Rolle', 1, 1.25);
   addFloater(game, player.x, player.y - 52, '+Fokus', '#38bdf8');
   spawnSparks(game, player.x, player.y, '#38bdf8', 14);
   evaluateSoulsGoals(game);
@@ -981,6 +1045,9 @@ function updateHazards(game, dt) {
     player.rally = clamp(player.rally + 5, 0, 34);
     player.stamina = Math.max(0, player.stamina - 12);
     player.hurtTimer = 0.22;
+    player.punishWindow = 0;
+    player.punishStacks = 0;
+    player.punishPulse = 0;
     hazard.hitCooldown = 0.85;
     game.cameraShake = Math.max(game.cameraShake, 7);
     game.message = 'Blutflamme';
@@ -1010,8 +1077,7 @@ function updateShades(game, dt) {
         player.focus = clamp(player.focus + 12, 0, 100);
         player.stamina = clamp(player.stamina + 12, 0, 100);
         player.score += 90;
-        game.message = 'Schatten ausgewichen';
-        game.messageTimer = 0.65;
+        openPunishWindow(game, 'Schatten-Dodge', 1, 1.05);
         spawnSparks(game, player.x, player.y, '#38bdf8', 10);
         evaluateSoulsGoals(game);
       } else if (player.parryTimer > 0) {
@@ -1021,8 +1087,7 @@ function updateShades(game, dt) {
         game.stats.shades += 1;
         player.focus = clamp(player.focus + 28, 0, 100);
         player.score += 240;
-        game.message = 'Schatten-Parry';
-        game.messageTimer = 0.8;
+        openPunishWindow(game, 'Schatten-Parry', 2, 1.2);
         spawnSparks(game, shade.x, shade.y, '#93c5fd', 18);
         evaluateSoulsGoals(game);
       } else if (player.guard > 0 && player.stamina > shade.damage * 1.1) {
@@ -1043,6 +1108,9 @@ function updateShades(game, dt) {
         player.rally = clamp(player.rally + shade.damage * 0.55, 0, 34);
         player.hurtTimer = 0.28;
         player.invuln = 0.38;
+        player.punishWindow = 0;
+        player.punishStacks = 0;
+        player.punishPulse = 0;
         player.vx -= dir.x * 320;
         player.vy -= dir.y * 320;
         game.cameraShake = Math.max(game.cameraShake, 8);
@@ -1148,6 +1216,9 @@ function reviveAtBonfire(game) {
   player.attack = null;
   player.guard = 0;
   player.parryTimer = 0;
+  player.punishWindow = 0;
+  player.punishStacks = 0;
+  player.punishPulse = 0;
   game.hazards = [];
   game.stats.revives += 1;
   boss.posture = 100;
@@ -1433,6 +1504,9 @@ function drawHud(ctx, game) {
     : bonfire.lit
       ? 'Leuchtfeuer bereit'
       : `Leuchtfeuer ${Math.round((bonfire.charge / bonfire.chargeTime) * 100)}%`;
+  const punishText = player.punishWindow > 0
+    ? `Punish x${player.punishStacks} · ${player.punishWindow.toFixed(1)}s`
+    : `Punish ${game.stats.punishHits} · Break ${game.stats.stanceBreaks}`;
   ctx.save();
   if (game.isPortraitTouch) {
     const panelX = CENTER_X - 320;
@@ -1441,7 +1515,7 @@ function drawHud(ctx, game) {
     const leftX = panelX + 24;
     const rightX = CENTER_X + 42;
     ctx.fillStyle = 'rgba(2,6,23,.82)';
-    drawRoundedRect(ctx, panelX, panelY, panelW, 176, 18);
+    drawRoundedRect(ctx, panelX, panelY, panelW, 196, 18);
     ctx.fill();
 
     ctx.textAlign = 'center';
@@ -1458,6 +1532,8 @@ function drawHud(ctx, game) {
     drawFittedText(ctx, `Held HP ${Math.round(player.hp)} · Trank ${player.estus} · ${bonfire.lit && !bonfire.spent ? 'Feuer bereit' : bonfire.spent ? 'Feuer leer' : 'Feuer laden'}`, leftX, panelY + 108, 250, '900 12px Outfit, sans-serif');
     ctx.fillStyle = player.guardCounterWindow > 0 ? '#fef08a' : '#cbd5e1';
     drawFittedText(ctx, `Counter ${game.stats.guardCounters} · Backstab ${game.stats.backstabs} · Fenster ${player.guardCounterWindow > 0 ? player.guardCounterWindow.toFixed(1) : '-'}`, leftX, panelY + 126, 260, '900 12px Outfit, sans-serif');
+    ctx.fillStyle = player.punishWindow > 0 ? '#fef08a' : '#cbd5e1';
+    drawFittedText(ctx, punishText, leftX, panelY + 144, 260, '900 12px Outfit, sans-serif');
 
     drawBar(ctx, rightX, panelY + 42, 246, 18, boss.hp, boss.maxHp, '#ef4444', true);
     drawBar(ctx, rightX + 48, panelY + 66, 198, 10, boss.posture, 100, '#a78bfa', true);
@@ -1466,6 +1542,8 @@ function drawHud(ctx, game) {
     drawFittedText(ctx, `Aschewaechter P${boss.phase}`, rightX + 246, panelY + 108, 250, '900 12px Outfit, sans-serif');
     ctx.fillStyle = '#c4b5fd';
     drawFittedText(ctx, `Block ${game.stats.blocks} · Riposte ${game.stats.ripostes} · Schatten ${game.stats.shades}`, rightX + 246, panelY + 126, 260, '900 12px Outfit, sans-serif');
+    ctx.fillStyle = boss.stagger > 0 ? '#fef3c7' : '#c4b5fd';
+    drawFittedText(ctx, `Stance-Breaks ${game.stats.stanceBreaks} · Posture ${Math.round(boss.posture)}`, rightX + 246, panelY + 144, 260, '900 12px Outfit, sans-serif');
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#cbd5e1';
@@ -1473,19 +1551,19 @@ function drawHud(ctx, game) {
       const progress = Math.floor(clamp(statValue(game, goal), 0, goal.target));
       return `${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`;
     }).join('  |  ');
-    drawFittedText(ctx, compactGoals, CENTER_X, panelY + 146, panelW - 40, '900 11px Outfit, sans-serif', 8);
+    drawFittedText(ctx, compactGoals, CENTER_X, panelY + 166, panelW - 40, '900 11px Outfit, sans-serif', 8);
     ctx.fillStyle = game.activeContract ? '#fef08a' : '#94a3b8';
-    drawFittedText(ctx, game.activeContract ? `Eid ${contractProgress.value}/${contractProgress.target}: ${game.activeContract.label} · ${Math.ceil(game.contractTimer)}s` : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, CENTER_X, panelY + 164, panelW - 46, '900 11px Outfit, sans-serif', 8);
+    drawFittedText(ctx, game.activeContract ? `Eid ${contractProgress.value}/${contractProgress.target}: ${game.activeContract.label} · ${Math.ceil(game.contractTimer)}s` : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, CENTER_X, panelY + 184, panelW - 46, '900 11px Outfit, sans-serif', 8);
 
     if (game.mode === 'learn') {
       const prompt = currentPrompt(game);
       ctx.fillStyle = 'rgba(2,6,23,.78)';
-      drawRoundedRect(ctx, CENTER_X - 300, panelY + 188, 600, 70, 16);
+      drawRoundedRect(ctx, CENTER_X - 300, panelY + 208, 600, 70, 16);
       ctx.fill();
       ctx.fillStyle = '#e2e8f0';
-      drawFittedText(ctx, prompt.sentence, CENTER_X, panelY + 216, 560, '900 17px Outfit, sans-serif', 11);
+      drawFittedText(ctx, prompt.sentence, CENTER_X, panelY + 236, 560, '900 17px Outfit, sans-serif', 11);
       ctx.fillStyle = '#67e8f9';
-      drawFittedText(ctx, `${prompt.subject}: richtige Rune fuer "${prompt.word}"`, CENTER_X, panelY + 240, 560, '800 13px Outfit, sans-serif', 10);
+      drawFittedText(ctx, `${prompt.subject}: richtige Rune fuer "${prompt.word}"`, CENTER_X, panelY + 260, 560, '800 13px Outfit, sans-serif', 10);
     }
 
     if (game.messageTimer > 0) {
@@ -1513,6 +1591,8 @@ function drawHud(ctx, game) {
   ctx.fillText(`${player.lockOn ? 'LOCK-ON' : 'FREI'} · Blocks ${game.stats.blocks} · Ripostes ${game.stats.ripostes}`, 42, 140);
   ctx.fillStyle = player.guardCounterWindow > 0 ? '#fef08a' : '#cbd5e1';
   ctx.fillText(`Counter ${game.stats.guardCounters} · Backstab ${game.stats.backstabs} · Fenster ${player.guardCounterWindow > 0 ? player.guardCounterWindow.toFixed(1) : '-'}`, 42, 158);
+  ctx.fillStyle = player.punishWindow > 0 ? '#fef08a' : '#cbd5e1';
+  ctx.fillText(punishText, 42, 176);
 
   drawBar(ctx, WIDTH - 542, 30, 500, 30, boss.hp, boss.maxHp, '#ef4444', true);
   drawBar(ctx, WIDTH - 342, 70, 300, 14, boss.posture, 100, '#a78bfa', true);
@@ -1523,41 +1603,41 @@ function drawHud(ctx, game) {
 
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(2,6,23,.72)';
-  drawRoundedRect(ctx, 42, 152, 330, 160, 16);
+  drawRoundedRect(ctx, 42, 182, 330, 160, 16);
   ctx.fill();
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '900 13px Outfit, sans-serif';
-  ctx.fillText('MEISTERUNGEN', 62, 178);
+  ctx.fillText('MEISTERUNGEN', 62, 208);
   ctx.fillStyle = '#c4b5fd';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText(`Schatten ${game.stats.shades} · Eid-Siegel ${game.stats.sigils}/${game.sigils.length}`, 62, 196);
+  ctx.fillText(`Schatten ${game.stats.shades} · Eid-Siegel ${game.stats.sigils}/${game.sigils.length}`, 62, 226);
   game.goals.slice(0, 7).forEach((goal, index) => {
     const progress = Math.floor(clamp(statValue(game, goal), 0, goal.target));
     ctx.fillStyle = goal.done ? '#86efac' : '#cbd5e1';
-    ctx.fillText(`${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`, 62, 216 + index * 15);
+    ctx.fillText(`${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`, 62, 246 + index * 15);
   });
 
   ctx.fillStyle = 'rgba(2,6,23,.72)';
-  drawRoundedRect(ctx, 42, 326, 330, 130, 16);
+  drawRoundedRect(ctx, 42, 356, 330, 130, 16);
   ctx.fill();
   ctx.fillStyle = '#fef08a';
   ctx.font = '900 13px Outfit, sans-serif';
-  ctx.fillText(`EIDE ${game.contractSeals} erfuellt · ${game.contractFails} gebrochen`, 62, 352);
+  ctx.fillText(`EIDE ${game.contractSeals} erfuellt · ${game.contractFails} gebrochen`, 62, 382);
   ctx.fillStyle = game.activeContract ? '#f8fafc' : '#94a3b8';
   ctx.font = '900 14px Outfit, sans-serif';
-  drawFittedText(ctx, game.activeContract ? game.activeContract.label : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, 62, 376, 288, '900 14px Outfit, sans-serif', 10);
+  drawFittedText(ctx, game.activeContract ? game.activeContract.label : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, 62, 406, 288, '900 14px Outfit, sans-serif', 10);
   ctx.fillStyle = 'rgba(148,163,184,.22)';
-  drawRoundedRect(ctx, 62, 390, 284, 10, 5);
+  drawRoundedRect(ctx, 62, 420, 284, 10, 5);
   ctx.fill();
   ctx.fillStyle = game.activeContract ? '#86efac' : '#475569';
-  drawRoundedRect(ctx, 62, 390, 284 * contractProgress.ratio, 10, 5);
+  drawRoundedRect(ctx, 62, 420, 284 * contractProgress.ratio, 10, 5);
   ctx.fill();
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '800 12px Outfit, sans-serif';
-  ctx.fillText(game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereitmachen', 62, 420);
+  ctx.fillText(game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereitmachen', 62, 450);
   ctx.fillStyle = bonfire.lit && !bonfire.spent ? '#fef08a' : bonfire.spent ? '#94a3b8' : '#fed7aa';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText(`${bonfireText} · Revives ${game.stats.revives}`, 62, 440);
+  ctx.fillText(`${bonfireText} · Revives ${game.stats.revives}`, 62, 470);
 
   if (game.mode === 'learn') {
     const prompt = currentPrompt(game);
@@ -1598,6 +1678,17 @@ function drawPlayer(ctx, player, game) {
   ctx.beginPath();
   ctx.ellipse(0, 20, 34, 13, 0, 0, Math.PI * 2);
   ctx.fill();
+  if (player.punishWindow > 0) {
+    const pulse = 1 + Math.sin(game.elapsed * 22) * 0.06 + player.punishStacks * 0.035;
+    ctx.save();
+    ctx.scale(pulse, pulse);
+    ctx.strokeStyle = player.punishPulse > 0 ? 'rgba(254,240,138,.92)' : 'rgba(254,240,138,.58)';
+    ctx.lineWidth = 5 + player.punishStacks;
+    ctx.beginPath();
+    ctx.arc(0, -18, 62 + player.punishStacks * 6, -Math.PI * 0.9, Math.PI * 0.9);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = player.hurtTimer > 0 ? '#93c5fd' : '#2563eb';
   drawRoundedRect(ctx, -24, -42, 48, 62, 14);
   ctx.fill();

@@ -819,6 +819,33 @@ function BombPickup({ item }) {
   );
 }
 
+function EnemyPostureCue({ enemy, width = 0.62, y = 0.74 }) {
+  const maxPosture = enemy.maxPosture || 1;
+  const postureRatio = Math.max(0, Math.min(1, (enemy.posture ?? maxPosture) / maxPosture));
+  const showPosture = enemy.alive && (enemy.stunned > 0 || postureRatio < 0.98);
+
+  if (!showPosture) return null;
+
+  return (
+    <group position={[0, y, 0]}>
+      <mesh>
+        <planeGeometry args={[width, 0.05]} />
+        <meshBasicMaterial color="#172554" transparent opacity={0.9} />
+      </mesh>
+      <mesh position={[-((width / 2) * (1 - postureRatio)), 0, 0.002]}>
+        <planeGeometry args={[width * postureRatio, 0.05]} />
+        <meshBasicMaterial color={enemy.stunned > 0 ? '#fef08a' : '#38bdf8'} />
+      </mesh>
+      {enemy.stunned > 0 && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -y + 0.04, 0]}>
+          <ringGeometry args={[0.62, 0.82, 24]} />
+          <meshBasicMaterial color="#fef08a" transparent opacity={0.48} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 // Slime enemy — with death animation
 function SlimeEnemy({ enemy, particleRef }) {
   const meshRef = useRef();
@@ -922,6 +949,7 @@ function SlimeEnemy({ enemy, particleRef }) {
           </mesh>
         </group>
       )}
+      <EnemyPostureCue enemy={enemy} y={0.74} width={0.62} />
     </group>
   );
 }
@@ -1088,6 +1116,7 @@ function GuardianEnemy({ enemy, particleRef }) {
           </mesh>
         </group>
       )}
+      <EnemyPostureCue enemy={enemy} y={0.96} width={0.84} />
       <pointLight color={color} intensity={3.2} distance={5} decay={2} />
     </group>
   );
@@ -1174,6 +1203,7 @@ function TempleKnightEnemy({ enemy, particleRef }) {
           <meshBasicMaterial color={phaseTwo ? '#ef4444' : '#facc15'} />
         </mesh>
       </group>
+      <EnemyPostureCue enemy={enemy} y={1.66} width={1.5} />
       <pointLight color={color} intensity={phaseTwo ? 6 : 4} distance={7} decay={2} />
     </group>
   );

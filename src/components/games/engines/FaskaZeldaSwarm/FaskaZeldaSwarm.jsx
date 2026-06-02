@@ -91,6 +91,8 @@ function ZeldaHUD() {
   const combo = useZeldaStore((s) => s.combo);
   const courageCharge = useZeldaStore((s) => s.courageCharge);
   const courageTimer = useZeldaStore((s) => s.courageTimer);
+  const flurryWindow = useZeldaStore((s) => s.flurryWindow);
+  const flurryChain = useZeldaStore((s) => s.flurryChain);
   const stats = useZeldaStore((s) => s.stats);
   const goals = useZeldaStore((s) => s.goals);
   const mode = useZeldaStore((s) => s.mode);
@@ -124,7 +126,7 @@ function ZeldaHUD() {
           ? 'Raumziel'
           : 'Schalterziel';
   const showStaminaPanel = staminaPct < 100 || shieldActive || rolling || rollCooldown > 0 || spinCooldown > 0;
-  const showCouragePanel = courageTimer > 0 || courageCharge > 0 || combo > 0 || goals.some((goal) => goal.complete);
+  const showCouragePanel = flurryWindow > 0 || courageTimer > 0 || courageCharge > 0 || combo > 0 || goals.some((goal) => goal.complete);
   const solvedShrines = shrines.filter((shrine) => shrine.solved).length;
   const failedShrines = shrines.filter((shrine) => shrine.failed).length;
   const mapRooms = Array.from({ length: totalRooms }, (_, index) => ({
@@ -339,7 +341,7 @@ function ZeldaHUD() {
               MUT-FOKUS
             </span>
             <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 11, color: '#facc15', fontWeight: 900 }}>
-              {courageTimer > 0 ? `${courageTimer.toFixed(1)}s` : `${Math.round(courageCharge)}%`} · SERIE x{combo}
+              {flurryWindow > 0 ? `FLURRY ${flurryWindow.toFixed(1)}s` : courageTimer > 0 ? `${courageTimer.toFixed(1)}s` : `${Math.round(courageCharge)}%`} · SERIE x{combo}
             </span>
           </div>
           <div style={{ height: 6, background: 'rgba(15,23,42,.84)', borderRadius: 999, overflow: 'hidden', marginTop: 6 }}>
@@ -352,7 +354,7 @@ function ZeldaHUD() {
             />
           </div>
           <div style={{ marginTop: 7, fontFamily: 'Outfit, sans-serif', fontSize: 10, fontWeight: 900, color: '#94a3b8', letterSpacing: 1 }}>
-            MEISTERUNGEN
+            MEISTERUNGEN · FLURRY x{flurryChain} · DODGE {stats.perfectDodges || 0} · STAGGER {stats.staggerBreaks || 0} · FIN {stats.finishers || 0}
           </div>
           {goals.slice(0, 5).map((goal) => {
             const value = Math.min(goal.target, stats[goal.type] || 0);
@@ -820,8 +822,8 @@ function StartScreen({ onStart, mode, onModeChange }) {
         }}
       >
         {mode === 'learn'
-          ? 'Wort-Schreine, Werkzeug-Siegel, Raumauftraege und Medaillen greifen ineinander.'
-          : 'Ein Pixel-Dungeon mit Raeumen, Siegeln, Gegnern, Bogen, Bomben, Raumauftraegen und Bossdruck.'}
+          ? 'Wort-Schreine, perfekte Rollen, Flurry-Konter, Werkzeug-Siegel, Raumauftraege und Medaillen greifen ineinander.'
+          : 'Ein Pixel-Dungeon mit Raeumen, Flurry-Konterfenstern, Stagger-Breaks, Finishern, Bogen, Bomben und Bossdruck.'}
       </p>
       <ModeSwitch mode={mode} onModeChange={onModeChange} />
       <button

@@ -89,6 +89,9 @@ const LEARN_SHRINES = [
 
 const ZELDA_GOALS = [
   { id: 'combo-5', label: '5er Kampf-Serie', type: 'bestCombo', target: 5, reward: 160 },
+  { id: 'flurry-4', label: '4 Flurry-Treffer', type: 'flurryHits', target: 4, reward: 230 },
+  { id: 'stagger-3', label: '3 Stagger-Breaks', type: 'staggerBreaks', target: 3, reward: 260 },
+  { id: 'finisher-2', label: '2 Finisher', type: 'finishers', target: 2, reward: 280 },
   { id: 'blocks-3', label: '3 perfekte Blocks', type: 'perfectBlocks', target: 3, reward: 180 },
   { id: 'key-doors-2', label: '2 Schluessel-Tore', type: 'keyDoorsOpened', target: 2, reward: 240 },
   { id: 'spin-5', label: '5 Spin-Treffer', type: 'spinHits', target: 5, reward: 190 },
@@ -102,6 +105,9 @@ const ZELDA_GOALS = [
 
 const ZELDA_CONTRACTS = [
   { id: 'roll-3', label: '3 Rollen ausweichen', type: 'rolls', target: 3, duration: 28, reward: { score: 140, rupees: 3, stamina: 18 } },
+  { id: 'dodge-2', label: '2 perfekte Ausweichrollen', type: 'perfectDodges', target: 2, duration: 42, reward: { score: 210, stamina: 28, courage: 18 } },
+  { id: 'flurry-2', label: '2 Flurry-Treffer landen', type: 'flurryHits', target: 2, duration: 40, reward: { score: 260, rupees: 4, stamina: 24 } },
+  { id: 'stagger-1', label: '1 Stagger-Break erzwingen', type: 'staggerBreaks', target: 1, duration: 52, reward: { score: 280, health: 1, courage: 20 } },
   { id: 'arrow-2', label: '2 Pfeiltreffer landen', type: 'arrowHits', target: 2, duration: 34, reward: { score: 170, arrows: 3, courage: 16 } },
   { id: 'seal-1', label: '1 Werkzeug-Siegel', type: 'toolSeals', target: 1, duration: 42, reward: { score: 190, rupees: 4, stamina: 22 } },
   { id: 'bomb-place-2', label: '2 Bomben platzieren', type: 'bombsPlaced', target: 2, duration: 38, reward: { score: 150, bombs: 1, courage: 12 } },
@@ -131,6 +137,10 @@ export function roomRequiresSmallKey(roomId) {
 function createStats() {
   return {
     bestCombo: 0,
+    perfectDodges: 0,
+    flurryHits: 0,
+    staggerBreaks: 0,
+    finishers: 0,
     perfectBlocks: 0,
     spinHits: 0,
     roomsOpened: 0,
@@ -189,6 +199,9 @@ function createSlime(position) {
     type: 'slime',
     speed: 1.5 + Math.random() * 1.0,
     damage: 10,
+    posture: 36,
+    maxPosture: 36,
+    stunned: 0,
     points: 50,
     alive: true,
     bouncePhase: Math.random() * Math.PI * 2,
@@ -209,6 +222,9 @@ function createBat(position) {
     type: 'bat',
     speed: 3.0 + Math.random() * 1.5,
     damage: 5,
+    posture: 22,
+    maxPosture: 22,
+    stunned: 0,
     points: 75,
     alive: true,
     bouncePhase: Math.random() * Math.PI * 2,
@@ -221,6 +237,7 @@ function createBat(position) {
 }
 
 function createGuardian(position, roomId, mode) {
+  const posture = 58 + roomId * 3;
   return {
     id: ++entityIdCounter,
     position: [...position],
@@ -229,6 +246,9 @@ function createGuardian(position, roomId, mode) {
     type: mode === 'learn' ? 'scribe' : 'guardian',
     speed: 1.15 + roomId * 0.04,
     damage: 12,
+    posture,
+    maxPosture: posture,
+    stunned: 0,
     points: mode === 'learn' ? 180 : 150,
     alive: true,
     bouncePhase: Math.random() * Math.PI * 2,
@@ -243,6 +263,7 @@ function createGuardian(position, roomId, mode) {
 }
 
 function createTempleKnight(position, roomId, mode) {
+  const posture = 118 + roomId * 5;
   return {
     id: ++entityIdCounter,
     position: [...position],
@@ -251,6 +272,9 @@ function createTempleKnight(position, roomId, mode) {
     type: 'boss',
     speed: 1.35 + roomId * 0.03,
     damage: 18,
+    posture,
+    maxPosture: posture,
+    stunned: 0,
     points: mode === 'learn' ? 820 : 760,
     alive: true,
     bouncePhase: 0,
@@ -452,6 +476,9 @@ const useZeldaStore = createGameStore(
     rollTimer: 0,
     rollCooldown: 0,
     rollDirection: [0, 0, -1],
+    flurryWindow: 0,
+    flurryPulse: 0,
+    flurryChain: 0,
     shieldActive: false,
     shieldFlash: 0,
     arrowCooldown: 0,
@@ -651,6 +678,9 @@ const useZeldaStore = createGameStore(
         rollTimer: 0,
         rollCooldown: 0,
         rollDirection: [0, 0, -1],
+        flurryWindow: 0,
+        flurryPulse: 0,
+        flurryChain: 0,
         shieldActive: false,
         shieldFlash: 0,
         spinAttacking: false,
@@ -716,12 +746,40 @@ const useZeldaStore = createGameStore(
 
 	      const newHitIds = new Set(state.swordHitIds);
 	      if (source === 'sword') newHitIds.add(enemyId);
-	      const finalDamage = damage + (state.courageTimer > 0 ? 4 : 0);
+      const flurrySource = source === 'sword' || source === 'spin' || source === 'arrow';
+      const flurryActive = state.flurryWindow > 0 && flurrySource;
 	      const lockedHit = state.targetLockId === enemyId;
+      let flurryHits = 0;
+      let staggerBreaks = 0;
+      let finishers = 0;
+      let bonusScore = 0;
+      let hitMessage = '';
 
 	      const enemies = state.enemies.map((e) => {
 	        if (e.id === enemyId && e.alive) {
+          const stunnedFinisher = (e.stunned || 0) > 0 && (source === 'sword' || source === 'spin');
+          const finalDamage = Math.round((damage + (state.courageTimer > 0 ? 4 : 0) + (flurryActive ? 7 : 0)) * (stunnedFinisher ? 1.85 : 1));
+          const maxPosture = e.maxPosture || (e.type === 'boss' ? 130 : e.type === 'guardian' || e.type === 'scribe' ? 64 : e.type === 'bat' ? 22 : 36);
+          const postureDamage = source === 'bomb'
+            ? 46
+            : source === 'spin'
+              ? 32
+              : source === 'arrow'
+                ? 18
+                : 16;
+          const flurryPosture = flurryActive ? 18 : 0;
+          const nextPosture = clamp((e.posture ?? maxPosture) - postureDamage - flurryPosture, 0, maxPosture);
           const newHealth = e.health - finalDamage;
+          if (flurryActive) {
+            flurryHits += 1;
+            bonusScore += 90 + state.flurryChain * 25;
+            hitMessage = `Flurry-Treffer x${state.flurryChain + flurryHits}`;
+          }
+          if (stunnedFinisher) {
+            finishers += 1;
+            bonusScore += e.type === 'boss' ? 320 : 180;
+            hitMessage = e.type === 'boss' ? 'Boss-Finisher' : 'Stagger-Finisher';
+          }
           if (newHealth <= 0) {
             // Killed!
             const projectedScore = state.score + e.points;
@@ -762,14 +820,23 @@ const useZeldaStore = createGameStore(
             get().evaluateGoals();
             return { ...e, health: 0, alive: false };
           }
+          const brokePosture = nextPosture <= 0 && (e.stunned || 0) <= 0;
+          if (brokePosture) {
+            staggerBreaks += 1;
+            bonusScore += e.type === 'boss' ? 260 : 140;
+            hitMessage = e.type === 'boss' ? 'Tempelritter taumelt' : 'Stagger-Break';
+          }
           get().addCourageCharge(source === 'spin' ? 5 : 2);
           return {
             ...e,
             health: newHealth,
+            posture: brokePosture ? maxPosture : nextPosture,
+            maxPosture,
+            stunned: brokePosture ? (e.type === 'boss' ? 1.35 : 1.05) : Math.max(0, e.stunned || 0),
             knockback: knockbackDir
-              ? [knockbackDir[0] * 4, 0, knockbackDir[2] * 4]
+              ? [knockbackDir[0] * (brokePosture ? 6.2 : 4), 0, knockbackDir[2] * (brokePosture ? 6.2 : 4)]
               : [0, 0, 0],
-            knockbackTimer: 0.2,
+            knockbackTimer: brokePosture ? 0.28 : 0.2,
           };
         }
         return e;
@@ -787,13 +854,43 @@ const useZeldaStore = createGameStore(
         roomMessage: unlocked ? 'Nordtor geoeffnet.' : state.roomMessage,
         roomMessageTimer: unlocked ? 1.3 : state.roomMessageTimer,
       }));
+      if (flurryHits > 0 || staggerBreaks > 0 || finishers > 0) {
+        set((s) => {
+          const nextScore = s.score + bonusScore;
+          return {
+            score: nextScore,
+            highScore: Math.max(s.highScore, nextScore),
+            stamina: clamp(s.stamina + flurryHits * 8 + finishers * 12, 0, s.maxStamina),
+            courageCharge: clamp(s.courageCharge + flurryHits * 6 + staggerBreaks * 12 + finishers * 18, 0, 100),
+            flurryWindow: flurryHits > 0 ? Math.max(0, s.flurryWindow - 0.28 * flurryHits) : s.flurryWindow,
+            flurryPulse: flurryHits > 0 || staggerBreaks > 0 ? 0.28 : s.flurryPulse,
+            flurryChain: flurryHits > 0 ? s.flurryChain + flurryHits : s.flurryChain,
+            stats: {
+              ...s.stats,
+              flurryHits: s.stats.flurryHits + flurryHits,
+              staggerBreaks: s.stats.staggerBreaks + staggerBreaks,
+              finishers: s.stats.finishers + finishers,
+            },
+            roomMessage: hitMessage || s.roomMessage,
+            roomMessageTimer: hitMessage ? 1.05 : s.roomMessageTimer,
+          };
+        });
+        get().evaluateGoals();
+      }
       if (unlocked && !state.roomUnlocked) get().evaluateGoals();
     },
 
     // Player takes damage
     takeDamage: (amount) => {
       const state = get();
-      if (!state.isPlaying || state.isPaused || state.invulnerable) return;
+      if (!state.isPlaying || state.isPaused) return;
+
+      if (state.rolling && state.rollTimer > 0) {
+        get().openFlurryWindow('Perfekte Rolle', 1.2, true);
+        return;
+      }
+
+      if (state.invulnerable) return;
 
       if (state.shieldActive && state.stamina >= 14) {
         set((s) => ({
@@ -810,6 +907,7 @@ const useZeldaStore = createGameStore(
         setTimeout(() => set({ invulnerable: false }), 220);
         get().addScore(15);
         get().addCourageCharge(10);
+        get().openFlurryWindow('Schild-Konter', 0.92, false);
         get().evaluateGoals();
         return;
       }
@@ -822,6 +920,9 @@ const useZeldaStore = createGameStore(
           isGameOver: state.lives <= 1,
           isPlaying: state.lives > 1,
           invulnerable: true,
+          flurryWindow: 0,
+          flurryPulse: 0,
+          flurryChain: 0,
         });
         // Respawn if lives remain
         if (state.lives > 1) {
@@ -833,6 +934,9 @@ const useZeldaStore = createGameStore(
               stamina: state.maxStamina,
               rolling: false,
               shieldActive: false,
+              flurryWindow: 0,
+              flurryPulse: 0,
+              flurryChain: 0,
               isPlaying: true,
             });
           }, 1000);
@@ -841,6 +945,9 @@ const useZeldaStore = createGameStore(
         set({
           health: newHealth,
           invulnerable: true,
+          flurryWindow: 0,
+          flurryPulse: 0,
+          flurryChain: 0,
         });
         // I-frames
         setTimeout(() => set({ invulnerable: false }), 1000);
@@ -1271,6 +1378,26 @@ const useZeldaStore = createGameStore(
 	      return true;
 	    },
 
+    openFlurryWindow: (source = 'Perfekte Rolle', duration = 1.18, countDodge = false) => {
+      const state = get();
+      if (!state.isPlaying || state.isPaused || state.health <= 0) return false;
+      const shouldCountDodge = countDodge && state.flurryWindow < 0.18;
+      set((s) => ({
+        flurryWindow: Math.max(s.flurryWindow, duration),
+        flurryPulse: 0.34,
+        flurryChain: shouldCountDodge ? 0 : s.flurryChain,
+        stamina: clamp(s.stamina + 18, 0, s.maxStamina),
+        courageCharge: clamp(s.courageCharge + 14, 0, 100),
+        stats: shouldCountDodge
+          ? { ...s.stats, perfectDodges: s.stats.perfectDodges + 1 }
+          : s.stats,
+        roomMessage: `${source}: Flurry-Fenster`,
+        roomMessageTimer: 1.05,
+      }));
+      get().evaluateGoals();
+      return true;
+    },
+
 	    updateBombs: (delta) => {
 	      const state = get();
 	      if (!state.isPlaying || state.isPaused || state.activeBombs.length === 0) return;
@@ -1384,6 +1511,7 @@ const useZeldaStore = createGameStore(
       const nextSpinCooldown = Math.max(0, state.spinCooldown - delta);
       const nextCourageTimer = Math.max(0, state.courageTimer - delta);
       const nextComboTimer = Math.max(0, state.comboTimer - delta);
+      const nextFlurryWindow = Math.max(0, state.flurryWindow - delta);
       const shieldDrain = state.shieldActive ? 18 * delta : 0;
       const staminaRegen = !state.shieldActive && !rolling ? (state.courageTimer > 0 ? 48 : 32) * delta : 0;
       const nextStamina = Math.max(0, Math.min(state.maxStamina, state.stamina - shieldDrain + staminaRegen));
@@ -1400,6 +1528,9 @@ const useZeldaStore = createGameStore(
         courageTimer: nextCourageTimer,
         comboTimer: nextComboTimer,
         combo: nextComboTimer <= 0 ? 0 : state.combo,
+        flurryWindow: nextFlurryWindow,
+        flurryPulse: Math.max(0, state.flurryPulse - delta),
+        flurryChain: nextFlurryWindow <= 0 ? 0 : state.flurryChain,
         stamina: nextStamina,
         shieldActive: shieldStillActive,
         shieldFlash: Math.max(0, state.shieldFlash - delta),
@@ -1464,6 +1595,15 @@ const useZeldaStore = createGameStore(
 	              phase,
 	            };
 	        }
+
+        if ((e.stunned || 0) > 0) {
+          return {
+            ...e,
+            stunned: Math.max(0, e.stunned - delta),
+            attackWindup: 0,
+            phase,
+          };
+        }
 
 	        // Update bounce phase
 	        const newPhase = e.bouncePhase + delta * (boss ? 3.2 : e.type === 'slime' ? 4 : 8);
@@ -1666,6 +1806,9 @@ const useZeldaStore = createGameStore(
         rolling: false,
         rollTimer: 0,
         rollCooldown: 0,
+        flurryWindow: 0,
+        flurryPulse: 0,
+        flurryChain: 0,
         shieldActive: false,
         shieldFlash: 0,
         arrowCooldown: 0,

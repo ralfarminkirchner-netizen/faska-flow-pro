@@ -175,6 +175,8 @@ export default function Player() {
   const shieldFlash = useZeldaStore((s) => s.shieldFlash);
   const spinAttacking = useZeldaStore((s) => s.spinAttacking);
   const courageTimer = useZeldaStore((s) => s.courageTimer);
+  const flurryWindow = useZeldaStore((s) => s.flurryWindow);
+  const flurryPulse = useZeldaStore((s) => s.flurryPulse);
   const enemies = useZeldaStore((s) => s.enemies);
   const targetLockId = useZeldaStore((s) => s.targetLockId);
   const roomRevision = useZeldaStore((s) => s.roomRevision);
@@ -483,7 +485,7 @@ export default function Player() {
           rolling={rolling}
           shieldActive={shieldActive}
           spinAttacking={spinAttacking}
-          courageTimer={courageTimer}
+          courageTimer={courageTimer || flurryWindow}
         />
         <PixelSlash active={swordSwinging || spinAttacking} />
         <group visible={false}>
@@ -565,13 +567,17 @@ export default function Player() {
         <Sword swinging={false} />
 
         {/* Roll / guard ring */}
-        {(rolling || shieldActive || spinAttacking || courageTimer > 0) && (
+        {(rolling || shieldActive || spinAttacking || courageTimer > 0 || flurryWindow > 0) && (
           <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[spinAttacking ? 0.38 : 0.34, spinAttacking ? 0.92 : 0.52, 32]} />
+            <ringGeometry args={[
+              flurryWindow > 0 ? 0.42 : spinAttacking ? 0.38 : 0.34,
+              flurryWindow > 0 ? 0.78 + flurryPulse : spinAttacking ? 0.92 : 0.52,
+              32,
+            ]} />
             <meshBasicMaterial
-              color={spinAttacking ? "#facc15" : rolling ? "#fef08a" : shieldActive ? "#67e8f9" : "#86efac"}
+              color={flurryWindow > 0 ? "#fef08a" : spinAttacking ? "#facc15" : rolling ? "#fef08a" : shieldActive ? "#67e8f9" : "#86efac"}
               transparent
-              opacity={spinAttacking ? 0.62 : rolling ? 0.5 : 0.34}
+              opacity={flurryWindow > 0 ? 0.66 : spinAttacking ? 0.62 : rolling ? 0.5 : 0.34}
             />
           </mesh>
         )}

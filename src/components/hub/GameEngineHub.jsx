@@ -237,7 +237,7 @@ const GAMES = [
   {
     id: 'space-odyssey',
     name: 'Faska Star Odyssey Pro',
-    description: 'Freier Space-Run mit Flugphysik, Planetenroute, Rifts, Wurmloechern, EMP-Pulse, Capital-Ship, Drohnen, Asteroiden, Missionszielen und Learncade-Beacons!',
+    description: 'Freier Space-Run mit Flugphysik, Planetenroute, Rifts, Wurmloechern, EMP-Pulse, Capital-Ship, Drohnen, Asteroiden, aktiven Zeit-Vertraegen, Missionszielen, Belohnungen und Learncade-Beacons!',
     emoji: '🚀',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #0ea5e9, #7c3aed)',

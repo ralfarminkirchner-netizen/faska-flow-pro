@@ -91,6 +91,18 @@ const MISSION_GOALS = [
   { id: 'learn_4', label: '4 Lern-Beacons', stat: 'learnCorrect', target: 4, reward: 1200, mode: 'learn' },
 ];
 
+const ACTIVE_CONTRACTS = [
+  { id: 'route-2', label: '2 Planeten in Folge scannen', stat: 'scans', target: 2, time: 58, reward: { score: 900, fuel: 24, shield: 12 } },
+  { id: 'stars-8', label: '8 Sternkerne bergen', stat: 'starPickups', target: 8, time: 44, reward: { score: 620, boost: 24, emp: 10 } },
+  { id: 'asteroids-5', label: '5 Asteroiden raeumen', stat: 'asteroidKills', target: 5, time: 48, reward: { score: 780, emp: 18 } },
+  { id: 'drones-2', label: '2 Drohnen ausschalten', stat: 'droneKills', target: 2, time: 56, reward: { score: 980, shield: 22, emp: 14 } },
+  { id: 'rifts-2', label: '2 Rift-Runs sauber', stat: 'riftRuns', target: 2, time: 42, reward: { score: 740, fuel: 18, boost: 18 } },
+  { id: 'wormhole-1', label: '1 Wurmloch-Sprung', stat: 'wormholeJumps', target: 1, time: 40, reward: { score: 680, fuel: 18, shield: 16 } },
+  { id: 'pulse-2', label: '2 EMP-Pulse taktisch', stat: 'pulseUses', target: 2, time: 54, reward: { score: 760, emp: 20 } },
+  { id: 'capital-8', label: '8 Capital-Treffer', stat: 'capitalHits', target: 8, time: 64, reward: { score: 1200, shield: 26, emp: 26 } },
+  { id: 'learn-3', label: '3 Lern-Beacons richtig', stat: 'learnCorrect', target: 3, time: 60, mode: 'learn', reward: { score: 1150, fuel: 24, shield: 24 } },
+];
+
 const NEBULAS = [
   { x: 415, y: 295, r: 360, color: 'rgba(56,189,248,.16)' },
   { x: 1320, y: 760, r: 420, color: 'rgba(168,85,247,.14)' },
@@ -156,6 +168,11 @@ function createStats() {
     pulseUses: 0,
     capitalKills: 0,
     learnCorrect: 0,
+    starPickups: 0,
+    fuelPickups: 0,
+    shieldPickups: 0,
+    wormholeJumps: 0,
+    capitalHits: 0,
   };
 }
 
@@ -168,12 +185,76 @@ function createGoals(mode) {
 function recordStat(game, stat, amount = 1) {
   game.stats[stat] = Math.max(game.stats[stat] || 0, amount === 1 ? (game.stats[stat] || 0) + 1 : amount);
   const goal = game.goals.find((candidate) => !candidate.completed && candidate.stat === stat && game.stats[stat] >= candidate.target);
-  if (!goal) return;
-  goal.completed = true;
-  game.score += goal.reward;
-  game.message = `${goal.label}: +${goal.reward}`;
-  game.messageTimer = 1.15;
-  addFloating(game, goal.label, game.ship.x, game.ship.y - 64, '#facc15');
+  if (goal) {
+    goal.completed = true;
+    game.score += goal.reward;
+    game.message = `${goal.label}: +${goal.reward}`;
+    game.messageTimer = 1.15;
+    addFloating(game, goal.label, game.ship.x, game.ship.y - 64, '#facc15');
+  }
+  progressContract(game, stat, amount);
+}
+
+function availableContracts(mode) {
+  return ACTIVE_CONTRACTS.filter((contract) => !contract.mode || contract.mode === mode);
+}
+
+function applyContractReward(game, reward = {}) {
+  game.score += reward.score || 0;
+  game.ship.fuel = clamp(game.ship.fuel + (reward.fuel || 0), 0, 100);
+  game.ship.shield = clamp(game.ship.shield + (reward.shield || 0), 0, 100);
+  game.ship.emp = clamp(game.ship.emp + (reward.emp || 0), 0, 100);
+  game.ship.boost = clamp(game.ship.boost + (reward.boost || 0), 0, 100);
+}
+
+function startNextContract(game) {
+  const pool = availableContracts(game.mode);
+  const contract = pool[game.contractIndex % pool.length];
+  game.contract = contract;
+  game.contractIndex += 1;
+  game.contractProgress = 0;
+  game.contractTimer = contract.time;
+  game.contractCooldown = 0;
+  game.message = `Vertrag: ${contract.label}`;
+  game.messageTimer = 1.2;
+}
+
+function failContract(game, reason = 'Vertrag verpasst') {
+  if (!game.contract) return;
+  game.contractFails += 1;
+  game.message = `${reason}: ${game.contract.label}`;
+  game.messageTimer = 1.2;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 5;
+}
+
+function progressContract(game, stat, amount = 1) {
+  if (!game.contract || game.contract.stat !== stat) return;
+  game.contractProgress = clamp(game.contractProgress + amount, 0, game.contract.target);
+  if (game.contractProgress < game.contract.target) return;
+  const done = game.contract;
+  game.contractMedals += 1;
+  applyContractReward(game, done.reward);
+  game.message = `${done.label}: Vertrag erfuellt`;
+  game.messageTimer = 1.35;
+  addFloating(game, 'VERTRAG', game.ship.x, game.ship.y - 72, '#facc15');
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 4.2;
+}
+
+function updateContract(game, dt) {
+  if (!game.started || game.finished) return;
+  if (game.contract) {
+    game.contractTimer -= dt;
+    if (game.contractTimer <= 0) failContract(game, 'Zeit abgelaufen');
+    return;
+  }
+  game.contractCooldown -= dt;
+  if (game.contractCooldown <= 0) startNextContract(game);
 }
 
 function makeAsteroids() {
@@ -297,6 +378,13 @@ function makeInitialGame(mode = 'arcade') {
     capital: makeCapitalShip(),
     stats: createStats(),
     goals: createGoals(mode),
+    contract: null,
+    contractIndex: 0,
+    contractProgress: 0,
+    contractTimer: 0,
+    contractCooldown: 3.4,
+    contractMedals: 0,
+    contractFails: 0,
     particles: [],
   };
 }
@@ -444,14 +532,17 @@ function collectPickups(game) {
     pickup.taken = true;
     if (pickup.kind === 'star') {
       game.score += 70 + game.combo * 10;
+      recordStat(game, 'starPickups');
       addFloating(game, '+70', pickup.x, pickup.y, '#facc15');
       addBurst(game, pickup.x, pickup.y, '#facc15', 9);
     } else if (pickup.kind === 'fuel') {
       game.ship.fuel = clamp(game.ship.fuel + 26, 0, 100);
+      recordStat(game, 'fuelPickups');
       addFloating(game, 'FUEL', pickup.x, pickup.y, '#22c55e');
       addBurst(game, pickup.x, pickup.y, '#22c55e', 10);
     } else {
       game.ship.shield = clamp(game.ship.shield + 30, 0, 100);
+      recordStat(game, 'shieldPickups');
       addFloating(game, 'SHIELD', pickup.x, pickup.y, '#38bdf8');
       addBurst(game, pickup.x, pickup.y, '#38bdf8', 10);
     }
@@ -527,6 +618,7 @@ function activateEmp(game) {
     game.capital.hp -= 3;
     game.capital.fireTimer += 1.4;
     game.capital.hitTimer = 0.3;
+    recordStat(game, 'capitalHits');
     hits += 1;
   }
   recordStat(game, 'pulseUses');
@@ -574,6 +666,7 @@ function updateBullets(game, dt) {
       game.capital.hp -= 1;
       game.capital.hitTimer = 0.12;
       game.score += 38 + game.combo * 2;
+      recordStat(game, 'capitalHits');
       addBurst(game, bullet.x, bullet.y, '#fef3c7', 7);
       if (game.capital.hp <= 0) {
         game.capital.alive = false;
@@ -684,6 +777,7 @@ function updateWormholes(game, dt) {
   entry.cooldown = 3;
   exit.cooldown = 3;
   game.score += 120;
+  recordStat(game, 'wormholeJumps');
   game.message = 'Wurmloch-Sprung';
   game.messageTimer = 0.9;
   addBurst(game, entry.x, entry.y, '#c084fc', 18);
@@ -746,6 +840,7 @@ function updateParticles(game, dt) {
 function updateGame(game, controls, dt) {
   game.elapsed += dt;
   game.messageTimer = Math.max(0, game.messageTimer - dt);
+  updateContract(game, dt);
   game.shake = Math.max(0, game.shake - dt * 2.4);
   game.ship.invulnerable = Math.max(0, game.ship.invulnerable - dt);
   game.ship.heat = Math.max(0, game.ship.heat - 42 * dt);
@@ -1265,7 +1360,7 @@ function drawHud(ctx, game) {
   });
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, 1018, 42, 224, 304, 18);
+  drawRoundedRect(ctx, 1018, 42, 224, 392, 18);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 18px Outfit, sans-serif';
@@ -1280,6 +1375,29 @@ function drawHud(ctx, game) {
   drawGauge(ctx, 1042, 250, 160, 'FUEL', game.ship.fuel, game.ship.fuel < 24 ? '#fb7185' : '#22c55e');
   drawGauge(ctx, 1042, 290, 160, 'SHIELD', game.ship.shield, '#38bdf8');
   drawGauge(ctx, 1042, 330, 160, 'EMP', game.ship.empCooldown > 0 ? Math.max(0, 100 - game.ship.empCooldown * 24) : game.ship.emp, '#a78bfa');
+  ctx.fillStyle = '#facc15';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText('Aktiver Vertrag', 1042, 374);
+  if (game.contract) {
+    const progress = clamp(game.contractProgress / game.contract.target, 0, 1);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '900 11px Outfit, sans-serif';
+    ctx.fillText(game.contract.label, 1042, 394, 160);
+    ctx.fillStyle = 'rgba(148,163,184,.2)';
+    drawRoundedRect(ctx, 1042, 404, 160, 9, 5);
+    ctx.fill();
+    ctx.fillStyle = '#facc15';
+    drawRoundedRect(ctx, 1042, 404, 160 * progress, 9, 5);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 10px Outfit, sans-serif';
+    ctx.fillText(`${Math.floor(game.contractProgress)}/${game.contract.target} · ${Math.max(0, Math.ceil(game.contractTimer))}s`, 1042, 427);
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '800 11px Outfit, sans-serif';
+    ctx.fillText(`Naechster in ${Math.max(0, Math.ceil(game.contractCooldown))}s`, 1042, 395);
+    ctx.fillText(`Medaillen ${game.contractMedals} · Fail ${game.contractFails}`, 1042, 414);
+  }
 
   ctx.fillStyle = 'rgba(2,6,23,.72)';
   drawRoundedRect(ctx, 42, HEIGHT - 58, 770, 38, 14);
@@ -1303,7 +1421,7 @@ function drawMessage(ctx, game) {
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 18px Outfit, sans-serif';
     ctx.fillText(
-      game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Freier Space-Run mit Flugphysik, Rifts, Wurmloechern, EMP, Capital-Ship, Missionen und Learncade-Beacons.',
+      game.finished ? `Score ${game.score} - Highscore ${Math.max(game.highScore, game.score)}` : 'Freier Space-Run mit Flugphysik, Rifts, Wurmloechern, EMP, Capital-Ship, aktiven Vertraegen und Learncade-Beacons.',
       WIDTH / 2,
       294,
     );

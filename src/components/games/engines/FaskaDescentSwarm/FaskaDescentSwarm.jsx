@@ -170,6 +170,7 @@ const WEAPONS = {
 const DESCENT_GOALS = [
   { id: 'combo-8', label: '8er Trefferkette', type: 'bestCombo', target: 8, reward: 520 },
   { id: 'sentinel-4', label: '4 Sentinels knacken', type: 'sentinels', target: 4, reward: 600 },
+  { id: 'weak-6', label: '6 Weakpoints brechen', type: 'weakpoints', target: 6, reward: 740 },
   { id: 'roll-3', label: '3 perfekte Rollen', type: 'perfectEvades', target: 3, reward: 640 },
   { id: 'rollshot-4', label: '4 Roll-Shots', type: 'rollShots', target: 4, reward: 720 },
   { id: 'rail-3', label: '3 Rail-Lance-Treffer', type: 'railHits', target: 3, reward: 660 },
@@ -185,6 +186,7 @@ const DESCENT_GOALS = [
 const DESCENT_CONTRACTS = [
   { id: 'targets-4', label: '4 Ziele abschiessen', type: 'targets', target: 4, duration: 34, reward: { score: 360, shield: 12, boost: 12 } },
   { id: 'combo-5', label: '5er Trefferkette halten', type: 'bestCombo', target: 5, duration: 38, reward: { score: 420, overdrive: 1.6, heat: -18 } },
+  { id: 'weak-3', label: '3 Weakpoints brechen', type: 'weakpoints', target: 3, duration: 42, reward: { score: 560, overdrive: 1.8, heat: -26, missiles: 1 } },
   { id: 'flow-2', label: '2 Flow-Ringe sauber nehmen', type: 'rings', target: 2, duration: 36, reward: { score: 390, boost: 26, threat: -8 } },
   { id: 'rift-2', label: '2 Rift-Luecken treffen', type: 'hazards', target: 2, duration: 42, reward: { score: 430, boost: 18, heat: -18 } },
   { id: 'roll-1', label: '1 perfekte Ausweichrolle', type: 'perfectEvades', target: 1, duration: 34, reward: { score: 440, boost: 22, shield: 10 } },
@@ -249,6 +251,7 @@ function makeEnemy(index, z, type = 'drone') {
   const angle = index * 1.91;
   const radius = type === 'core' ? 0.05 : type === 'mine' ? 0.72 : 0.55 + (index % 3) * 0.16;
   const hp = type === 'core' ? 110 : type === 'ace' ? 44 : type === 'sentinel' ? 28 : type === 'mine' ? 12 : 16;
+  const armored = type === 'sentinel' || type === 'ace' || type === 'core';
   return {
     id: `enemy-${index}-${Math.round(z * 10)}`,
     type,
@@ -262,6 +265,10 @@ function makeEnemy(index, z, type = 'drone') {
     shotTimer: 1.2 + (index % 4) * 0.42,
     wobble: index * 0.8,
     lockable: type !== 'mine',
+    weakAngle: armored ? normalizeAngle(angle * 0.7 + Math.PI / 3) : null,
+    weakSpin: type === 'core' ? 0.54 : type === 'ace' ? -0.82 : type === 'sentinel' ? 0.66 : 0,
+    weakFlash: 0,
+    armor: type === 'core' ? 5 : type === 'ace' ? 3 : type === 'sentinel' ? 2 : 0,
   };
 }
 
@@ -399,6 +406,7 @@ function makeInitialGame(mode = 'arcade') {
       pulseClears: 0,
       gates: 0,
       hazards: 0,
+      weakpoints: 0,
       missileHits: 0,
       railHits: 0,
       railPierces: 0,
@@ -722,6 +730,38 @@ function rewardPerfectEvade(game, threat) {
   evaluateGoals(game);
 }
 
+function resolveWeakpointDamage(game, target, damage, shot) {
+  if (!target.armor || target.weakAngle == null) {
+    return { damage, weakpoint: false, shielded: false };
+  }
+
+  const impactAngle = Math.atan2((shot.y ?? game.player.y) - target.y, (shot.x ?? game.player.x) - target.x);
+  const precisionWindow = target.type === 'core' ? 0.5 : 0.66;
+  const angleHit = angleDistance(impactAngle, target.weakAngle) < precisionWindow;
+  const skillHit = shot.weapon === 'rail' || shot.rollShot || (shot.weapon === 'missile' && shot.lockBonus);
+
+  if (angleHit || skillHit) {
+    target.weakFlash = 0.42;
+    target.armor = Math.max(0, target.armor - (shot.weapon === 'missile' ? 2 : 1));
+    game.stats.weakpoints += 1;
+    game.score += Math.round(170 + game.stats.weakpoints * 24 + target.armor * 12);
+    game.player.boost = clamp(game.player.boost + 7, 0, 100);
+    game.player.heat = Math.max(0, game.player.heat - 9);
+    game.player.overdrive = Math.max(game.player.overdrive, target.type === 'core' ? 1.4 : 0.7);
+    spawnSpark(game, target.x, target.y, target.z, '#fef08a', target.type === 'core' ? 26 : 16);
+    return {
+      damage: Math.round(damage * (target.type === 'core' ? 1.34 : 1.55)),
+      weakpoint: true,
+      shielded: false,
+    };
+  }
+
+  const mitigated = Math.max(4, Math.round(damage * (target.type === 'core' ? 0.54 : 0.64)));
+  target.weakFlash = Math.max(target.weakFlash || 0, 0.18);
+  game.player.heat = clamp(game.player.heat + 3, 0, 100);
+  return { damage: mitigated, weakpoint: false, shielded: true };
+}
+
 function updatePlayer(game, input, dt) {
   const player = game.player;
   const mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -772,6 +812,8 @@ function updateEnemies(game, dt, speed) {
   game.enemies.forEach((enemy) => {
     enemy.z -= speed * dt;
     enemy.wobble += dt;
+    if (enemy.weakAngle != null) enemy.weakAngle = normalizeAngle(enemy.weakAngle + enemy.weakSpin * dt);
+    enemy.weakFlash = Math.max(0, (enemy.weakFlash || 0) - dt);
     enemy.x += Math.sin(enemy.wobble * 1.5) * enemy.vx * dt;
     enemy.y += Math.cos(enemy.wobble * 1.3) * enemy.vy * dt;
     enemy.x = clamp(enemy.x, -0.82, 0.82);
@@ -817,6 +859,8 @@ function updateEnemies(game, dt, speed) {
 function updateCore(game, dt, speed) {
   const core = game.core;
   if (game.distance < 780 || core.hp <= 0) return;
+  if (core.weakAngle != null) core.weakAngle = normalizeAngle(core.weakAngle + core.weakSpin * dt);
+  core.weakFlash = Math.max(0, (core.weakFlash || 0) - dt);
   if (core.hp < core.maxHp * 0.45 && game.corePhase === 1) {
     game.corePhase = 2;
     game.stats.phases += 1;
@@ -855,18 +899,20 @@ function updateCore(game, dt, speed) {
 
 function hitTarget(game, target, damage, shot) {
   const wasAlive = target.hp > 0;
-  target.hp -= damage;
+  const resolvedHit = resolveWeakpointDamage(game, target, damage, shot);
+  const finalDamage = resolvedHit.damage;
+  target.hp -= finalDamage;
   if (shot.weapon === 'rail') {
     shot.hitIds = Array.from(new Set([...(shot.hitIds || []), target.id]));
     if (shot.hitIds.length > 1) game.stats.railPierces += 1;
-    shot.damage = Math.max(12, (shot.damage || damage) * 0.7);
+    shot.damage = Math.max(12, (shot.damage || finalDamage) * 0.7);
     if (shot.hitIds.length >= 3 || target.type === 'core') shot.life = 0;
   } else {
     shot.life = 0;
   }
   game.combo += 1;
   game.stats.bestCombo = Math.max(game.stats.bestCombo, game.combo);
-  game.score += Math.round(damage * 20 + game.combo * 12);
+  game.score += Math.round(finalDamage * 20 + game.combo * 12);
   if (shot.weapon === 'missile') game.stats.missileHits += 1;
   if (shot.weapon === 'rail') game.stats.railHits += 1;
   if (shot.weapon === 'missile' && shot.lockBonus) {
@@ -881,7 +927,11 @@ function hitTarget(game, target, damage, shot) {
     game.player.heat = Math.max(0, game.player.heat - 5);
   }
   recordThreat(game, target.type === 'core' ? 1.8 : 0.6);
-  game.message = shot.rollShot
+  game.message = resolvedHit.weakpoint
+    ? `Weakpoint x${game.stats.weakpoints}`
+    : resolvedHit.shielded
+      ? 'Shield-Arc'
+      : shot.rollShot
     ? `Roll-Shot x${game.stats.rollShots}`
     : shot.weapon === 'missile' && shot.lockBonus
       ? `Lock-Treffer x${game.stats.lockHits}`
@@ -1250,7 +1300,7 @@ function drawHud(ctx, game) {
   ctx.fillStyle = game.threat > 70 ? '#fca5a5' : '#c4b5fd';
   ctx.fillText(`Threat ${Math.round(game.threat)}% · Rifts ${game.stats.hazards} · Flow ${game.stats.rings}`, WIDTH - 56, 144);
   ctx.fillStyle = '#e0f2fe';
-  ctx.fillText(`Rail ${game.stats.railHits} · Roll-Shots ${game.stats.rollShots} · Lock ${game.stats.lockHits}`, WIDTH - 56, 166);
+  ctx.fillText(`Weak ${game.stats.weakpoints} · Rail ${game.stats.railHits} · Roll ${game.stats.rollShots} · Lock ${game.stats.lockHits}`, WIDTH - 56, 166);
   if (player.overdrive > 0) {
     ctx.fillStyle = '#5eead4';
     ctx.fillText(`OVERDRIVE ${player.overdrive.toFixed(1)}s`, WIDTH - 56, 188);
@@ -1394,6 +1444,28 @@ function drawEnemy(ctx, enemy, game) {
     ctx.beginPath();
     ctx.arc(0, 0, size * 0.24, 0, Math.PI * 2);
     ctx.fill();
+  }
+  if (enemy.weakAngle != null && enemy.armor > 0) {
+    const arcRadius = size * 1.22;
+    const weakX = Math.cos(enemy.weakAngle) * arcRadius;
+    const weakY = Math.sin(enemy.weakAngle) * arcRadius;
+    ctx.shadowColor = enemy.weakFlash > 0 ? '#fef08a' : '#38bdf8';
+    ctx.shadowBlur = enemy.weakFlash > 0 ? 30 : 18;
+    ctx.strokeStyle = enemy.weakFlash > 0 ? '#fef08a' : 'rgba(56,189,248,.82)';
+    ctx.lineWidth = Math.max(3, size * 0.07);
+    ctx.beginPath();
+    ctx.arc(0, 0, arcRadius, enemy.weakAngle + 0.52, enemy.weakAngle + Math.PI * 2 - 0.52);
+    ctx.stroke();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(weakX, weakY, Math.max(4, size * 0.14), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = '#020617';
+    ctx.font = `900 ${clamp(size * 0.2, 8, 13)}px Outfit, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(enemy.armor, weakX, weakY + 0.5);
   }
   if (game.player.lockTimer > 0 && game.player.lockTargetId === enemy.id) {
     ctx.shadowColor = '#facc15';
@@ -1662,6 +1734,16 @@ export default function FaskaDescentSwarm() {
     setBufferedInput(inputRef.current, name, pressed);
   }, []);
 
+  const runPointerAction = useCallback((event, action) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  }, []);
+
+  const runKeyboardAction = useCallback((event, action) => {
+    if (event.detail === 0) action();
+  }, []);
+
   const holdButton = useCallback((name) => ({
     onPointerDown: (event) => {
       event.preventDefault();
@@ -1832,14 +1914,42 @@ export default function FaskaDescentSwarm() {
       }} />
 
       <div className="descent-modebar" style={{ position: 'fixed', top: canvasTopChrome, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 10, zIndex: 10 }}>
-        <button className="btn-primary" onClick={() => setGameMode('arcade')} style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          type="button"
+          aria-pressed={mode === 'arcade'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('arcade'))}
+          onClick={(event) => runKeyboardAction(event, () => setGameMode('arcade'))}
+          style={{ opacity: mode === 'arcade' ? 1 : 0.55 }}
+        >
           Normal
         </button>
-        <button className="btn-primary" onClick={() => setGameMode('learn')} style={{ opacity: mode === 'learn' ? 1 : 0.55 }}>
+        <button
+          className="btn-primary"
+          type="button"
+          aria-pressed={mode === 'learn'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('learn'))}
+          onClick={(event) => runKeyboardAction(event, () => setGameMode('learn'))}
+          style={{ opacity: mode === 'learn' ? 1 : 0.55 }}
+        >
           Learncade
         </button>
-        <button className="btn-primary" onClick={restart}>Restart</button>
-        <button className="btn-primary" onClick={() => navigate('/')}>Exit</button>
+        <button
+          className="btn-primary"
+          type="button"
+          onPointerDown={(event) => runPointerAction(event, restart)}
+          onClick={(event) => runKeyboardAction(event, restart)}
+        >
+          Restart
+        </button>
+        <button
+          className="btn-primary"
+          type="button"
+          onPointerDown={(event) => runPointerAction(event, () => navigate('/'))}
+          onClick={(event) => runKeyboardAction(event, () => navigate('/'))}
+        >
+          Exit
+        </button>
       </div>
 
       <div className="descent-touch-controls" style={{
@@ -1880,7 +1990,14 @@ export default function FaskaDescentSwarm() {
           <div style={{ fontSize: 54, fontWeight: 900, color: '#f8fafc' }}>{result.result}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Score {result.score}</div>
           <div style={{ fontSize: 15, color: '#cbd5e1' }}>Distanz {result.distance}</div>
-          <button className="btn-primary" onClick={restart}>Neuer Run</button>
+          <button
+            className="btn-primary"
+            type="button"
+            onPointerDown={(event) => runPointerAction(event, restart)}
+            onClick={(event) => runKeyboardAction(event, restart)}
+          >
+            Neuer Run
+          </button>
         </div>
       )}
 

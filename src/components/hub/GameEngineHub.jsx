@@ -157,12 +157,12 @@ const GAMES = [
   {
     id: 'brawler',
     name: 'Faska Brawler Pro',
-    description: 'Godot-4-2.5D-Beat-em-up nach Final-Fight-/Streets-of-Rage-Prinzip mit Lanes, sichtbaren Figuren, Kombos, Launcher/Air-Hits, Style-Rang, Guard/Parry, Wuerfen, Waffen, Shield-/Duelist-/Fernkampf-/Medic-/Brute-Gegnern, Perfect-Wave-Boni, zerstoerbaren Props, Bosswellen, Touchsteuerung und Learncade-Antworttoren fuer Wortarten, Lesen, Satzbau, Komposita, Mathe, Englisch und Sachkunde mit Fehler-Wiederholung und Lernserien!',
+    description: 'FASKA-FLOW-Canvas-2.5D-Beat-em-up nach Final-Fight-/Streets-of-Rage-Prinzip mit Lanes, sichtbaren Figuren, Kombos, Launcher/Air-Hits, Guard/Parry, Wuerfen, Waffen, Fernkampf-/Medic-/Brute-/Boss-Gegnern, zerstoerbaren Props, rotierenden Brawl-Auftraegen, Bosswellen, Touchsteuerung und Learncade-Stelen fuer Wortarten, Mathe, Englisch und Sachkunde!',
     emoji: '👊',
     category: 'Fighting',
     gradient: 'linear-gradient(135deg, #e11d48, #facc15)',
     path: '/game/brawler',
-    engine: 'Godot 4',
+    engine: 'Canvas',
   },
   {
     id: 'souls',

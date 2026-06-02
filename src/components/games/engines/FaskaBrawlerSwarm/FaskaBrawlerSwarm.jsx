@@ -86,6 +86,19 @@ const BRAWLER_GOALS = [
   { id: 'learn_3', label: '3 Learncade-Stelen', stat: 'learnCorrect', target: 3, mode: 'learn', reward: 1200 },
 ];
 
+const BRAWL_CONTRACTS = [
+  { id: 'defeat-4', label: '4 Gegner in Serie ausschalten', stat: 'defeats', target: 4, duration: 42, reward: { score: 420, energy: 22 } },
+  { id: 'dash-hit-2', label: '2 Dash-Hits landen', stat: 'dashHits', target: 2, duration: 32, reward: { score: 360, energy: 18 } },
+  { id: 'combo-8', label: '8er Combo aufbauen', stat: 'bestCombo', target: 8, duration: 44, absolute: true, reward: { score: 460, energy: 24 } },
+  { id: 'prop-2', label: '2 Objekte zerstoeren', stat: 'propsBroken', target: 2, duration: 36, reward: { score: 300, health: 16 } },
+  { id: 'weapon-4', label: '4 Waffen-Treffer landen', stat: 'weaponHits', target: 4, duration: 38, reward: { score: 390, energy: 20 } },
+  { id: 'lane-1', label: '1 Lane sichern', stat: 'zonesCaptured', target: 1, duration: 46, reward: { score: 440, energy: 26, health: 12 } },
+  { id: 'throw-1', label: '1 Gegner werfen', stat: 'throws', target: 1, duration: 34, reward: { score: 340, energy: 18 } },
+  { id: 'parry-1', label: '1 Parry treffen', stat: 'parries', target: 1, duration: 48, reward: { score: 420, energy: 28 } },
+  { id: 'pickup-1', label: '1 Drop nutzen', stat: 'pickups', target: 1, duration: 30, reward: { score: 260, health: 20 } },
+  { id: 'learn-1', label: '1 Learncade-Stele loesen', stat: 'learnCorrect', target: 1, duration: 52, reward: { score: 520, energy: 28, health: 20 }, learnOnly: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const lerp = (a, b, t) => a + (b - a) * t;
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
@@ -133,6 +146,12 @@ function createStats() {
     propsBroken: 0,
     zonesCaptured: 0,
     juggleHits: 0,
+    dashHits: 0,
+    blocks: 0,
+    dashes: 0,
+    pickups: 0,
+    foodPickups: 0,
+    weaponPickups: 0,
   };
 }
 
@@ -155,6 +174,88 @@ function recordStat(game, stat, amount = 1, absolute = false) {
   game.goalNoticeTimer = 2.2;
   game.message = `Mission geschafft: ${completed.label}`;
   game.messageTimer = 1.35;
+}
+
+function availableBrawlContracts(mode) {
+  return BRAWL_CONTRACTS.filter((contract) => mode === 'learn' || !contract.learnOnly);
+}
+
+function brawlContractProgress(game) {
+  const contract = game.activeContract;
+  if (!contract) return { value: 0, target: 0, ratio: 0 };
+  const current = game.stats[contract.stat] || 0;
+  const value = contract.absolute
+    ? clamp(current, 0, contract.target)
+    : clamp(current - contract.startValue, 0, contract.target);
+  return {
+    value,
+    target: contract.target,
+    ratio: contract.target > 0 ? clamp(value / contract.target, 0, 1) : 1,
+  };
+}
+
+function applyBrawlReward(game, reward = {}) {
+  game.score += reward.score || 0;
+  game.player.energy = clamp(game.player.energy + (reward.energy || 0), 0, 100);
+  game.player.hp = clamp(game.player.hp + (reward.health || 0), 0, game.player.maxHp);
+}
+
+function startBrawlContract(game) {
+  const contracts = availableBrawlContracts(game.mode);
+  if (contracts.length === 0) return;
+  const contract = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...contract,
+    startValue: game.stats[contract.stat] || 0,
+  };
+  game.contractTimer = contract.duration;
+  game.message = `Brawl-Auftrag: ${contract.label}`;
+  game.messageTimer = 1.1;
+  addFloater(game, game.player.x, game.player.y - 118, 'AUFTRAG', '#fef08a');
+}
+
+function completeBrawlContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyBrawlReward(game, contract.reward);
+  game.contractMedals += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.1;
+  game.message = `${contract.label} erledigt`;
+  game.messageTimer = 1.1;
+  addFloater(game, game.player.x, game.player.y - 120, `+${contract.reward.score || 0}`, '#86efac');
+  spawnParticles(game, game.player.x, game.player.y - 48, '#86efac', 26, 260);
+}
+
+function failBrawlContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.4;
+  game.message = `${contract.label} verpasst`;
+  game.messageTimer = 1.0;
+  addFloater(game, game.player.x, game.player.y - 108, 'VERPASST', '#fb7185');
+}
+
+function updateBrawlContract(game, dt) {
+  if (game.phase !== 'play') return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startBrawlContract(game);
+    return;
+  }
+
+  game.contractTimer -= dt;
+  const progress = brawlContractProgress(game);
+  if (progress.value >= progress.target) {
+    completeBrawlContract(game);
+    return;
+  }
+  if (game.contractTimer <= 0) failBrawlContract(game);
 }
 
 function makeEnemy(type, x, y, wave) {
@@ -267,6 +368,12 @@ function makeInitialGame(mode = 'arcade') {
     hitStop: 0,
     goalNotice: '',
     goalNoticeTimer: 0,
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.2,
+    contractMedals: 0,
+    contractFails: 0,
     stats: createStats(),
     goals: createGoals(mode),
     message: mode === 'learn' ? 'Kaempfe und triff die richtige Learncade-Stele fuer Kampfboni.' : 'Schlaege, Tritte, Dash und Spezialangriff gegen Wellen.',
@@ -353,6 +460,7 @@ function hitPlayer(game, enemy) {
     player.energy = Math.max(0, player.energy - 12);
     player.invuln = 0.22;
     game.shake = 0.05;
+    recordStat(game, 'blocks');
     addFloater(game, player.x + player.facing * 30, player.y - 74, 'Guard', '#bfdbfe');
     spawnParticles(game, player.x + player.facing * 30, player.y - 54, '#bfdbfe', 10, 170);
     if (player.hp <= 0) {
@@ -387,6 +495,7 @@ function damageEnemy(game, enemy, amount, knock, label, options = {}) {
   enemy.hitFlash = 0.14;
   enemy.vx += knock * 230;
   if (options.weapon) recordStat(game, 'weaponHits');
+  if (options.dash) recordStat(game, 'dashHits');
   game.shake = Math.max(game.shake, enemy.type === 'boss' ? 0.13 : 0.07);
   game.combo += 1;
   game.bestCombo = Math.max(game.bestCombo, game.combo);
@@ -466,6 +575,7 @@ function performAttack(game, kind) {
     if (ahead > -24 && ahead < attack.range && lane < attack.width) {
       damageEnemy(game, enemy, attack.damage, player.facing, attack.label, {
         weapon: !!weapon,
+        dash: player.dashTimer > 0,
         launch: kind === 'kick' ? 0.36 : kind === 'special' ? 0.48 : 0,
       });
       if (weapon) {
@@ -523,7 +633,9 @@ function pickupOrUseDrop(game) {
     return;
   }
   drop.life = 0;
+  recordStat(game, 'pickups');
   if (drop.kind === 'food') {
+    recordStat(game, 'foodPickups');
     player.hp = Math.min(player.maxHp, player.hp + 44);
     addFloater(game, player.x, player.y - 82, '+HP', '#86efac');
     spawnParticles(game, player.x, player.y - 42, '#86efac', 14, 170);
@@ -537,6 +649,7 @@ function pickupOrUseDrop(game) {
   }
   const profile = WEAPON_PROFILES[drop.kind];
   if (profile) {
+    recordStat(game, 'weaponPickups');
     player.weapon = { id: drop.kind, durability: profile.durability };
     addFloater(game, player.x, player.y - 82, profile.label, profile.color);
     spawnParticles(game, player.x, player.y - 42, profile.color, 14, 170);
@@ -635,6 +748,7 @@ function updatePlayer(game, dt) {
     player.dashTimer = 0.16;
     player.invuln = 0.2;
     player.vx = player.facing * 780;
+    recordStat(game, 'dashes');
     spawnParticles(game, player.x, player.y - 30, '#67e8f9', 10, 170);
   }
 
@@ -809,6 +923,7 @@ function updateGame(game, dt, onFinish) {
   updateProjectiles(game, dt);
   updateDrops(game, dt);
   updateZones(game, dt);
+  updateBrawlContract(game, dt);
   game.enemies = game.enemies.filter((enemy) => enemy.hp > 0);
   if (game.enemies.length === 0) {
     if (game.nextWaveDelay === 0) {
@@ -1157,7 +1272,7 @@ function drawHud(ctx, game) {
 
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, WIDTH - 376, 24, 348, 206, 20);
+  drawRoundedRect(ctx, WIDTH - 376, 24, 348, 276, 20);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 24px Outfit, sans-serif';
@@ -1168,11 +1283,35 @@ function drawHud(ctx, game) {
   ctx.fillStyle = player.laneBoostTimer > 0 ? '#bbf7d0' : '#cbd5e1';
   ctx.font = '900 12px Outfit, sans-serif';
   ctx.fillText(`Lane ${game.stats.zonesCaptured}/3 · Props ${game.stats.propsBroken}`, WIDTH - 54, 111);
+
+  const contractProgress = brawlContractProgress(game);
+  ctx.fillStyle = '#fef08a';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText(`AUFTRAG ${game.contractMedals} OK · ${game.contractFails} FAIL`, WIDTH - 54, 131);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = game.activeContract ? '#f8fafc' : '#94a3b8';
+  ctx.font = '900 14px Outfit, sans-serif';
+  ctx.fillText(game.activeContract ? game.activeContract.label : `naechster Auftrag ${game.contractCooldown.toFixed(1)}s`, WIDTH - 350, 153);
+  ctx.fillStyle = 'rgba(148,163,184,.22)';
+  drawRoundedRect(ctx, WIDTH - 350, 164, 296, 9, 5);
+  ctx.fill();
+  ctx.fillStyle = game.activeContract ? '#86efac' : '#475569';
+  drawRoundedRect(ctx, WIDTH - 350, 164, 296 * contractProgress.ratio, 9, 5);
+  ctx.fill();
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '800 11px Outfit, sans-serif';
+  ctx.fillText(
+    game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereit',
+    WIDTH - 54,
+    190,
+  );
+
   ctx.fillStyle = '#93c5fd';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText('MISSIONEN', WIDTH - 54, 128);
-  game.goals.slice(0, 5).forEach((goal, index) => {
-    const y = 151 + index * 16;
+  ctx.fillText('MISSIONEN', WIDTH - 54, 211);
+  game.goals.slice(0, 4).forEach((goal, index) => {
+    const y = 234 + index * 16;
     const progress = Math.min(game.stats[goal.stat] || 0, goal.target);
     ctx.fillStyle = goal.completed ? '#bbf7d0' : '#e2e8f0';
     ctx.textAlign = 'left';

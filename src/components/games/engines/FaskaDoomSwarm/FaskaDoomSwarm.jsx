@@ -41,6 +41,7 @@ function DoomHUD() {
   const contractCooldown = useDoomStore(s => s.contractCooldown);
   const contractWins = useDoomStore(s => s.contractWins);
   const contractFails = useDoomStore(s => s.contractFails);
+  const criticalHits = useDoomStore(s => s.doomStats.criticalHits || 0);
   const contractProgress = useDoomStore(s => {
     const contract = s.activeContract;
     if (!contract) return 0;
@@ -150,14 +151,15 @@ function DoomHUD() {
           <div style={{
             marginTop: 8,
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 6,
-            minWidth: 300,
+            minWidth: 380,
           }}>
             {[
               ['DASH', dashCooldown <= 0 ? 'OK' : `${dashCooldown.toFixed(1)}s`],
               ['BOMB', grenades],
               ['SEAL', `${reactorSeals.length}/${DOOM_SEALS.length}`],
+              ['CRIT', criticalHits],
               ['RIP', ripperModeTimer > 0 ? `${Math.ceil(ripperModeTimer)}s` : `${ripperCharge}%`],
             ].map(([label, value]) => (
               <div key={label} style={{
@@ -338,7 +340,7 @@ function StartScreen({ onStart, mode, onModeChange }) {
       }}>
         Klicken zum Umschauen · WASD bewegen · Klick schiessen · Shift Sprint
         <br />
-        Space Dash/Glory · E Granate · Q Waffenwechsel · R Ripper
+        Space Dash/Glory · E Granate · Q Waffenwechsel · R Ripper · Weakpoints treffen
         <br />
         {mode === 'learn'
           ? 'Learncade: Champions und Score-Quiz — richtig = +20 Munition!'

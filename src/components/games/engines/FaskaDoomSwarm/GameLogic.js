@@ -86,6 +86,7 @@ const DOOM_CONTRACTS = [
   { id: 'kills_5', label: '5 Gegner ausschalten', stat: 'kills', target: 5, duration: 44, reward: { score: 520, ammo: 12, ripper: 10 } },
   { id: 'glory_2', label: '2 Glory-Finisher', stat: 'gloryKills', target: 2, duration: 52, reward: { score: 620, health: 20, armor: 14 } },
   { id: 'grenade_2', label: '2 Granaten-Kills', stat: 'grenadeKills', target: 2, duration: 50, reward: { score: 680, grenades: 1, ammo: 10 } },
+  { id: 'critical_4', label: '4 Weakpoint-Treffer', stat: 'criticalHits', target: 4, duration: 46, reward: { score: 560, ammo: 12, ripper: 14 } },
   { id: 'dash_3', label: '3 Dashes ueberleben', stat: 'dashes', target: 3, duration: 34, reward: { score: 360, armor: 18 } },
   { id: 'seals_1', label: '1 Reaktor-Siegel sichern', stat: 'seals', target: 1, duration: 58, reward: { score: 540, ammo: 14, ripper: 18 } },
   { id: 'pickups_3', label: '3 Pickups bergen', stat: 'pickups', target: 3, duration: 48, reward: { score: 420, health: 12, ammo: 10 } },
@@ -178,6 +179,8 @@ function createDoomStats() {
     wavesCleared: 0,
     ripperActivations: 0,
     quizCorrect: 0,
+    criticalHits: 0,
+    weakpointKills: 0,
   };
 }
 
@@ -387,7 +390,7 @@ const useDoomStore = createGameStore(
       const enemy = state.enemies.find(e => e.id === id && e.alive);
       if (!enemy) return false;
 
-      const sourceBonus = source === 'glory' ? 110 : source === 'grenade' ? 55 : 0;
+      const sourceBonus = source === 'glory' ? 110 : source === 'critical' ? 80 : source === 'grenade' ? 55 : 0;
       const championBonus = enemy.champion ? 180 : 0;
       const points = enemy.points + sourceBonus + championBonus;
       const newScore = state.score + points;
@@ -409,7 +412,11 @@ const useDoomStore = createGameStore(
         ripperCharge: clamp(state.ripperCharge + (enemy.champion ? 24 : 12), 0, 100),
         gloryTargetId: state.gloryTargetId === id ? null : state.gloryTargetId,
         gloryWindowTimer: state.gloryTargetId === id ? 0 : state.gloryWindowTimer,
-        message: source === 'glory' ? `Glory-Finisher +${points}` : `Kill! +${points}`,
+        message: source === 'glory'
+          ? `Glory-Finisher +${points}`
+          : source === 'critical'
+            ? `Weakpoint-Kill +${points}`
+            : `Kill! +${points}`,
         messageTimer: 0.75,
       });
 
@@ -436,6 +443,7 @@ const useDoomStore = createGameStore(
       }
       get().recordDoomStat('kills');
       if (source === 'glory') get().recordDoomStat('gloryKills');
+      if (source === 'critical') get().recordDoomStat('weakpointKills');
       if (source === 'grenade') get().recordDoomStat('grenadeKills');
       if (enemy.champion) get().recordDoomStat('championKills');
       return true;
@@ -447,6 +455,7 @@ const useDoomStore = createGameStore(
       const state = get();
       const enemy = state.enemies.find(e => e.id === id && e.alive);
       if (!enemy) return { hit: false, killed: false, stunned: false };
+      if (source === 'critical') get().recordDoomStat('criticalHits');
       const nextHealth = enemy.health - damage;
       if (nextHealth <= 0) {
         const killed = get().finishEnemy(id, source);

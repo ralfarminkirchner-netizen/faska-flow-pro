@@ -87,7 +87,7 @@ const GAMES = [
   {
     id: 'doom',
     name: 'Faska Doom Pro',
-    description: 'FASKA-FLOW-React-Three-Fiber-Arena-Shooter mit Normalmodus zuerst, FPS-Bewegung, Repeater/Scatter/Ripper, Gegnerwellen, Champions, Armor, Granaten, Dash, Glory-Finishern, Reaktor-Siegeln, rotierenden Einsatzauftraegen, Touch-Move/Look und Learncade-Quiz fuer Deutsch, Mathe, Englisch und Sachkunde!',
+    description: 'FASKA-FLOW-React-Three-Fiber-Arena-Shooter mit Normalmodus zuerst, FPS-Bewegung, Repeater/Scatter/Ripper, sichtbaren Weakpoints, Critical-Hits, Gegnerwellen, Champions, Armor, Granaten, Dash, Glory-Finishern, Reaktor-Siegeln, rotierenden Einsatzauftraegen, Touch-Move/Look und Learncade-Quiz fuer Deutsch, Mathe, Englisch und Sachkunde!',
     emoji: '🔫',
     category: 'Action',
     gradient: 'linear-gradient(135deg, #ef4444, #b91c1c)',

@@ -62,19 +62,30 @@ export default function Player({ particleRef, shake }) {
         .filter((enemy) => enemy.alive)
         .map((enemy) => {
           const enemyPos = new THREE.Vector3(enemy.position.x, enemy.position.y + 0.25, enemy.position.z);
-          const toEnemy = enemyPos.sub(camera.position);
+          const weakpointPos = new THREE.Vector3(
+            enemy.position.x,
+            enemy.position.y + 0.9 * (enemy.scale || 1),
+            enemy.position.z
+          );
+          const toEnemy = enemyPos.clone().sub(camera.position);
+          const toWeakpoint = weakpointPos.clone().sub(camera.position);
           const dist = toEnemy.length();
           if (dist > weapon.range) return null;
           const dot = toEnemy.dot(direction);
           if (dot <= 0) return null;
           const closest = camera.position.clone().add(direction.clone().multiplyScalar(dot));
           const perpDist = closest.distanceTo(enemyPos);
+          const weakpointDot = toWeakpoint.dot(direction);
+          const weakpointClosest = camera.position.clone().add(direction.clone().multiplyScalar(weakpointDot));
+          const weakpointDist = weakpointClosest.distanceTo(weakpointPos);
           const dynamicRadius = (enemy.scale || 1) * weapon.hitRadius + dist * (weapon.id === 'scatter' ? 0.028 : 0.006);
-          if (perpDist > dynamicRadius) return null;
-          return { enemy, dist, perpDist };
+          const weakpointRadius = 0.22 + (enemy.scale || 1) * (weapon.id === 'scatter' ? 0.13 : 0.09);
+          const critical = weakpointDot > 0 && weakpointDist <= weakpointRadius;
+          if (perpDist > dynamicRadius && !critical) return null;
+          return { enemy, dist, perpDist, critical };
         })
         .filter(Boolean)
-        .sort((a, b) => a.dist - b.dist);
+        .sort((a, b) => (a.critical === b.critical ? a.dist - b.dist : a.critical ? -1 : 1));
 
       const hits = candidates.slice(0, weapon.pierce);
       if (hits.length === 0) return;
@@ -83,17 +94,18 @@ export default function Player({ particleRef, shake }) {
         const falloff = weapon.falloff
           ? Math.max(weapon.falloff, 1 - hit.dist / weapon.range)
           : 1;
-        const damage = Math.round(weapon.damage * falloff * (state.ripperModeTimer > 0 ? 1.35 : 1));
-        const result = useDoomStore.getState().damageEnemy(hit.enemy.id, damage, 'shot');
+        const criticalBonus = hit.critical ? (weapon.id === 'scatter' ? 1.22 : 1.55) : 1;
+        const damage = Math.round(weapon.damage * falloff * criticalBonus * (state.ripperModeTimer > 0 ? 1.35 : 1));
+        const result = useDoomStore.getState().damageEnemy(hit.enemy.id, damage, hit.critical ? 'critical' : 'shot');
         if (result.hit && particleRef?.current) {
           particleRef.current.emit(
             { x: hit.enemy.position.x, y: hit.enemy.position.y + 0.5, z: hit.enemy.position.z },
             { x: 0, y: 1, z: 0 },
             {
-              count: result.killed ? 20 : 9,
-              spread: result.killed ? 2.5 : 1.4,
-              speed: result.killed ? 5 : 3,
-              color: weapon.color || '#ff4444',
+              count: hit.critical ? 18 : result.killed ? 20 : 9,
+              spread: hit.critical ? 1.8 : result.killed ? 2.5 : 1.4,
+              speed: hit.critical ? 4.6 : result.killed ? 5 : 3,
+              color: hit.critical ? '#fef08a' : weapon.color || '#ff4444',
             }
           );
         }

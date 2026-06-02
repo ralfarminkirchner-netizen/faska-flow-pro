@@ -183,6 +183,7 @@ function Enemy({ enemy }) {
       ? '#facc15'
       : enemy.color || '#ef4444';
   const healthPct = enemy.health / enemy.maxHealth;
+  const weakpointColor = enemy.stunnedTimer > 0 ? '#fef08a' : enemy.champion ? '#67e8f9' : '#fde68a';
 
   return (
     <group ref={groupRef} position={[enemy.position.x, enemy.position.y, enemy.position.z]}>
@@ -216,6 +217,23 @@ function Enemy({ enemy }) {
           roughness={0.5}
         />
       </mesh>
+
+      {/* Weakpoint marker — rewards precise aim */}
+      <group position={[0, 1.13, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.1, 10, 10]} />
+          <meshStandardMaterial
+            color={weakpointColor}
+            emissive={weakpointColor}
+            emissiveIntensity={enemy.champion ? 5.2 : 3.4}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.18, 0.018, 8, 24]} />
+          <meshBasicMaterial color={weakpointColor} transparent opacity={0.72} toneMapped={false} />
+        </mesh>
+      </group>
 
       {/* Left eye — emissive red, glowing */}
       <mesh position={[-0.08, 0.9, 0.22]}>

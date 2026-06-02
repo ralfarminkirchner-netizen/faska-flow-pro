@@ -167,12 +167,12 @@ const GAMES = [
   {
     id: 'souls',
     name: 'Faska Souls Pro',
-    description: 'Godot-4-Soulslike-Bossarena mit Normalmodus zuerst, Light/Heavy-Angriffen, Schildblock, Rollen-Iframes, Parry-Fenster, Riposte, Rally-Heal, Heilflaschen, Minions, Slash/Thrust/Slam-Telegraphs, Boss-Stagger, Phasenwechsel, Touchsteuerung und zuschaltbaren Learncade-Runen!',
+    description: 'FASKA-FLOW-Canvas-Soulslike-Bossarena mit Normalmodus zuerst, Light/Heavy-Angriffen, Schildblock, Rollen-Iframes, Parry-Fenster, Guard-Counter, Riposte, Backstab, Rally-Heal, Heilflaschen, Schatten-Minions, Boss-Telegraphs, Stagger, Phasenwechsel, rotierenden Eid-Auftraegen, Touchsteuerung und zuschaltbaren Learncade-Runen!',
     emoji: '🛡️',
     category: 'Soulslike',
     gradient: 'linear-gradient(135deg, #111827, #991b1b)',
     path: '/game/souls',
-    engine: 'Godot 4',
+    engine: 'Canvas',
   },
   {
     id: 'night-hunt',

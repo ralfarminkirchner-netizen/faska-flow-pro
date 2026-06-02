@@ -106,6 +106,20 @@ const SOULS_GOALS = [
   { id: 'runes-3', label: 'Runen richtig', type: 'runes', target: 3, reward: 620, learnOnly: true },
 ];
 
+const SOULS_CONTRACTS = [
+  { id: 'hits-3', label: '3 saubere Treffer setzen', type: 'hits', target: 3, duration: 34, reward: { score: 360, focus: 18, stamina: 18 } },
+  { id: 'roll-1', label: '1 perfekte Rolle lesen', type: 'perfectDodges', target: 1, duration: 32, reward: { score: 420, focus: 24, stamina: 24 } },
+  { id: 'block-2', label: '2 Angriffe blocken', type: 'blocks', target: 2, duration: 38, reward: { score: 390, focus: 16, stamina: 26 } },
+  { id: 'parry-1', label: '1 Parry erzwingen', type: 'parries', target: 1, duration: 44, reward: { score: 520, focus: 32, stamina: 18 } },
+  { id: 'counter-1', label: '1 Guard-Counter landen', type: 'guardCounters', target: 1, duration: 40, reward: { score: 460, focus: 24, stamina: 20 } },
+  { id: 'riposte-1', label: '1 Riposte oder Backstab', type: 'criticalHits', target: 1, duration: 54, reward: { score: 720, focus: 36, health: 16 } },
+  { id: 'sigil-1', label: '1 Eid-Siegel entzuenden', type: 'sigils', target: 1, duration: 50, reward: { score: 500, focus: 28, health: 12 } },
+  { id: 'shade-2', label: '2 Schatten bannen', type: 'shades', target: 2, duration: 46, reward: { score: 480, focus: 24, stamina: 24 } },
+  { id: 'rally-12', label: '12 Rally-HP zurueckholen', type: 'rallyHealed', target: 12, duration: 42, reward: { score: 430, focus: 20, health: 12 } },
+  { id: 'focus-1', label: '1 Focus-Schlag treffen', type: 'focusHits', target: 1, duration: 48, reward: { score: 560, focus: 20, stamina: 30 } },
+  { id: 'rune-1', label: '1 Lernrune richtig lesen', type: 'runes', target: 1, duration: 52, reward: { score: 520, focus: 28, health: 16, stamina: 22 }, learnOnly: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const length = (x, y) => Math.hypot(x, y) || 1;
@@ -131,6 +145,12 @@ function makeInitialGame(mode = 'arcade') {
     shades: [],
     shadeIdCounter: 0,
     shadeSpawnTimer: 5.8,
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.3,
+    contractSeals: 0,
+    contractFails: 0,
     player: {
       x: 290,
       y: 370,
@@ -190,6 +210,10 @@ function makeInitialGame(mode = 'arcade') {
       phases: 0,
       runes: 0,
       hits: 0,
+      focusHits: 0,
+      criticalHits: 0,
+      rolls: 0,
+      estusUsed: 0,
     },
     goals: SOULS_GOALS
       .filter((goal) => mode === 'learn' || !goal.learnOnly)
@@ -203,6 +227,87 @@ function currentPrompt(game) {
 
 function statValue(game, goal) {
   return game.stats[goal.type] || 0;
+}
+
+function availableSoulsContracts(mode) {
+  return SOULS_CONTRACTS.filter((contract) => mode === 'learn' || !contract.learnOnly);
+}
+
+function soulsContractProgress(game) {
+  const contract = game.activeContract;
+  if (!contract) return { value: 0, target: 0, ratio: 0 };
+  const current = game.stats[contract.type] || 0;
+  const value = clamp(current - contract.startValue, 0, contract.target);
+  return {
+    value,
+    target: contract.target,
+    ratio: contract.target > 0 ? clamp(value / contract.target, 0, 1) : 1,
+  };
+}
+
+function applySoulsReward(game, reward = {}) {
+  game.player.score += reward.score || 0;
+  game.player.focus = clamp(game.player.focus + (reward.focus || 0), 0, 100);
+  game.player.stamina = clamp(game.player.stamina + (reward.stamina || 0), 0, 100);
+  game.player.hp = clamp(game.player.hp + (reward.health || 0), 0, 100);
+}
+
+function startSoulsContract(game) {
+  const contracts = availableSoulsContracts(game.mode);
+  if (contracts.length === 0) return;
+  const contract = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...contract,
+    startValue: game.stats[contract.type] || 0,
+  };
+  game.contractTimer = contract.duration;
+  game.message = `Eid: ${contract.label}`;
+  game.messageTimer = 1.05;
+  addFloater(game, game.player.x, game.player.y - 86, 'EID', '#fef08a');
+}
+
+function completeSoulsContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applySoulsReward(game, contract.reward);
+  game.contractSeals += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.05;
+  game.message = `${contract.label} erfuellt`;
+  game.messageTimer = 1.05;
+  addFloater(game, game.player.x, game.player.y - 86, `+${contract.reward.score || 0}`, '#86efac');
+  spawnSparks(game, game.player.x, game.player.y, '#86efac', 24);
+}
+
+function failSoulsContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.35;
+  game.message = `${contract.label} gebrochen`;
+  game.messageTimer = 0.9;
+  addFloater(game, game.player.x, game.player.y - 76, 'GEBROCHEN', '#fb7185');
+}
+
+function updateSoulsContract(game, dt) {
+  if (game.phase !== 'fight') return;
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startSoulsContract(game);
+    return;
+  }
+
+  game.contractTimer -= dt;
+  const progress = soulsContractProgress(game);
+  if (progress.value >= progress.target) {
+    completeSoulsContract(game);
+    return;
+  }
+  if (game.contractTimer <= 0) failSoulsContract(game);
 }
 
 function completeSoulsGoal(game, goal) {
@@ -383,6 +488,7 @@ function playerAttackHit(game) {
     player.focus = clamp(player.focus + (attack.type === 'focus' ? 0 : 11), 0, 100);
     player.score += Math.round(damage * 16);
     game.stats.hits += 1;
+    if (attack.type === 'focus') game.stats.focusHits += 1;
     hitSomething = true;
     spawnSparks(game, boss.x, boss.y - 18, attack.type === 'riposte' || attack.type === 'backstab' ? '#fef3c7' : attack.type === 'focus' ? '#38bdf8' : attack.type === 'counter' || attack.type === 'heavy' ? '#facc15' : '#93c5fd', attack.type === 'focus' || attack.type === 'riposte' || attack.type === 'backstab' ? 22 : 12);
     if (attack.type === 'counter') {
@@ -401,6 +507,7 @@ function playerAttackHit(game) {
       player.score += attack.type === 'backstab' ? 440 : 520;
       if (attack.type === 'backstab') game.stats.backstabs += 1;
       else game.stats.ripostes += 1;
+      game.stats.criticalHits += 1;
       addFloater(game, boss.x, boss.y - 92, attack.type === 'backstab' ? 'BACKSTAB' : 'RIPOSTE', '#fef3c7');
     }
   }
@@ -421,6 +528,7 @@ function playerAttackHit(game) {
       player.score += Math.round(damage * 10);
       player.focus = clamp(player.focus + 7, 0, 100);
       game.stats.hits += 1;
+      if (attack.type === 'focus') game.stats.focusHits += 1;
       hitSomething = true;
       spawnSparks(game, shade.x, shade.y, shade.color, 10);
       if (attack.type === 'counter') {
@@ -474,6 +582,7 @@ function rollPlayer(game, input) {
   player.rollCooldown = 0.45;
   player.invuln = 0.38;
   player.stamina -= 22;
+  game.stats.rolls += 1;
   player.vx = move.x * 620;
   player.vy = move.y * 620;
   if (Math.abs(move.x) > 0.2) player.facing = move.x > 0 ? 1 : -1;
@@ -495,6 +604,7 @@ function drinkEstus(game, input) {
   const player = game.player;
   if (!input.estus || player.estus <= 0 || player.hp >= 100 || player.attack || player.rollTimer > 0) return;
   player.estus -= 1;
+  game.stats.estusUsed += 1;
   player.hp = clamp(player.hp + 34, 0, 100);
   player.stamina = clamp(player.stamina + 12, 0, 100);
   game.message = 'Heiltrank';
@@ -1008,6 +1118,7 @@ function updateGame(game, input, dt, onFinish) {
   updateHazards(game, dt);
   updateSigils(game, dt);
   updateRunes(game, dt);
+  updateSoulsContract(game, dt);
 
   game.sparks = game.sparks
     .map((spark) => ({
@@ -1168,6 +1279,7 @@ function drawBar(ctx, x, y, w, h, value, max, color, right = false) {
 function drawHud(ctx, game) {
   const player = game.player;
   const boss = game.boss;
+  const contractProgress = soulsContractProgress(game);
   ctx.save();
   if (game.isPortraitTouch) {
     const panelX = CENTER_X - 320;
@@ -1176,7 +1288,7 @@ function drawHud(ctx, game) {
     const leftX = panelX + 24;
     const rightX = CENTER_X + 42;
     ctx.fillStyle = 'rgba(2,6,23,.82)';
-    drawRoundedRect(ctx, panelX, panelY, panelW, 150, 18);
+    drawRoundedRect(ctx, panelX, panelY, panelW, 176, 18);
     ctx.fill();
 
     ctx.textAlign = 'center';
@@ -1209,16 +1321,18 @@ function drawHud(ctx, game) {
       return `${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`;
     }).join('  |  ');
     drawFittedText(ctx, compactGoals, CENTER_X, panelY + 146, panelW - 40, '900 11px Outfit, sans-serif', 8);
+    ctx.fillStyle = game.activeContract ? '#fef08a' : '#94a3b8';
+    drawFittedText(ctx, game.activeContract ? `Eid ${contractProgress.value}/${contractProgress.target}: ${game.activeContract.label} · ${Math.ceil(game.contractTimer)}s` : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, CENTER_X, panelY + 164, panelW - 46, '900 11px Outfit, sans-serif', 8);
 
     if (game.mode === 'learn') {
       const prompt = currentPrompt(game);
       ctx.fillStyle = 'rgba(2,6,23,.78)';
-      drawRoundedRect(ctx, CENTER_X - 300, panelY + 164, 600, 70, 16);
+      drawRoundedRect(ctx, CENTER_X - 300, panelY + 188, 600, 70, 16);
       ctx.fill();
       ctx.fillStyle = '#e2e8f0';
-      drawFittedText(ctx, prompt.sentence, CENTER_X, panelY + 192, 560, '900 17px Outfit, sans-serif', 11);
+      drawFittedText(ctx, prompt.sentence, CENTER_X, panelY + 216, 560, '900 17px Outfit, sans-serif', 11);
       ctx.fillStyle = '#67e8f9';
-      drawFittedText(ctx, `${prompt.subject}: richtige Rune fuer "${prompt.word}"`, CENTER_X, panelY + 216, 560, '800 13px Outfit, sans-serif', 10);
+      drawFittedText(ctx, `${prompt.subject}: richtige Rune fuer "${prompt.word}"`, CENTER_X, panelY + 240, 560, '800 13px Outfit, sans-serif', 10);
     }
 
     if (game.messageTimer > 0) {
@@ -1269,6 +1383,25 @@ function drawHud(ctx, game) {
     ctx.fillStyle = goal.done ? '#86efac' : '#cbd5e1';
     ctx.fillText(`${goal.done ? 'OK' : `${progress}/${goal.target}`} ${goal.label}`, 62, 216 + index * 15);
   });
+
+  ctx.fillStyle = 'rgba(2,6,23,.72)';
+  drawRoundedRect(ctx, 42, 326, 330, 112, 16);
+  ctx.fill();
+  ctx.fillStyle = '#fef08a';
+  ctx.font = '900 13px Outfit, sans-serif';
+  ctx.fillText(`EIDE ${game.contractSeals} erfuellt · ${game.contractFails} gebrochen`, 62, 352);
+  ctx.fillStyle = game.activeContract ? '#f8fafc' : '#94a3b8';
+  ctx.font = '900 14px Outfit, sans-serif';
+  drawFittedText(ctx, game.activeContract ? game.activeContract.label : `naechster Eid ${game.contractCooldown.toFixed(1)}s`, 62, 376, 288, '900 14px Outfit, sans-serif', 10);
+  ctx.fillStyle = 'rgba(148,163,184,.22)';
+  drawRoundedRect(ctx, 62, 390, 284, 10, 5);
+  ctx.fill();
+  ctx.fillStyle = game.activeContract ? '#86efac' : '#475569';
+  drawRoundedRect(ctx, 62, 390, 284 * contractProgress.ratio, 10, 5);
+  ctx.fill();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '800 12px Outfit, sans-serif';
+  ctx.fillText(game.activeContract ? `${contractProgress.value}/${contractProgress.target} · ${Math.ceil(game.contractTimer)}s` : 'bereitmachen', 62, 420);
 
   if (game.mode === 'learn') {
     const prompt = currentPrompt(game);

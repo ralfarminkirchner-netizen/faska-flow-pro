@@ -15,6 +15,7 @@ const OBSTACLES = [
 const SUBJECTS = ['Deutsch', 'Mathe', 'Englisch'];
 const GAMES = [
   { id: 'taxi', label: 'Wort-Taxi', hint: 'Fahre zum Wort, dann zur passenden Antwort.' },
+  { id: 'maze', label: 'Lese-Labyrinth', hint: 'Laufe durch das Labyrinth und sammle nur das passende Ziel.' },
   { id: 'sort', label: 'Sortier-Dojo', hint: 'Ordne Karten in die richtige Gruppe.' },
   { id: 'sentence', label: 'Satzwerkstatt', hint: 'Baue Saetze oder Gleichungen in der richtigen Reihenfolge.' },
   { id: 'blitz', label: 'Blitzduell', hint: 'Kurze Fragen, direkte Rueckmeldung, Fehler kommen wieder.' },
@@ -44,6 +45,148 @@ const NORMAL_TAXI = [
     ],
   },
 ];
+
+const NORMAL_MAZE = [
+  {
+    id: 'maze-arcade-blue',
+    prompt: 'Sammle den blauen Kristall.',
+    start: { x: 1, y: 5 },
+    choices: [
+      { id: 'blue', label: 'Blau', x: 9, y: 1, correct: true },
+      { id: 'red', label: 'Rot', x: 2, y: 1 },
+      { id: 'gold', label: 'Gold', x: 8, y: 5 },
+    ],
+  },
+  {
+    id: 'maze-arcade-safe',
+    prompt: 'Finde den sicheren Ausgang.',
+    start: { x: 9, y: 5 },
+    choices: [
+      { id: 'trap', label: 'Falle', x: 1, y: 1 },
+      { id: 'safe', label: 'Sicher', x: 5, y: 1, correct: true },
+      { id: 'risk', label: 'Risiko', x: 9, y: 1 },
+    ],
+  },
+  {
+    id: 'maze-arcade-star',
+    prompt: 'Finde den Sternschluessel.',
+    start: { x: 1, y: 1 },
+    choices: [
+      { id: 'moon', label: 'Mond', x: 8, y: 1 },
+      { id: 'cloud', label: 'Wolke', x: 4, y: 5 },
+      { id: 'star', label: 'Stern', x: 9, y: 5, correct: true },
+    ],
+  },
+];
+
+const MAZE_TASKS = {
+  Deutsch: [
+    {
+      id: 'maze-de-reim',
+      prompt: 'Finde das Reimwort zu "Haus".',
+      start: { x: 1, y: 5 },
+      choices: [
+        { id: 'maus', label: 'Maus', x: 9, y: 1, correct: true },
+        { id: 'hose', label: 'Hose', x: 2, y: 1 },
+        { id: 'baum', label: 'Baum', x: 8, y: 5 },
+      ],
+    },
+    {
+      id: 'maze-de-nomen',
+      prompt: 'Sammle das Nomen.',
+      start: { x: 9, y: 5 },
+      choices: [
+        { id: 'laufen', label: 'laufen', x: 1, y: 1 },
+        { id: 'Bruecke', label: 'Bruecke', x: 5, y: 1, correct: true },
+        { id: 'schnell', label: 'schnell', x: 9, y: 1 },
+      ],
+    },
+    {
+      id: 'maze-de-kompositum',
+      prompt: 'Finde das zusammengesetzte Wort.',
+      start: { x: 1, y: 1 },
+      choices: [
+        { id: 'rot', label: 'rot', x: 8, y: 1 },
+        { id: 'rennen', label: 'rennen', x: 4, y: 5 },
+        { id: 'Baumhaus', label: 'Baumhaus', x: 9, y: 5, correct: true },
+      ],
+    },
+    {
+      id: 'maze-de-silbe',
+      prompt: 'Finde das Wort mit zwei Silben.',
+      start: { x: 1, y: 5 },
+      choices: [
+        { id: 'Ball', label: 'Ball', x: 2, y: 1 },
+        { id: 'Stern', label: 'Stern', x: 8, y: 1 },
+        { id: 'Blume', label: 'Blume', x: 8, y: 5, correct: true },
+      ],
+    },
+  ],
+  Mathe: [
+    {
+      id: 'maze-ma-result',
+      prompt: 'Finde das Ergebnis von 6 x 7.',
+      start: { x: 1, y: 5 },
+      choices: [
+        { id: '36', label: '36', x: 2, y: 1 },
+        { id: '42', label: '42', x: 8, y: 1, correct: true },
+        { id: '48', label: '48', x: 8, y: 5 },
+      ],
+    },
+    {
+      id: 'maze-ma-even',
+      prompt: 'Sammle eine gerade Zahl.',
+      start: { x: 9, y: 5 },
+      choices: [
+        { id: '17', label: '17', x: 1, y: 1 },
+        { id: '24', label: '24', x: 5, y: 1, correct: true },
+        { id: '31', label: '31', x: 9, y: 1 },
+      ],
+    },
+    {
+      id: 'maze-ma-half',
+      prompt: 'Finde die Haelfte von 18.',
+      start: { x: 1, y: 1 },
+      choices: [
+        { id: '8', label: '8', x: 8, y: 1 },
+        { id: '9', label: '9', x: 4, y: 5, correct: true },
+        { id: '10', label: '10', x: 9, y: 5 },
+      ],
+    },
+  ],
+  Englisch: [
+    {
+      id: 'maze-en-tree',
+      prompt: 'Finde die englische Antwort fuer "Baum".',
+      start: { x: 1, y: 5 },
+      choices: [
+        { id: 'tree', label: 'tree', x: 2, y: 1, correct: true },
+        { id: 'train', label: 'train', x: 8, y: 1 },
+        { id: 'town', label: 'town', x: 8, y: 5 },
+      ],
+    },
+    {
+      id: 'maze-en-color',
+      prompt: 'Finde eine Farbe.',
+      start: { x: 9, y: 5 },
+      choices: [
+        { id: 'green', label: 'green', x: 1, y: 1, correct: true },
+        { id: 'school', label: 'school', x: 5, y: 1 },
+        { id: 'jump', label: 'jump', x: 9, y: 1 },
+      ],
+    },
+    {
+      id: 'maze-en-verb',
+      prompt: 'Finde das englische Verb.',
+      start: { x: 1, y: 1 },
+      choices: [
+        { id: 'small', label: 'small', x: 8, y: 1 },
+        { id: 'read', label: 'read', x: 4, y: 5, correct: true },
+        { id: 'book', label: 'book', x: 9, y: 5 },
+      ],
+    },
+  ],
+};
 
 const TAXI_TASKS = {
   Deutsch: [
@@ -247,6 +390,7 @@ function isBlocked(x, y) {
 
 function getPool(game, subject, mode) {
   if (game === 'taxi') return mode === 'learn' ? TAXI_TASKS[subject] : NORMAL_TAXI;
+  if (game === 'maze') return mode === 'learn' ? MAZE_TASKS[subject] : NORMAL_MAZE;
   if (game === 'sort') return mode === 'learn' ? SORT_TASKS[subject] : NORMAL_SORT;
   if (game === 'sentence') return mode === 'learn' ? SENTENCE_TASKS[subject] : NORMAL_SENTENCE;
   return mode === 'learn' ? BLITZ_TASKS[subject] : NORMAL_BLITZ;
@@ -271,12 +415,14 @@ export default function FaskaLearncadeEssentials() {
   const [mode, setMode] = useState('learn');
   const [subject, setSubject] = useState('Deutsch');
   const [game, setGame] = useState('taxi');
-  const [cursor, setCursor] = useState({ taxi: 0, sort: 0, sentence: 0, blitz: 0 });
+  const [cursor, setCursor] = useState({ taxi: 0, maze: 0, sort: 0, sentence: 0, blitz: 0 });
   const [repeatQueue, setRepeatQueue] = useState([]);
   const [taxi, setTaxi] = useState({ taskId: '', x: 1, y: 5, hasPassenger: false });
+  const [maze, setMaze] = useState({ taskId: '', x: 1, y: 5 });
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [hearts, setHearts] = useState(5);
+  const [moves, setMoves] = useState(0);
   const [message, setMessage] = useState('Waehle ein Spiel und starte die erste Runde.');
   const [mastery, setMastery] = useState({ Deutsch: 0, Mathe: 0, Englisch: 0 });
   const [sentenceState, setSentenceState] = useState({ key: '', picks: [] });
@@ -290,6 +436,10 @@ export default function FaskaLearncadeEssentials() {
     () => (taxi.taskId === task.id ? taxi : { taskId: task.id, x: task.pickup?.x ?? 1, y: task.pickup?.y ?? 5, hasPassenger: false }),
     [taxi, task],
   );
+  const activeMaze = useMemo(
+    () => (maze.taskId === task.id ? maze : { taskId: task.id, x: task.start?.x ?? 1, y: task.start?.y ?? 5 }),
+    [maze, task],
+  );
   const sentencePick = sentenceState.key === taskKey ? sentenceState.picks : [];
   const sentenceOptions = useMemo(() => {
     if (game !== 'sentence') return [];
@@ -299,12 +449,15 @@ export default function FaskaLearncadeEssentials() {
   const completeTask = useCallback((success, feedback) => {
     setMessage(feedback);
     if (success) {
-      setScore((value) => value + 120 + streak * 12 + (taskIsRepeat ? 40 : 0));
+      const moveBonus = Math.max(0, 70 - moves * 4);
+      setScore((value) => value + 120 + streak * 12 + moveBonus + (taskIsRepeat ? 40 : 0));
       setStreak((value) => value + 1);
       setMastery((value) => ({ ...value, [subject]: value[subject] + 1 }));
       setRepeatQueue((queue) => queue.filter((entry) => entry.payload.id !== task.id));
       setCursor((value) => ({ ...value, [game]: value[game] + 1 }));
       setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
+      setMaze({ taskId: '', x: 1, y: 5 });
+      setMoves(0);
       setSentenceState({ key: '', picks: [] });
       return;
     }
@@ -312,14 +465,18 @@ export default function FaskaLearncadeEssentials() {
     setStreak(0);
     setHearts((value) => Math.max(1, value - 1));
     setMastery((value) => ({ ...value, [subject]: Math.max(0, value[subject] - 1) }));
+    setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
+    setMaze({ taskId: '', x: 1, y: 5 });
+    setMoves(0);
     setRepeatQueue((queue) => {
       if (queue.some((entry) => entry.payload.id === task.id)) return queue;
       return [...queue.slice(-5), { game, subject, mode, payload: task }];
     });
-  }, [game, mode, streak, subject, task, taskIsRepeat]);
+  }, [game, mode, moves, streak, subject, task, taskIsRepeat]);
 
   const moveTaxi = useCallback((dx, dy) => {
     if (game !== 'taxi') return;
+    setMoves((value) => value + 1);
     setTaxi((value) => {
       const base = value.taskId === task.id ? value : { taskId: task.id, x: task.pickup?.x ?? 1, y: task.pickup?.y ?? 5, hasPassenger: false };
       const next = {
@@ -331,6 +488,29 @@ export default function FaskaLearncadeEssentials() {
       return next;
     });
   }, [game, task]);
+
+  const moveMaze = useCallback((dx, dy) => {
+    if (game !== 'maze') return;
+    const base = activeMaze.taskId === task.id ? activeMaze : { taskId: task.id, x: task.start?.x ?? 1, y: task.start?.y ?? 5 };
+    const next = {
+      ...base,
+      x: Math.max(0, Math.min(GRID_W - 1, base.x + dx)),
+      y: Math.max(0, Math.min(GRID_H - 1, base.y + dy)),
+    };
+    if (isBlocked(next.x, next.y)) return;
+    setMoves((value) => value + 1);
+    const choice = task.choices.find((item) => sameCell(next, item));
+    if (choice) {
+      completeTask(Boolean(choice.correct), choice.correct ? `Gefunden: ${choice.label}` : `Falscher Fund: ${choice.label}`);
+      return;
+    }
+    setMaze(next);
+  }, [activeMaze, completeTask, game, task]);
+
+  const moveActive = useCallback((dx, dy) => {
+    if (game === 'taxi') moveTaxi(dx, dy);
+    if (game === 'maze') moveMaze(dx, dy);
+  }, [game, moveMaze, moveTaxi]);
 
   const taxiAction = useCallback(() => {
     if (game !== 'taxi') return;
@@ -352,21 +532,33 @@ export default function FaskaLearncadeEssentials() {
   }, [activeTaxi, completeTask, game, task]);
 
   useEffect(() => {
-    if (game !== 'taxi') return undefined;
+    if (game !== 'taxi' && game !== 'maze') return undefined;
     const onKeyDown = (event) => {
       const key = event.key.toLowerCase();
-      if (['arrowup', 'w'].includes(key)) moveTaxi(0, -1);
-      if (['arrowdown', 's'].includes(key)) moveTaxi(0, 1);
-      if (['arrowleft', 'a'].includes(key)) moveTaxi(-1, 0);
-      if (['arrowright', 'd'].includes(key)) moveTaxi(1, 0);
-      if (key === ' ' || key === 'enter') {
+      if (['arrowup', 'w'].includes(key)) {
+        event.preventDefault();
+        moveActive(0, -1);
+      }
+      if (['arrowdown', 's'].includes(key)) {
+        event.preventDefault();
+        moveActive(0, 1);
+      }
+      if (['arrowleft', 'a'].includes(key)) {
+        event.preventDefault();
+        moveActive(-1, 0);
+      }
+      if (['arrowright', 'd'].includes(key)) {
+        event.preventDefault();
+        moveActive(1, 0);
+      }
+      if (game === 'taxi' && (key === ' ' || key === 'enter')) {
         event.preventDefault();
         taxiAction();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [game, moveTaxi, taxiAction]);
+  }, [game, moveActive, taxiAction]);
 
   const answerChoice = (choice) => {
     completeTask(choice === task.answer, choice === task.answer ? `Richtig: ${choice}` : `Noch einmal: ${choice}`);
@@ -390,26 +582,34 @@ export default function FaskaLearncadeEssentials() {
     setScore(0);
     setStreak(0);
     setHearts(5);
-    setCursor({ taxi: 0, sort: 0, sentence: 0, blitz: 0 });
+    setCursor({ taxi: 0, maze: 0, sort: 0, sentence: 0, blitz: 0 });
     setRepeatQueue([]);
     setMastery({ Deutsch: 0, Mathe: 0, Englisch: 0 });
     setSentenceState({ key: '', picks: [] });
     setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
+    setMaze({ taskId: '', x: 1, y: 5 });
+    setMoves(0);
     setMessage('Neue Runde gestartet.');
   };
 
   const selectMode = (nextMode) => {
     setMode(nextMode);
+    setMoves(0);
     setMessage(nextMode === 'learn' ? 'Lernmodus aktiv.' : 'Normalmodus aktiv.');
   };
 
   const selectSubject = (nextSubject) => {
     setSubject(nextSubject);
+    setMoves(0);
     setMessage(`${nextSubject} ausgewaehlt.`);
   };
 
   const selectGame = (nextGame) => {
     setGame(nextGame);
+    setMoves(0);
+    setTaxi({ taskId: '', x: 1, y: 5, hasPassenger: false });
+    setMaze({ taskId: '', x: 1, y: 5 });
+    setSentenceState({ key: '', picks: [] });
     setMessage(GAMES.find((item) => item.id === nextGame)?.hint ?? '');
   };
 
@@ -461,6 +661,10 @@ export default function FaskaLearncadeEssentials() {
             <TaxiBoard task={task} taxi={activeTaxi} onAction={taxiAction} />
           )}
 
+          {game === 'maze' && (
+            <MazeBoard task={task} runner={activeMaze} />
+          )}
+
           {game === 'sort' && (
             <ChoiceArena task={task} onAnswer={answerChoice} />
           )}
@@ -482,15 +686,15 @@ export default function FaskaLearncadeEssentials() {
 
           <p className="message-line">{message}</p>
 
-          {game === 'taxi' && (
+          {(game === 'taxi' || game === 'maze') && (
             <div className="touch-controls" aria-label="Touchsteuerung">
               <div className="dpad">
-                <button type="button" onClick={() => moveTaxi(0, -1)}>U</button>
-                <button type="button" onClick={() => moveTaxi(-1, 0)}>L</button>
-                <button type="button" onClick={() => moveTaxi(1, 0)}>R</button>
-                <button type="button" onClick={() => moveTaxi(0, 1)}>D</button>
+                <button type="button" onClick={() => moveActive(0, -1)}>U</button>
+                <button type="button" onClick={() => moveActive(-1, 0)}>L</button>
+                <button type="button" onClick={() => moveActive(1, 0)}>R</button>
+                <button type="button" onClick={() => moveActive(0, 1)}>D</button>
               </div>
-              <button type="button" className="action-button" onClick={taxiAction}>Aktion</button>
+              {game === 'taxi' && <button type="button" className="action-button" onClick={taxiAction}>Aktion</button>}
             </div>
           )}
         </section>
@@ -499,6 +703,7 @@ export default function FaskaLearncadeEssentials() {
           <div className="stat-line"><span>Score</span><strong>{score}</strong></div>
           <div className="stat-line"><span>Combo</span><strong>{streak}</strong></div>
           <div className="stat-line"><span>Herzen</span><strong>{hearts}</strong></div>
+          <div className="stat-line"><span>Zuege</span><strong>{moves}</strong></div>
           <div className="mastery-list">
             {SUBJECTS.map((item) => (
               <div key={item}>
@@ -620,8 +825,9 @@ export default function FaskaLearncadeEssentials() {
           position: relative;
           margin-top: 12px;
           width: min(100%, 980px);
+          height: clamp(320px, 48dvh, 520px);
           aspect-ratio: 11 / 7;
-          min-height: 390px;
+          min-height: 320px;
           overflow: hidden;
           border: 2px solid rgba(125, 211, 252, .62);
           border-radius: 8px;
@@ -630,6 +836,24 @@ export default function FaskaLearncadeEssentials() {
             linear-gradient(rgba(148, 163, 184, .12) 1px, transparent 1px),
             linear-gradient(135deg, #164e63, #14532d 55%, #713f12);
           background-size: calc(100% / 11) calc(100% / 7), calc(100% / 11) calc(100% / 7), 100% 100%;
+          box-shadow: 0 16px 40px rgba(0,0,0,.28);
+        }
+        .maze-board {
+          position: relative;
+          margin-top: 12px;
+          width: min(100%, 980px);
+          height: clamp(320px, 48dvh, 520px);
+          aspect-ratio: 11 / 7;
+          min-height: 320px;
+          overflow: hidden;
+          border: 2px solid rgba(74, 222, 128, .62);
+          border-radius: 8px;
+          background:
+            linear-gradient(90deg, rgba(187, 247, 208, .14) 1px, transparent 1px),
+            linear-gradient(rgba(187, 247, 208, .14) 1px, transparent 1px),
+            radial-gradient(circle at 70% 20%, rgba(250, 204, 21, .18), transparent 20%),
+            linear-gradient(135deg, #052e16, #064e3b 54%, #0f172a);
+          background-size: calc(100% / 11) calc(100% / 7), calc(100% / 11) calc(100% / 7), 100% 100%, 100% 100%;
           box-shadow: 0 16px 40px rgba(0,0,0,.28);
         }
         .road {
@@ -642,7 +866,10 @@ export default function FaskaLearncadeEssentials() {
         .obstacle,
         .pickup,
         .zone,
-        .taxi {
+        .taxi,
+        .maze-token,
+        .maze-runner,
+        .maze-start {
           position: absolute;
           transform: translate(-50%, -50%);
         }
@@ -690,6 +917,44 @@ export default function FaskaLearncadeEssentials() {
           font-weight: 1000;
           box-shadow: 0 0 0 4px rgba(0,0,0,.18), 4px 4px 0 rgba(0,0,0,.34);
           transition: left .12s linear, top .12s linear, background .15s ease;
+        }
+        .maze-token {
+          width: min(22%, 190px);
+          min-height: 50px;
+          display: grid;
+          place-items: center;
+          padding: 8px;
+          border-radius: 8px;
+          background: rgba(248, 250, 252, .92);
+          color: #064e3b;
+          border: 3px solid rgba(74, 222, 128, .72);
+          font-size: 14px;
+          font-weight: 1000;
+          text-align: center;
+          box-shadow: 4px 4px 0 rgba(0,0,0,.25);
+        }
+        .maze-runner {
+          width: 58px;
+          height: 58px;
+          display: grid;
+          place-items: center;
+          border-radius: 50%;
+          background: #38bdf8;
+          color: #082f49;
+          border: 4px solid #ecfeff;
+          font-weight: 1000;
+          box-shadow: 0 0 0 5px rgba(8, 47, 73, .2), 4px 4px 0 rgba(0,0,0,.32);
+          transition: left .12s linear, top .12s linear;
+        }
+        .maze-start {
+          padding: 6px 8px;
+          border-radius: 8px;
+          background: rgba(2, 6, 23, .74);
+          color: #bbf7d0;
+          border: 1px solid rgba(187, 247, 208, .45);
+          font-size: 11px;
+          font-weight: 1000;
+          letter-spacing: .08em;
         }
         .arena {
           margin-top: 12px;
@@ -851,6 +1116,11 @@ export default function FaskaLearncadeEssentials() {
             padding: 0 9px;
           }
           .taxi-board {
+            height: 300px;
+            min-height: 260px;
+          }
+          .maze-board {
+            height: 300px;
             min-height: 260px;
           }
           .choice-grid,
@@ -880,6 +1150,11 @@ export default function FaskaLearncadeEssentials() {
             min-height: 48px;
             font-size: 11px;
           }
+          .maze-token {
+            width: 28%;
+            min-height: 46px;
+            font-size: 11px;
+          }
         }
       `}</style>
     </div>
@@ -905,6 +1180,27 @@ function TaxiBoard({ task, taxi, onAction }) {
       ))}
       <div className="taxi" style={cellStyle(taxi)}>
         TAXI
+      </div>
+    </div>
+  );
+}
+
+function MazeBoard({ task, runner }) {
+  return (
+    <div className="maze-board">
+      {OBSTACLES.map((cell) => (
+        <div key={`${cell.x}-${cell.y}`} className="obstacle" style={cellStyle(cell)} />
+      ))}
+      <div className="maze-start" style={cellStyle(task.start)}>
+        START
+      </div>
+      {task.choices.map((choice) => (
+        <div key={choice.id} className="maze-token" style={cellStyle(choice)}>
+          {choice.label}
+        </div>
+      ))}
+      <div className="maze-runner" style={cellStyle(runner)}>
+        KID
       </div>
     </div>
   );

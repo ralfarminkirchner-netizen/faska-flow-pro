@@ -20,7 +20,7 @@ const GAMES = [
   {
     id: 'faska64',
     name: 'Faska 64 Abschluss: Lernpark',
-    description: 'Stabile Learncade-Sammlung statt wackligem 3D-Experiment: Wort-Taxi, Sortier-Dojo, Satzwerkstatt und Blitzduell mit Normalmodus, Lernmodus, Fachwahl, Wiederholung falscher Aufgaben und Mastery-Fortschritt.',
+    description: 'Stabile Learncade-Sammlung statt wackligem 3D-Experiment: Wort-Taxi, Lese-Labyrinth, Sortier-Dojo, Satzwerkstatt und Blitzduell mit Normalmodus, Lernmodus, Fachwahl, Wiederholung falscher Aufgaben, Zugbonus und Mastery-Fortschritt.',
     emoji: '🏰',
     category: 'Education',
     gradient: 'linear-gradient(135deg, #0891b2, #16a34a)',

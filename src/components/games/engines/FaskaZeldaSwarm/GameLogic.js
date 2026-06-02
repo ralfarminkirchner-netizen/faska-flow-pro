@@ -99,6 +99,20 @@ const ZELDA_GOALS = [
   { id: 'shrines-3', label: '3 Wort-Schreine', type: 'shrinesSolved', target: 3, reward: 240, learnOnly: true },
 ];
 
+const ZELDA_CONTRACTS = [
+  { id: 'roll-3', label: '3 Rollen ausweichen', type: 'rolls', target: 3, duration: 28, reward: { score: 140, rupees: 3, stamina: 18 } },
+  { id: 'arrow-2', label: '2 Pfeiltreffer landen', type: 'arrowHits', target: 2, duration: 34, reward: { score: 170, arrows: 3, courage: 16 } },
+  { id: 'seal-1', label: '1 Werkzeug-Siegel', type: 'toolSeals', target: 1, duration: 42, reward: { score: 190, rupees: 4, stamina: 22 } },
+  { id: 'bomb-place-2', label: '2 Bomben platzieren', type: 'bombsPlaced', target: 2, duration: 38, reward: { score: 150, bombs: 1, courage: 12 } },
+  { id: 'bomb-hit-1', label: '1 Bombentreffer', type: 'bombHits', target: 1, duration: 46, reward: { score: 230, bombs: 2, courage: 18 } },
+  { id: 'block-2', label: '2 perfekte Blocks', type: 'perfectBlocks', target: 2, duration: 44, reward: { score: 210, health: 1, stamina: 28 } },
+  { id: 'combo-3', label: '3er Kampf-Serie', type: 'bestCombo', target: 3, duration: 40, reward: { score: 220, rupees: 5, courage: 18 } },
+  { id: 'item-4', label: '4 Funde sammeln', type: 'itemsCollected', target: 4, duration: 52, reward: { score: 180, arrows: 2, bombs: 1 } },
+  { id: 'room-open', label: '1 Raumtor oeffnen', type: 'roomsOpened', target: 1, duration: 62, reward: { score: 260, rupees: 6, health: 1, courage: 20 } },
+  { id: 'lock-kill', label: '1 Lock-on-Finisher', type: 'lockOnKills', target: 1, duration: 56, reward: { score: 260, arrows: 4, courage: 24 } },
+  { id: 'learn-shrine', label: '1 Wort-Schrein loesen', type: 'shrinesSolved', target: 1, duration: 70, reward: { score: 280, rupees: 5, stamina: 30 }, mode: 'learn' },
+];
+
 const SWITCH_PROFILES = {
   blade: { label: 'BLADE', source: 'Schwert' },
   arrow: { label: 'ARROW', source: 'Bogen' },
@@ -121,11 +135,25 @@ function createStats() {
     lockOnKills: 0,
     bossDefeated: 0,
     toolSeals: 0,
+    rolls: 0,
+    arrowsFired: 0,
+    arrowHits: 0,
+    itemsCollected: 0,
+    keysCollected: 0,
   };
 }
 
 function statValue(state, goal) {
   return state.stats?.[goal.type] || 0;
+}
+
+function activeContractsForMode(mode) {
+  return ZELDA_CONTRACTS.filter((contract) => !contract.mode || contract.mode === mode);
+}
+
+function contractProgress(state, contract = state.activeContract) {
+  if (!contract) return 0;
+  return Math.max(0, (state.stats?.[contract.type] || 0) - (contract.startValue || 0));
 }
 
 function activeGoalsForMode(mode) {
@@ -458,8 +486,91 @@ const useZeldaStore = createGameStore(
     lastQuizScore: 0,
     stats: createStats(),
     goals: activeGoalsForMode('arcade'),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 2,
+    contractMedals: 0,
+    contractFails: 0,
   },
   (set, get) => ({
+    startNextContract: () => {
+      const state = get();
+      const pool = activeContractsForMode(state.mode);
+      if (!state.isPlaying || state.isPaused || pool.length === 0) return;
+      const contract = pool[state.contractIndex % pool.length];
+      set({
+        activeContract: { ...contract, startValue: state.stats?.[contract.type] || 0 },
+        contractIndex: state.contractIndex + 1,
+        contractTimer: contract.duration,
+        roomMessage: `Raumauftrag: ${contract.label}`,
+        roomMessageTimer: 1.25,
+      });
+    },
+
+    completeContract: () => {
+      const state = get();
+      const contract = state.activeContract;
+      if (!contract) return;
+      const reward = contract.reward || {};
+      const nextScore = state.score + (reward.score || 0);
+      set((s) => ({
+        score: nextScore,
+        highScore: Math.max(s.highScore, nextScore),
+        rupees: s.rupees + (reward.rupees || 0),
+        arrows: clamp(s.arrows + (reward.arrows || 0), 0, s.maxArrows),
+        bombs: clamp(s.bombs + (reward.bombs || 0), 0, s.maxBombs),
+        health: clamp(s.health + (reward.health || 0), 0, s.maxHealth),
+        stamina: clamp(s.stamina + (reward.stamina || 0), 0, s.maxStamina),
+        courageCharge: clamp(s.courageCharge + (reward.courage || 0), 0, 100),
+        contractMedals: s.contractMedals + 1,
+        activeContract: null,
+        contractTimer: 0,
+        contractCooldown: 2.6,
+        roomMessage: `Auftrag geschafft +${reward.score || 0}`,
+        roomMessageTimer: 1.35,
+      }));
+    },
+
+    failContract: () => {
+      const state = get();
+      const contract = state.activeContract;
+      if (!contract) return;
+      set((s) => ({
+        activeContract: null,
+        contractTimer: 0,
+        contractCooldown: 2,
+        contractFails: s.contractFails + 1,
+        roomMessage: `Auftrag verpasst: ${contract.label}`,
+        roomMessageTimer: 1.2,
+      }));
+    },
+
+    updateContract: (delta) => {
+      const state = get();
+      if (!state.isPlaying || state.isPaused || state.isGameOver) return;
+      if (!state.activeContract) {
+        const nextCooldown = Math.max(0, state.contractCooldown - delta);
+        if (nextCooldown <= 0) {
+          set({ contractCooldown: 0 });
+          get().startNextContract();
+        } else {
+          set({ contractCooldown: nextCooldown });
+        }
+        return;
+      }
+      if (contractProgress(state) >= state.activeContract.target) {
+        get().completeContract();
+        return;
+      }
+      const nextTimer = Math.max(0, state.contractTimer - delta);
+      if (nextTimer <= 0) {
+        get().failContract();
+      } else {
+        set({ contractTimer: nextTimer });
+      }
+    },
+
     evaluateGoals: () => {
       const state = get();
       let reward = 0;
@@ -557,6 +668,12 @@ const useZeldaStore = createGameStore(
         lastQuizScore: 0,
         stats: createStats(),
         goals: activeGoalsForMode(mode),
+        activeContract: null,
+        contractIndex: 0,
+        contractTimer: 0,
+        contractCooldown: 2,
+        contractMedals: 0,
+        contractFails: 0,
         transitioning: false,
       });
     },
@@ -745,10 +862,16 @@ const useZeldaStore = createGameStore(
 	        updates.score = state.score + 120;
 	      } else if (item.type === 'arrow') {
 	        updates.arrows = Math.min(state.maxArrows, state.arrows + item.value);
-	      } else if (item.type === 'bomb') {
-	        updates.bombs = Math.min(state.maxBombs, state.bombs + item.value);
-	        updates.score = state.score + 60;
-	      }
+      } else if (item.type === 'bomb') {
+        updates.bombs = Math.min(state.maxBombs, state.bombs + item.value);
+        updates.score = state.score + 60;
+      }
+
+      updates.stats = {
+        ...state.stats,
+        itemsCollected: state.stats.itemsCollected + 1,
+        keysCollected: item.type === 'key' ? state.stats.keysCollected + 1 : state.stats.keysCollected,
+      };
 
       set(updates);
       if (item.type === 'key' || item.type === 'heart') get().addCourageCharge(8);
@@ -962,6 +1085,10 @@ const useZeldaStore = createGameStore(
       set({
         arrows: state.arrows - 1,
         arrowCooldown: 0.42,
+        stats: {
+          ...state.stats,
+          arrowsFired: state.stats.arrowsFired + 1,
+        },
         arrowsInFlight: [
           ...state.arrowsInFlight,
           {
@@ -1024,9 +1151,9 @@ const useZeldaStore = createGameStore(
 	        set({ roomMessage: 'Kein Ziel in Reichweite', roomMessageTimer: 0.75 });
 	        return false;
 	      }
-	      set({
-	        targetLockId: target.id,
-	        roomMessage: target.type === 'boss' ? 'Lock-on: Tempelritter' : 'Lock-on aktiv',
+      set({
+        targetLockId: target.id,
+        roomMessage: target.type === 'boss' ? 'Lock-on: Tempelritter' : 'Lock-on aktiv',
 	        roomMessageTimer: 0.8,
 	      });
 	      return true;
@@ -1097,6 +1224,10 @@ const useZeldaStore = createGameStore(
         stamina: Math.max(0, state.stamina - 24),
         shieldActive: false,
         invulnerable: true,
+        stats: {
+          ...state.stats,
+          rolls: state.stats.rolls + 1,
+        },
       });
 	      return true;
 	    },
@@ -1236,6 +1367,7 @@ const useZeldaStore = createGameStore(
         roomMessageTimer: Math.max(0, state.roomMessageTimer - delta),
         invulnerable: nextRollTimer > 0 ? true : state.invulnerable,
       });
+      get().updateContract(delta);
 
       if (rolling && nextRollTimer <= 0) {
         setTimeout(() => {
@@ -1413,6 +1545,7 @@ const useZeldaStore = createGameStore(
       const state = get();
       if (!state.isPlaying || state.isPaused) return;
       const arrows = [];
+      let arrowHits = 0;
       state.arrowsInFlight.forEach((arrow) => {
         const nextArrow = {
           ...arrow,
@@ -1430,6 +1563,7 @@ const useZeldaStore = createGameStore(
           const dz = enemy.position[2] - nextArrow.position[2];
           if (Math.sqrt(dx * dx + dz * dz) < (enemy.type === 'bat' ? 0.65 : 0.78)) {
             hit = true;
+            arrowHits += 1;
             get().hitEnemy(enemy.id, [dx, 0, dz], enemy.type === 'guardian' || enemy.type === 'scribe' ? 12 : 14, 'arrow');
           }
         });
@@ -1440,6 +1574,7 @@ const useZeldaStore = createGameStore(
             const dz = button.position[2] - nextArrow.position[2];
             if (Math.sqrt(dx * dx + dz * dz) < 0.78) {
               hit = true;
+              arrowHits += 1;
               get().activateSwitch(button.id, 'arrow');
             }
           });
@@ -1448,7 +1583,13 @@ const useZeldaStore = createGameStore(
           arrows.push(nextArrow);
         }
       });
-      set({ arrowsInFlight: arrows });
+      set((s) => ({
+        arrowsInFlight: arrows,
+        stats: arrowHits > 0
+          ? { ...s.stats, arrowHits: s.stats.arrowHits + arrowHits }
+          : s.stats,
+      }));
+      if (arrowHits > 0) get().evaluateGoals();
     },
 
     // Sword cooldown update
@@ -1499,6 +1640,12 @@ const useZeldaStore = createGameStore(
 	        roomUnlocked: false,
 	        roomMessage: 'Abenteuer startet.',
 	        roomMessageTimer: 1,
+        activeContract: null,
+        contractIndex: 0,
+        contractTimer: 0,
+        contractCooldown: 2,
+        contractMedals: 0,
+        contractFails: 0,
       });
       setTimeout(() => get().initGame(), 50);
     },

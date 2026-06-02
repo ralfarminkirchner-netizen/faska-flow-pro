@@ -30,12 +30,12 @@ const GAMES = [
   {
     id: 'zelda',
     name: 'Faska Zelda Pro',
-    description: 'Godot-4-16-Bit-Top-Down-Adventure mit normalem Quest-Modus, Wegen, Ruinen, Truhen, Schluesseln, verriegelten Gates, Schwert-Combos, Schild-Counter, Dash-Slash, Bomben, mehrphasigem Torwaechter, Sternentor, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
+    description: '16-Bit-Top-Down-Action-Adventure mit Raumauftraegen, Medaillen, Schwert-Combos, Schild-Counter, Rollen, Lock-on, Bogen, Bomben, Werkzeug-Siegeln, Bossdruck, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
     emoji: '⚔️',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #10b981, #059669)',
     path: '/game/zelda',
-    engine: 'Godot 4',
+    engine: 'React Three Fiber',
   },
   {
     id: 'temple-quest',

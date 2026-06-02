@@ -99,10 +99,18 @@ function ZeldaHUD() {
   const roomMessage = useZeldaStore((s) => s.roomMessage);
   const roomMessageTimer = useZeldaStore((s) => s.roomMessageTimer);
   const targetLockId = useZeldaStore((s) => s.targetLockId);
+  const activeContract = useZeldaStore((s) => s.activeContract);
+  const contractTimer = useZeldaStore((s) => s.contractTimer);
+  const contractCooldown = useZeldaStore((s) => s.contractCooldown);
+  const contractMedals = useZeldaStore((s) => s.contractMedals);
+  const contractFails = useZeldaStore((s) => s.contractFails);
   const staminaPct = Math.round((stamina / maxStamina) * 100);
   const activeShrine = shrines.find((shrine) => !shrine.solved && !shrine.failed) || shrines[0];
   const switchesOpen = switches.every((button) => button.active);
   const lockedTarget = targetLockId ? enemies.find((enemy) => enemy.id === targetLockId && enemy.alive) : null;
+  const contractValue = activeContract ? Math.max(0, (stats[activeContract.type] || 0) - (activeContract.startValue || 0)) : 0;
+  const contractProgress = activeContract ? Math.min(activeContract.target, contractValue) : 0;
+  const contractPct = activeContract ? Math.min(100, Math.round((contractProgress / activeContract.target) * 100)) : 0;
   const pendingSwitch = switches.find((button) => !button.active);
   const puzzleTitle = activeShrine && mode === 'learn'
     ? activeShrine.subject || 'Learncade'
@@ -129,7 +137,7 @@ function ZeldaHUD() {
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: 'flex-start',
-          maxWidth: 'min(520px, calc(100vw - 24px))',
+          maxWidth: 'min(740px, calc(100vw - 24px))',
           gap: 8,
           pointerEvents: 'none',
           zIndex: 55,
@@ -219,6 +227,42 @@ function ZeldaHUD() {
           </div>
           <div style={{ fontFamily: 'Outfit, sans-serif', color: '#cbd5e1', fontWeight: 800, fontSize: 10 }}>
 	            Bogen · Bomben · Relikte {relics}
+          </div>
+        </div>
+
+        {/* Active room contract */}
+        <div
+          style={{
+            background: activeContract ? 'rgba(39, 30, 6, 0.88)' : 'rgba(15, 23, 42, 0.82)',
+            borderRadius: 0,
+            padding: '6px 10px',
+            border: `1px solid ${activeContract ? 'rgba(250,204,21,.42)' : 'rgba(148,163,184,.24)'}`,
+            minWidth: 198,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 11, color: '#fef3c7', fontWeight: 900, letterSpacing: 1 }}>
+              RAUMAUFTRAG
+            </span>
+            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 11, color: activeContract && contractTimer < 8 ? '#fb7185' : '#facc15', fontWeight: 900 }}>
+              {activeContract ? `${Math.ceil(contractTimer)}s` : `${Math.ceil(contractCooldown)}s`}
+            </span>
+          </div>
+          <div style={{ marginTop: 5, fontFamily: 'Outfit, sans-serif', fontSize: 12, color: activeContract ? '#fde68a' : '#cbd5e1', fontWeight: 900 }}>
+            {activeContract ? activeContract.label : 'naechster Auftrag'}
+          </div>
+          <div style={{ height: 6, background: 'rgba(15,23,42,.84)', borderRadius: 999, overflow: 'hidden', marginTop: 6 }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${activeContract ? contractPct : 100 - Math.min(100, contractCooldown * 50)}%`,
+                background: activeContract ? 'linear-gradient(90deg, #facc15, #22c55e)' : 'rgba(148,163,184,.42)',
+              }}
+            />
+          </div>
+          <div style={{ marginTop: 5, fontFamily: 'Outfit, sans-serif', fontSize: 10, color: '#cbd5e1', fontWeight: 800 }}>
+            {activeContract ? `${contractProgress}/${activeContract.target}` : `Medaillen ${contractMedals} · Verpasst ${contractFails}`}
+            {activeContract ? ` · Medaillen ${contractMedals}` : ''}
           </div>
         </div>
 
@@ -638,8 +682,8 @@ function StartScreen({ onStart, mode, onModeChange }) {
         }}
       >
         {mode === 'learn'
-          ? 'Wort-Schreine, Werkzeug-Siegel und Dungeon-Raeume greifen ineinander.'
-          : 'Ein Pixel-Dungeon mit Raeumen, Siegeln, Gegnern, Bogen, Bomben und Bossdruck.'}
+          ? 'Wort-Schreine, Werkzeug-Siegel, Raumauftraege und Medaillen greifen ineinander.'
+          : 'Ein Pixel-Dungeon mit Raeumen, Siegeln, Gegnern, Bogen, Bomben, Raumauftraegen und Bossdruck.'}
       </p>
       <ModeSwitch mode={mode} onModeChange={onModeChange} />
       <button

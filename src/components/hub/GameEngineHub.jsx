@@ -291,8 +291,8 @@ const GAMES = [
   },
   {
     id: 'math-defender',
-    name: 'Faska Math Defender',
-    description: 'NEU: Rette die Basis! Tippe das richtige Mathe-Ergebnis ein, um Orbitallaser auf herabfallende Asteroiden abzufeuern.',
+    name: 'Faska Math Defender Pro',
+    description: 'Math-Blaster-/Missile-Command-Arcade mit Wellen, schnellen Runnern, Schildzielen, Splittern, Bomben, Supply-Kapseln, Bossmeteor, Basis-Schild, Combo, Flak, Freeze-Puls, Overdrive, aktiven Zeit-Auftraegen und Lernmodus fuer Kopfrechnen und Zahlbeziehungen!',
     emoji: '☄️',
     category: 'Education',
     gradient: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',

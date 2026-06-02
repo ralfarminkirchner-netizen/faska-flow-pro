@@ -8,7 +8,7 @@ import useGameInput from '../../../../shared/useGameInput';
 import PostProcessingStack from '../../../../shared/PostProcessingStack';
 import InstancedParticles from '../../../../shared/ParticleSystem';
 import { useScreenShake } from '../../../../shared/ScreenShake';
-import useZeldaStore from './GameLogic';
+import useZeldaStore, { roomRequiresSmallKey } from './GameLogic';
 import Player from './Player';
 import World from './World';
 
@@ -69,6 +69,7 @@ function HeartsDisplay() {
 // Zelda-specific HUD
 function ZeldaHUD() {
   const rupees = useZeldaStore((s) => s.rupees);
+  const keys = useZeldaStore((s) => s.keys);
   const arrows = useZeldaStore((s) => s.arrows);
   const maxArrows = useZeldaStore((s) => s.maxArrows);
   const bombs = useZeldaStore((s) => s.bombs);
@@ -95,6 +96,7 @@ function ZeldaHUD() {
   const mode = useZeldaStore((s) => s.mode);
   const shrines = useZeldaStore((s) => s.shrines);
   const switches = useZeldaStore((s) => s.switches);
+  const openedKeyRooms = useZeldaStore((s) => s.openedKeyRooms);
   const roomUnlocked = useZeldaStore((s) => s.roomUnlocked);
   const roomMessage = useZeldaStore((s) => s.roomMessage);
   const roomMessageTimer = useZeldaStore((s) => s.roomMessageTimer);
@@ -130,6 +132,8 @@ function ZeldaHUD() {
     current: index === currentRoom,
     cleared: index < currentRoom || (index === currentRoom && roomUnlocked),
     boss: index > 0 && (index + 1) % 5 === 0,
+    keyGate: roomRequiresSmallKey(index),
+    keyOpen: openedKeyRooms.includes(index),
   }));
 
   return (
@@ -231,10 +235,10 @@ function ZeldaHUD() {
 	            Ausruestung
           </div>
           <div style={{ fontFamily: 'Outfit, sans-serif', color: '#facc15', fontWeight: 900, fontSize: 15 }}>
-	            {arrows}/{maxArrows} Pfeile · {bombs}/{maxBombs} Bomben
+	            {keys} Schluessel · {arrows}/{maxArrows} Pfeile · {bombs}/{maxBombs} Bomben
           </div>
           <div style={{ fontFamily: 'Outfit, sans-serif', color: '#cbd5e1', fontWeight: 800, fontSize: 10 }}>
-	            Bogen · Bomben · Relikte {relics}
+	            Bogen · Bomben · Key-Gates · Relikte {relics}
           </div>
         </div>
 
@@ -433,6 +437,8 @@ function ZeldaHUD() {
                     ? '#22c55e'
                     : room.boss
                       ? 'rgba(127, 29, 29, .92)'
+                      : room.keyGate && !room.keyOpen
+                        ? 'rgba(120, 53, 15, .92)'
                       : 'rgba(15, 23, 42, .88)',
                 borderColor: room.current
                   ? '#fef08a'
@@ -440,17 +446,19 @@ function ZeldaHUD() {
                     ? '#86efac'
                     : room.boss
                       ? '#fb7185'
+                      : room.keyGate && !room.keyOpen
+                        ? '#facc15'
                       : 'rgba(148, 163, 184, .35)',
-                color: room.current ? '#172554' : room.boss ? '#fecaca' : '#f8fafc',
+                color: room.current ? '#172554' : room.boss ? '#fecaca' : room.keyGate && !room.keyOpen ? '#fde68a' : '#f8fafc',
               }}
               aria-label={`Raum ${room.index + 1}`}
             >
-              {room.current ? '>' : room.boss ? 'B' : room.index + 1}
+              {room.current ? '>' : room.boss ? 'B' : room.keyGate && !room.keyOpen ? 'K' : room.index + 1}
             </div>
           ))}
         </div>
         <div className="zelda-map-status">
-          Tor {roomUnlocked ? 'offen' : 'zu'} · Auftrag {contractMedals} OK/{contractFails} Fail
+          Tor {roomUnlocked ? 'offen' : 'zu'} · Keys {keys} · Auftrag {contractMedals} OK/{contractFails} Fail
         </div>
         {mode === 'learn' && (
           <div className="zelda-map-status zelda-map-status-learn">

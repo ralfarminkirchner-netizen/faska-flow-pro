@@ -30,7 +30,7 @@ const GAMES = [
   {
     id: 'zelda',
     name: 'Faska Zelda Pro',
-    description: '16-Bit-Top-Down-Action-Adventure mit Raumauftraegen, Medaillen, Schwert-Combos, Schild-Counter, Rollen, Lock-on, Bogen, Bomben, Werkzeug-Siegeln, Bossdruck, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
+    description: '16-Bit-Top-Down-Action-Adventure mit Raumauftraegen, Medaillen, Schwert-Combos, Schild-Counter, Rollen, Lock-on, Bogen, Bomben, Werkzeug-Siegeln, Small-Key-Toren, Bossdruck, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
     emoji: '⚔️',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #10b981, #059669)',

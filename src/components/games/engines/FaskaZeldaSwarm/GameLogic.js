@@ -90,6 +90,7 @@ const LEARN_SHRINES = [
 const ZELDA_GOALS = [
   { id: 'combo-5', label: '5er Kampf-Serie', type: 'bestCombo', target: 5, reward: 160 },
   { id: 'blocks-3', label: '3 perfekte Blocks', type: 'perfectBlocks', target: 3, reward: 180 },
+  { id: 'key-doors-2', label: '2 Schluessel-Tore', type: 'keyDoorsOpened', target: 2, reward: 240 },
   { id: 'spin-5', label: '5 Spin-Treffer', type: 'spinHits', target: 5, reward: 190 },
   { id: 'bomb-hits-4', label: '4 Bombentreffer', type: 'bombHits', target: 4, reward: 210 },
   { id: 'lock-finisher-3', label: '3 Lock-on-Finisher', type: 'lockOnKills', target: 3, reward: 210 },
@@ -108,6 +109,7 @@ const ZELDA_CONTRACTS = [
   { id: 'block-2', label: '2 perfekte Blocks', type: 'perfectBlocks', target: 2, duration: 44, reward: { score: 210, health: 1, stamina: 28 } },
   { id: 'combo-3', label: '3er Kampf-Serie', type: 'bestCombo', target: 3, duration: 40, reward: { score: 220, rupees: 5, courage: 18 } },
   { id: 'item-4', label: '4 Funde sammeln', type: 'itemsCollected', target: 4, duration: 52, reward: { score: 180, arrows: 2, bombs: 1 } },
+  { id: 'key-door-1', label: '1 Schluessel-Tor oeffnen', type: 'keyDoorsOpened', target: 1, duration: 70, reward: { score: 260, rupees: 4, bombs: 1, courage: 20 } },
   { id: 'room-open', label: '1 Raumtor oeffnen', type: 'roomsOpened', target: 1, duration: 62, reward: { score: 260, rupees: 6, health: 1, courage: 20 } },
   { id: 'lock-kill', label: '1 Lock-on-Finisher', type: 'lockOnKills', target: 1, duration: 56, reward: { score: 260, arrows: 4, courage: 24 } },
   { id: 'learn-shrine', label: '1 Wort-Schrein loesen', type: 'shrinesSolved', target: 1, duration: 70, reward: { score: 280, rupees: 5, stamina: 30 }, mode: 'learn' },
@@ -121,6 +123,10 @@ const SWITCH_PROFILES = {
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+export function roomRequiresSmallKey(roomId) {
+  return roomId > 0 && (roomId % 3 === 0 || (roomId + 1) % 5 === 0);
+}
 
 function createStats() {
   return {
@@ -140,6 +146,7 @@ function createStats() {
     arrowHits: 0,
     itemsCollected: 0,
     keysCollected: 0,
+    keyDoorsOpened: 0,
   };
 }
 
@@ -461,6 +468,7 @@ const useZeldaStore = createGameStore(
     // Room
     currentRoom: 0,
     totalRooms: 10,
+    openedKeyRooms: [],
     roomData: null,
 
     // Enemies & items in current room
@@ -649,6 +657,7 @@ const useZeldaStore = createGameStore(
         spinTimer: 0,
         spinCooldown: 0,
         currentRoom: 0,
+        openedKeyRooms: [],
         enemies: room.enemies,
         items: room.items,
         bushes: room.bushes,
@@ -1030,7 +1039,37 @@ const useZeldaStore = createGameStore(
         return;
       }
 
-      set({ transitioning: true, transitionDirection: direction });
+      const needsSmallKey = direction === 'forward'
+        && roomRequiresSmallKey(newRoom)
+        && !state.openedKeyRooms.includes(newRoom);
+      if (needsSmallKey && state.keys <= 0) {
+        set({
+          roomMessage: 'Kleiner Schluessel fehlt. Besiege Waechter oder suche Truhen.',
+          roomMessageTimer: 1.55,
+        });
+        return;
+      }
+
+      if (needsSmallKey) {
+        set((s) => ({
+          transitioning: true,
+          transitionDirection: direction,
+          keys: Math.max(0, s.keys - 1),
+          openedKeyRooms: [...s.openedKeyRooms, newRoom],
+          score: s.score + 180,
+          highScore: Math.max(s.highScore, s.score + 180),
+          stats: {
+            ...s.stats,
+            keyDoorsOpened: s.stats.keyDoorsOpened + 1,
+          },
+          roomMessage: 'Kleiner Schluessel benutzt',
+          roomMessageTimer: 1.2,
+        }));
+        get().addCourageCharge(14);
+        get().evaluateGoals();
+      } else {
+        set({ transitioning: true, transitionDirection: direction });
+      }
 
       setTimeout(() => {
         const mode = get().mode;

@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
-import useZeldaStore from './GameLogic';
+import useZeldaStore, { roomRequiresSmallKey } from './GameLogic';
 
 /**
  * Zelda World — Top-down room with grass, walls, bushes, pots, enemies, items
@@ -470,7 +470,14 @@ function RoomWalls() {
 function DoorIndicators() {
   const currentRoom = useZeldaStore((s) => s.currentRoom);
   const totalRooms = useZeldaStore((s) => s.totalRooms);
+  const keys = useZeldaStore((s) => s.keys);
+  const openedKeyRooms = useZeldaStore((s) => s.openedKeyRooms);
   const doorLightRef = useRef();
+  const nextRoom = currentRoom + 1;
+  const northNeedsKey = currentRoom < totalRooms - 1
+    && roomRequiresSmallKey(nextRoom)
+    && !openedKeyRooms.includes(nextRoom);
+  const northDoorReady = !northNeedsKey || keys > 0;
 
   useFrame((state) => {
     try {
@@ -490,9 +497,9 @@ function DoorIndicators() {
           <mesh>
             <boxGeometry args={[1.5, 0.05, 0.8]} />
             <meshStandardMaterial
-              color="#8B6914"
-              emissive="#ffcc44"
-              emissiveIntensity={0.8}
+              color={northNeedsKey ? '#92400e' : '#8B6914'}
+              emissive={northNeedsKey ? '#facc15' : '#ffcc44'}
+              emissiveIntensity={northNeedsKey ? 1.15 : 0.8}
               toneMapped={false}
             />
           </mesh>
@@ -500,15 +507,23 @@ function DoorIndicators() {
           <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <coneGeometry args={[0.3, 0.5, 3]} />
             <meshStandardMaterial
-              color="#ffdd44"
-              emissive="#ffdd44"
-              emissiveIntensity={1.2}
+              color={northDoorReady ? '#ffdd44' : '#fb923c'}
+              emissive={northDoorReady ? '#ffdd44' : '#fb923c'}
+              emissiveIntensity={northNeedsKey ? 1.5 : 1.2}
               toneMapped={false}
               transparent
               opacity={0.7}
             />
           </mesh>
-          <pointLight ref={doorLightRef} color="#ffaa33" intensity={4} distance={6} decay={2} />
+          {northNeedsKey && (
+            <LabelSprite
+              text={northDoorReady ? 'KEY READY' : 'SMALL KEY'}
+              position={[0, 1.05, 0.2]}
+              color={northDoorReady ? '#fef08a' : '#fb923c'}
+              width={2.35}
+            />
+          )}
+          <pointLight ref={doorLightRef} color={northDoorReady ? '#ffaa33' : '#fb923c'} intensity={northNeedsKey ? 5 : 4} distance={6} decay={2} />
         </group>
       )}
 

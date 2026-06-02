@@ -68,7 +68,7 @@ const GAMES = [
   {
     id: 'bomb-maze',
     name: 'Faska Bomb Maze Pro',
-    description: 'Godot-4-Grid-Bomber nach Bomberman-Prinzip mit Kettenreaktionen, sichtbarer Blast-Vorschau, Jaeger-/Guard-/Runner-Gegnern, Kisten- und Schluesselzielen, Powerups, Zeitdruck, Touchsteuerung und Learncade fuer Wortarten, Mathe, Satzbau, Komposita und Englisch!',
+    description: 'Godot-4-Grid-Bomber nach Bomberman-Prinzip mit Bomb-Kick, Dash, Kettenreaktionen, sichtbarer Blast-Vorschau, Jaeger-/Guard-/Runner-/Tank-Gegnern, Schilden, Zeit- und Dash-Powerups, Kisten- und Schluesselzielen, Lernserien, Zeitdruck, Touchsteuerung und Learncade fuer Wortarten, Mathe, Satzbau, Komposita und Englisch!',
     emoji: '💣',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #f97316, #7c3aed)',

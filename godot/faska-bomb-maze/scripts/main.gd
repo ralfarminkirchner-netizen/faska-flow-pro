@@ -56,6 +56,7 @@ class TouchMazeOverlay:
 	var move_vector := Vector2.ZERO
 	var buttons := {
 		"bomb": false,
+		"dash": false,
 		"learn": false,
 		"cycle": false,
 	}
@@ -145,7 +146,8 @@ class TouchMazeOverlay:
 		var ui := _ui_scale()
 		return {
 			"bomb": Vector2(screen.x - 96.0 * ui, screen.y - 120.0 * ui),
-			"learn": Vector2(screen.x - 190.0 * ui, screen.y - 64.0 * ui),
+			"dash": Vector2(screen.x - 190.0 * ui, screen.y - 120.0 * ui),
+			"learn": Vector2(screen.x - 190.0 * ui, screen.y - 42.0 * ui),
 			"cycle": Vector2(screen.x - 96.0 * ui, screen.y - 42.0 * ui),
 		}
 
@@ -175,6 +177,7 @@ class TouchMazeOverlay:
 		draw_circle(center + move_vector * 42.0 * ui, 27.0 * ui, Color(0.25, 0.85, 1.0, 0.86))
 		var labels := {
 			"bomb": ["B", "BOMB"],
+			"dash": ["X", "DASH"],
 			"learn": ["L", "LEARN"],
 			"cycle": ["C", "FACH"],
 		}
@@ -190,9 +193,12 @@ class TouchMazeOverlay:
 
 var tiles := []
 var player := Vector2i(1, 1)
+var facing_dir := Vector2i.RIGHT
 var move_cooldown := 0.0
 var hurt_cooldown := 0.0
+var dash_cooldown := 0.0
 var lives := 3
+var shield := 0
 var bombs_left := 2
 var bomb_radius := 2
 var max_bombs := 2
@@ -203,6 +209,8 @@ var crates_destroyed := 0
 var rooms_cleared := 0
 var learn_hits := 0
 var mistakes := 0
+var learn_streak := 0
+var best_learn_streak := 0
 var exit_cell := Vector2i(COLS - 2, ROWS - 2)
 var exit_open := false
 var mode_learn := false
@@ -220,6 +228,7 @@ var level_timer := BASE_TIMER
 var panic_spawned := false
 var touch_overlay: TouchMazeOverlay
 var last_touch_bomb := false
+var last_touch_dash := false
 var last_touch_learn := false
 var last_touch_cycle := false
 var message := "Space: Bombe legen. Zerstoere Kisten, finde Schluessel und erreiche das Tor."
@@ -250,7 +259,10 @@ func reset_game() -> void:
 				row.append(FLOOR)
 		tiles.append(row)
 	player = Vector2i(1, 1)
+	facing_dir = Vector2i.RIGHT
 	hurt_cooldown = 0.0
+	dash_cooldown = 0.0
+	shield = min(2, int(level / 3))
 	max_bombs = min(4, 2 + int(level / 3))
 	bombs_left = max_bombs
 	bomb_radius = min(5, 2 + int(level / 4))
@@ -258,6 +270,8 @@ func reset_game() -> void:
 	crates_destroyed = 0
 	learn_hits = 0
 	mistakes = 0
+	learn_streak = 0
+	best_learn_streak = 0
 	repeat_queue.clear()
 	answered_ids.clear()
 	exit_open = false
@@ -286,8 +300,10 @@ func spawn_enemies() -> void:
 		Vector2i(COLS / 2, ROWS - 2),
 	]
 	for i in range(min(2 + level, starts.size())):
-		var kind := "hunter" if i % 3 == 0 else ("guard" if i % 3 == 1 else "runner")
-		enemies.append({"cell": starts[i], "timer": 0.28 + float(i) * 0.12, "alive": true, "kind": kind})
+		var kinds := ["hunter", "guard", "runner", "tank"]
+		var kind := String(kinds[i % kinds.size()])
+		var hp := 2 if kind == "tank" else 1
+		enemies.append({"cell": starts[i], "timer": 0.28 + float(i) * 0.12, "alive": true, "kind": kind, "hp": hp})
 
 func setup_answers() -> void:
 	answer_cells.clear()
@@ -334,6 +350,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			message_timer = 2.5
 		elif event.keycode == KEY_SPACE:
 			place_bomb()
+		elif event.keycode == KEY_X:
+			try_dash(facing_dir)
 
 func _process(delta: float) -> void:
 	if not has_focus():
@@ -347,6 +365,8 @@ func _process(delta: float) -> void:
 		move_cooldown -= delta
 	if hurt_cooldown > 0.0:
 		hurt_cooldown -= delta
+	if dash_cooldown > 0.0:
+		dash_cooldown -= delta
 	update_level_timer(delta)
 	update_touch_actions()
 	handle_movement()
@@ -369,17 +389,20 @@ func spawn_panic_enemy() -> void:
 	var candidates := [Vector2i(COLS - 2, 1), Vector2i(1, ROWS - 2), Vector2i(COLS - 2, ROWS - 2)]
 	for cell in candidates:
 		if can_enter(cell) and cell != player:
-			enemies.append({"cell": cell, "timer": 0.2, "alive": true, "kind": "hunter"})
+			enemies.append({"cell": cell, "timer": 0.2, "alive": true, "kind": "hunter", "hp": 1})
 			return
 
 func update_touch_actions() -> void:
 	if not touch_overlay:
 		return
 	var touch_bomb := touch_overlay.is_down("bomb")
+	var touch_dash := touch_overlay.is_down("dash")
 	var touch_learn := touch_overlay.is_down("learn")
 	var touch_cycle := touch_overlay.is_down("cycle")
 	if touch_bomb and not last_touch_bomb:
 		place_bomb()
+	if touch_dash and not last_touch_dash:
+		try_dash(facing_dir)
 	if touch_learn and not last_touch_learn:
 		mode_learn = not mode_learn
 		setup_answers()
@@ -393,6 +416,7 @@ func update_touch_actions() -> void:
 		message = "Fach gewechselt: %s" % LESSONS[lesson_index]
 		message_timer = 2.5
 	last_touch_bomb = touch_bomb
+	last_touch_dash = touch_dash
 	last_touch_learn = touch_learn
 	last_touch_cycle = touch_cycle
 
@@ -414,6 +438,11 @@ func handle_movement() -> void:
 		else:
 			dir = Vector2i.DOWN if touch_overlay.move_vector.y > 0.0 else Vector2i.UP
 	if dir == Vector2i.ZERO:
+		if dash_pressed():
+			try_dash(facing_dir)
+		return
+	facing_dir = dir
+	if dash_pressed() and try_dash(dir):
 		return
 	var target := player + dir
 	if can_enter(target):
@@ -423,18 +452,80 @@ func handle_movement() -> void:
 			won = true
 			rooms_cleared += 1
 			level += 1
-			score += 1000
+			score += 1000 + int(level_timer) * 6 + best_learn_streak * 80
 			message = "Raum geschafft! R startet Raum %d." % level
 			message_timer = 99.0
+	elif bomb_index_at(target) != -1 and try_kick_bomb(target, dir):
+		player = target
+		move_cooldown = 0.12
 
 func can_enter(cell: Vector2i) -> bool:
 	if not in_bounds(cell):
 		return false
 	if get_tile(cell) == WALL or get_tile(cell) == CRATE:
 		return false
-	for bomb in bombs:
-		if bomb["cell"] == cell:
+	return bomb_index_at(cell) == -1
+
+func dash_pressed() -> bool:
+	return Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_X) or (touch_overlay and touch_overlay.is_down("dash"))
+
+func try_dash(dir: Vector2i) -> bool:
+	if dir == Vector2i.ZERO or dash_cooldown > 0.0 or move_cooldown > 0.0:
+		return false
+	var moved := 0
+	for step in range(2):
+		var target := player + dir
+		if can_enter(target):
+			player = target
+			moved += 1
+		elif bomb_index_at(target) != -1 and try_kick_bomb(target, dir):
+			player = target
+			moved += 1
+			break
+		else:
+			break
+	if moved <= 0:
+		return false
+	dash_cooldown = 1.25
+	hurt_cooldown = maxf(hurt_cooldown, 0.18)
+	move_cooldown = 0.13
+	score += moved * 18
+	message = "Dash!"
+	message_timer = 0.9
+	return true
+
+func bomb_index_at(cell: Vector2i) -> int:
+	for i in range(bombs.size()):
+		if bombs[i]["cell"] == cell:
+			return i
+	return -1
+
+func can_bomb_slide_to(cell: Vector2i, ignored_bomb_index: int) -> bool:
+	if not in_bounds(cell):
+		return false
+	if get_tile(cell) != FLOOR:
+		return false
+	if cell == player:
+		return false
+	for i in range(bombs.size()):
+		if i != ignored_bomb_index and bombs[i]["cell"] == cell:
 			return false
+	return true
+
+func try_kick_bomb(cell: Vector2i, dir: Vector2i) -> bool:
+	var index := bomb_index_at(cell)
+	if index == -1:
+		return false
+	var next_cell := cell + dir
+	if not can_bomb_slide_to(next_cell, index):
+		return false
+	var bomb = bombs[index]
+	bomb["slide_dir"] = dir
+	bomb["slide_timer"] = 0.03
+	bombs[index] = bomb
+	score += 12
+	message = "Bombe gekickt."
+	message_timer = 1.0
 	return true
 
 func place_bomb() -> void:
@@ -444,13 +535,23 @@ func place_bomb() -> void:
 		if bomb["cell"] == player:
 			return
 	bombs_left -= 1
-	bombs.append({"cell": player, "timer": 1.55, "radius": bomb_radius})
+	bombs.append({"cell": player, "timer": 1.55, "radius": bomb_radius, "slide_dir": Vector2i.ZERO, "slide_timer": 0.0})
 	message = "Bombe gelegt."
 	message_timer = 1.0
 
 func update_bombs(delta: float) -> void:
 	for i in range(bombs.size() - 1, -1, -1):
 		var bomb = bombs[i]
+		var slide_dir: Vector2i = bomb.get("slide_dir", Vector2i.ZERO)
+		if slide_dir != Vector2i.ZERO:
+			bomb["slide_timer"] = float(bomb.get("slide_timer", 0.0)) - delta
+			if float(bomb["slide_timer"]) <= 0.0:
+				var next_cell: Vector2i = bomb["cell"] + slide_dir
+				if can_bomb_slide_to(next_cell, i):
+					bomb["cell"] = next_cell
+					bomb["slide_timer"] = 0.12
+				else:
+					bomb["slide_dir"] = Vector2i.ZERO
 		bomb["timer"] -= delta
 		if bomb["timer"] <= 0.0:
 			explode_bomb(bomb)
@@ -500,6 +601,7 @@ func trigger_chain_reactions(cells: Array, source_cell: Vector2i) -> void:
 			continue
 		if cells.has(queued["cell"]) and float(queued["timer"]) > 0.06:
 			queued["timer"] = 0.06
+			queued["slide_dir"] = Vector2i.ZERO
 			bombs[i] = queued
 			chain_count += 1
 			score += 40
@@ -507,7 +609,7 @@ func trigger_chain_reactions(cells: Array, source_cell: Vector2i) -> void:
 			message_timer = 1.4
 
 func spawn_powerup_from_crate(cell: Vector2i) -> void:
-	var roll := (cell.x * 7 + cell.y * 11 + level * 13) % 9
+	var roll := (cell.x * 7 + cell.y * 11 + level * 13) % 13
 	if roll == 0:
 		powerups.append({"cell": cell, "kind": "key"})
 		message = "Schluessel freigelegt."
@@ -522,6 +624,18 @@ func spawn_powerup_from_crate(cell: Vector2i) -> void:
 		message_timer = 2.0
 	elif roll == 3:
 		powerups.append({"cell": cell, "kind": "score"})
+	elif roll == 4:
+		powerups.append({"cell": cell, "kind": "shield"})
+		message = "Schild gefunden."
+		message_timer = 2.0
+	elif roll == 5:
+		powerups.append({"cell": cell, "kind": "time"})
+		message = "Zeitbonus gefunden."
+		message_timer = 2.0
+	elif roll == 6:
+		powerups.append({"cell": cell, "kind": "dash"})
+		message = "Dash-Boost gefunden."
+		message_timer = 2.0
 
 func check_powerups() -> void:
 	for i in range(powerups.size() - 1, -1, -1):
@@ -539,6 +653,16 @@ func check_powerups() -> void:
 				max_bombs = min(5, max_bombs + 1)
 				bombs_left += 1
 				message = "Mehr Bomben."
+			"shield":
+				shield = min(3, shield + 1)
+				message = "Schild +1."
+			"time":
+				level_timer = minf(BASE_TIMER, level_timer + 14.0)
+				message = "Zeit +14."
+			"dash":
+				dash_cooldown = 0.0
+				score += 60
+				message = "Dash bereit."
 			_:
 				score += 100
 				message = "Bonus +100."
@@ -552,8 +676,15 @@ func damage_enemies(cells: Array) -> void:
 		if not enemy["alive"]:
 			continue
 		if cells.has(enemy["cell"]):
-			enemy["alive"] = false
-			score += 120
+			enemy["hp"] = int(enemy.get("hp", 1)) - 1
+			if int(enemy["hp"]) <= 0:
+				enemy["alive"] = false
+				score += 120
+				message = "Gegner raus."
+			else:
+				score += 55
+				message = "Gegner angeschlagen."
+			message_timer = 1.2
 			enemies[i] = enemy
 	update_exit_state()
 
@@ -584,6 +715,11 @@ func check_answers(cells: Array) -> void:
 			score += 360 if q.get("repeat", false) else 300
 			keys += 1
 			learn_hits += 1
+			learn_streak += 1
+			best_learn_streak = max(best_learn_streak, learn_streak)
+			if learn_streak > 0 and learn_streak % 3 == 0:
+				shield = min(3, shield + 1)
+				score += 240
 			exit_open = learn_hits >= LEARN_GOAL
 			answered_ids[_question_id(q)] = true
 			_remove_repeat(q)
@@ -594,6 +730,7 @@ func check_answers(cells: Array) -> void:
 		else:
 			lives -= 1
 			mistakes += 1
+			learn_streak = 0
 			_queue_repeat(q)
 			message = "Falsch. Tipp: %s" % q["hint"]
 			if lives <= 0:
@@ -625,6 +762,8 @@ func enemy_directions(enemy: Dictionary) -> Array:
 		options.sort_custom(func(a, b): return abs((enemy["cell"] + a).x - exit_cell.x) + abs((enemy["cell"] + a).y - exit_cell.y) < abs((enemy["cell"] + b).x - exit_cell.x) + abs((enemy["cell"] + b).y - exit_cell.y))
 	elif kind == "runner":
 		options.sort_custom(func(a, b): return int((enemy["cell"] + a).x * 7 + (enemy["cell"] + a).y * 11 + level) % 9 < int((enemy["cell"] + b).x * 7 + (enemy["cell"] + b).y * 11 + level) % 9)
+	elif kind == "tank":
+		options.sort_custom(func(a, b): return abs((enemy["cell"] + a).x - player.x) + abs((enemy["cell"] + a).y - player.y) < abs((enemy["cell"] + b).x - player.x) + abs((enemy["cell"] + b).y - player.y))
 	else:
 		options.sort_custom(func(a, b): return (enemy["cell"] + a).distance_squared_to(player) < (enemy["cell"] + b).distance_squared_to(player))
 	return options
@@ -635,6 +774,8 @@ func enemy_step_time(enemy: Dictionary) -> float:
 			return 0.34
 		"guard":
 			return 0.58
+		"tank":
+			return 0.72
 		_:
 			return maxf(0.32, 0.48 - float(level) * 0.015)
 
@@ -644,6 +785,8 @@ func enemy_color(enemy: Dictionary) -> Color:
 			return Color.html("#f97316")
 		"guard":
 			return Color.html("#a78bfa")
+		"tank":
+			return Color.html("#38bdf8")
 		_:
 			return Color.html("#ef4444")
 
@@ -653,6 +796,8 @@ func enemy_label(enemy: Dictionary) -> String:
 			return "R"
 		"guard":
 			return "G"
+		"tank":
+			return "T"
 		_:
 			return "J"
 
@@ -667,6 +812,12 @@ func check_player_hazards() -> void:
 			hurt_player("Gegnerkontakt.")
 
 func hurt_player(text: String) -> void:
+	if shield > 0:
+		shield -= 1
+		hurt_cooldown = 0.9
+		message = "Schild blockt: " + text
+		message_timer = 1.6
+		return
 	lives -= 1
 	hurt_cooldown = 1.0
 	message = text
@@ -695,7 +846,7 @@ func _ui_scale() -> float:
 func board_layout() -> Dictionary:
 	var compact := size.x < 720.0 or _is_portrait_layout()
 	var touch_reserved: float = 520.0 if compact else (150.0 if touch_overlay != null and touch_overlay._should_show() else 48.0)
-	var reserved_y: float = (430.0 if mode_learn else 330.0) if compact else (154.0 if mode_learn else 118.0)
+	var reserved_y: float = (520.0 if mode_learn else 350.0) if compact else (190.0 if mode_learn else 146.0)
 	var side_margin: float = 90.0 if compact else 70.0
 	var tile: float = floor(min((size.x - side_margin) / float(COLS), (size.y - reserved_y - touch_reserved) / float(ROWS)))
 	tile = clampf(tile, 64.0, 96.0) if compact else clampf(tile, 30.0, 64.0)
@@ -759,7 +910,7 @@ func draw_answers(origin: Vector2, tile: float) -> void:
 		draw_arc(rect.get_center(), tile * 0.42, 0.0, TAU, 5, color, 4.0)
 		draw_string(font, rect.position + Vector2(4, rect.size.y * 0.58), answer["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, max(11, int(tile * 0.22)), Color.html("#f8fafc"))
 	var ui := _ui_scale()
-	var prompt_rect: Rect2 = Rect2(12.0 * ui, 96.0 * ui, minf(size.x - 24.0 * ui, 620.0 * ui), 30.0 * ui)
+	var prompt_rect: Rect2 = Rect2(12.0 * ui, 144.0 * ui, minf(size.x - 24.0 * ui, 620.0 * ui), 30.0 * ui)
 	draw_rect(prompt_rect, Color(0.02, 0.05, 0.09, 0.78), true)
 	var prefix := "Wiederholung: " if q.get("repeat", false) else ""
 	draw_string(font, prompt_rect.position + Vector2(10.0, 22.0) * ui, "%s%s" % [prefix, q["prompt"]], HORIZONTAL_ALIGNMENT_LEFT, prompt_rect.size.x - 20.0 * ui, 17 * ui, Color.html("#f8fafc"))
@@ -780,6 +931,15 @@ func draw_powerups(origin: Vector2, tile: float) -> void:
 			"bomb":
 				color = Color.html("#38bdf8")
 				label = "B"
+			"shield":
+				color = Color.html("#93c5fd")
+				label = "S"
+			"time":
+				color = Color.html("#c4b5fd")
+				label = "T"
+			"dash":
+				color = Color.html("#f472b6")
+				label = "X"
 			_:
 				color = Color.html("#22c55e")
 				label = "+"
@@ -806,6 +966,11 @@ func draw_bombs(origin: Vector2, tile: float) -> void:
 		var rect := cell_rect(bomb["cell"], origin, tile, tile * 0.22)
 		draw_circle(rect.get_center(), rect.size.x * 0.45, Color.html("#020617"))
 		draw_circle(rect.get_center() + Vector2(rect.size.x * 0.18, -rect.size.y * 0.22), rect.size.x * 0.12, Color.html("#f97316"))
+		var slide_dir: Vector2i = bomb.get("slide_dir", Vector2i.ZERO)
+		if slide_dir != Vector2i.ZERO:
+			var center := rect.get_center()
+			var arrow := Vector2(slide_dir) * rect.size.x * 0.34
+			draw_line(center - arrow * 0.45, center + arrow, Color.html("#facc15"), 3.0)
 
 func draw_explosions(origin: Vector2, tile: float) -> void:
 	for explosion in explosions:
@@ -824,6 +989,8 @@ func draw_enemies(origin: Vector2, tile: float) -> void:
 		draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.2, rect.size.y * 0.34), Vector2(rect.size.x * 0.18, rect.size.y * 0.18)), Color.html("#f8fafc"), true)
 		draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.62, rect.size.y * 0.34), Vector2(rect.size.x * 0.18, rect.size.y * 0.18)), Color.html("#f8fafc"), true)
 		draw_string(get_theme_default_font(), rect.position + Vector2(2, rect.size.y * 0.88), enemy_label(enemy), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x - 4, max(9, int(tile * 0.16)), Color.html("#020617"))
+		if int(enemy.get("hp", 1)) > 1:
+			draw_string(get_theme_default_font(), rect.position + Vector2(rect.size.x * 0.58, rect.size.y * 0.25), str(enemy["hp"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x * 0.34, max(9, int(tile * 0.16)), Color.html("#020617"))
 
 func draw_player(origin: Vector2, tile: float) -> void:
 	var rect := cell_rect(player, origin, tile, tile * 0.16)
@@ -835,11 +1002,11 @@ func draw_player(origin: Vector2, tile: float) -> void:
 func draw_hud() -> void:
 	var font := get_theme_default_font()
 	var ui := _ui_scale()
-	draw_rect(Rect2(12.0 * ui, 12.0 * ui, minf(size.x - 24.0 * ui, 460.0 * ui), 108.0 * ui), Color(0.02, 0.05, 0.09, 0.78), true)
+	draw_rect(Rect2(12.0 * ui, 12.0 * ui, minf(size.x - 24.0 * ui, 540.0 * ui), 128.0 * ui), Color(0.02, 0.05, 0.09, 0.78), true)
 	draw_string(font, Vector2(24.0, 38.0) * ui, "FASKA BOMB MAZE PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 21 * ui, Color.html("#facc15"))
-	draw_string(font, Vector2(24.0, 64.0) * ui, "Score %d  Raum %d  Zeit %ds  Leben %d  Bomben %d/%d  Radius %d" % [score, level, int(level_timer), lives, bombs_left, max_bombs, bomb_radius], HORIZONTAL_ALIGNMENT_LEFT, -1, 15 * ui, Color.html("#f8fafc"))
-	draw_string(font, Vector2(24.0, 88.0) * ui, "Keys %d/%d  Kisten %d/%d  Gegner %d  Ketten %d" % [keys, KEY_GOAL, crates_destroyed, CRATE_GOAL, active_enemy_count(), chain_count], HORIZONTAL_ALIGNMENT_LEFT, -1, 14 * ui, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(24.0, 110.0) * ui, "%s | %s | Wdh %d" % ["Learncade" if mode_learn else "Normal", mission_text(), repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13 * ui, Color.html("#fde68a"))
+	draw_string(font, Vector2(24.0, 64.0) * ui, "Score %d  Raum %d  Zeit %ds  Leben %d  Schild %d  Dash %s" % [score, level, int(level_timer), lives, shield, "OK" if dash_cooldown <= 0.0 else str(int(ceil(dash_cooldown * 10.0)))], HORIZONTAL_ALIGNMENT_LEFT, -1, 15 * ui, Color.html("#f8fafc"))
+	draw_string(font, Vector2(24.0, 88.0) * ui, "Bomben %d/%d  Radius %d  Keys %d/%d  Kisten %d/%d  Gegner %d" % [bombs_left, max_bombs, bomb_radius, keys, KEY_GOAL, crates_destroyed, CRATE_GOAL, active_enemy_count()], HORIZONTAL_ALIGNMENT_LEFT, -1, 14 * ui, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(24.0, 110.0) * ui, "%s | %s | Wdh %d | Serie %d/%d | Ketten %d" % ["Learncade" if mode_learn else "Normal", mission_text(), repeat_queue.size(), learn_streak, best_learn_streak, chain_count], HORIZONTAL_ALIGNMENT_LEFT, -1, 13 * ui, Color.html("#fde68a"))
 	if message_timer > 0.0:
 		draw_rect(Rect2(12.0 * ui, size.y - 40.0 * ui, min(size.x - 24.0 * ui, 760.0 * ui), 28.0 * ui), Color(0.02, 0.05, 0.09, 0.78), true)
 		draw_string(font, Vector2(24.0 * ui, size.y - 19.0 * ui), message, HORIZONTAL_ALIGNMENT_LEFT, -1, 15 * ui, Color.html("#f8fafc"))

@@ -255,7 +255,7 @@ const GAMES = [
   {
     id: 'moorhuhn',
     name: 'Faska Target Rush',
-    description: 'Zielspiel mit Waffenwechsel, Powerschuss, Bosswellen, Schildzielen, Combo-Schuesse, Munition, Fever, Missionen und Learncade-Antwortziele!',
+    description: 'Zielspiel mit Waffenwechsel, Powerschuss, Bosswellen, Schildzielen, Combo-Schuesse, Munition, Fever, aktiven Zeit-Auftraegen, Praezisionsdruck und Learncade-Antwortzielen!',
     emoji: '🎯',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #f97316, #ea580c)',

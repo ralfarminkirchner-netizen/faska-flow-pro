@@ -31,6 +31,74 @@ const TARGET_RUSH_GOALS = [
   { id: 'learn_5', label: '5 Learn-Antworten', stat: 'learnCorrect', target: 5, mode: 'learn', reward: 1250 },
 ];
 
+const SHOOTING_CONTRACTS = [
+  {
+    id: 'hotStreak',
+    label: '6 Trefferkette',
+    stat: 'hit',
+    target: 6,
+    seconds: 28,
+    reward: { score: 720, focus: 14, time: 3 },
+  },
+  {
+    id: 'precisionRun',
+    label: '3 Praezisionstreffer',
+    stat: 'precision',
+    target: 3,
+    seconds: 34,
+    reward: { score: 840, focus: 20, fever: 3.5 },
+  },
+  {
+    id: 'bonusSweep',
+    label: '2 Bonusziele',
+    stat: 'bonus',
+    target: 2,
+    seconds: 38,
+    reward: { score: 780, time: 4, fever: 3 },
+  },
+  {
+    id: 'shieldWork',
+    label: '2 Schildziele',
+    stat: 'shield',
+    target: 2,
+    seconds: 42,
+    reward: { score: 680, shield: 45, focus: 10 },
+  },
+  {
+    id: 'weaponCraft',
+    label: '2 Waffenwechsel-Treffer',
+    stat: 'weaponHit',
+    target: 2,
+    seconds: 40,
+    reward: { score: 760, focus: 16, ammo: 3 },
+  },
+  {
+    id: 'bossCrack',
+    label: '1 Boss knacken',
+    stat: 'boss',
+    target: 1,
+    seconds: 58,
+    reward: { score: 1450, fever: 5, shield: 30 },
+  },
+  {
+    id: 'cleanHands',
+    label: 'Kein Gefahrenziel',
+    stat: 'clean',
+    target: 18,
+    seconds: 32,
+    reward: { score: 900, focus: 18, time: 3 },
+  },
+  {
+    id: 'learnAnswer',
+    label: '3 richtige Antworten',
+    stat: 'learn',
+    target: 3,
+    seconds: 46,
+    mode: 'learn',
+    reward: { score: 1050, focus: 18, time: 5, fever: 4 },
+  },
+];
+
 const LEARN_TASKS = [
   {
     subject: 'Deutsch',
@@ -205,6 +273,71 @@ function recordStat(game, stat, amount = 1) {
   game.messageTimer = 1.15;
 }
 
+function startNextContract(game) {
+  const candidates = SHOOTING_CONTRACTS.filter((contract) => {
+    if (contract.mode && contract.mode !== game.mode) return false;
+    if (contract.id === 'bossCrack' && game.mode !== 'arcade') return false;
+    return true;
+  });
+  if (candidates.length === 0) return;
+  game.contractIndex += 1;
+  game.contract = candidates[game.contractIndex % candidates.length];
+  game.contractProgress = 0;
+  game.contractTimer = game.contract.seconds + Math.min(14, game.level * 1.2);
+  game.message = `Auftrag: ${game.contract.label}`;
+  game.messageTimer = 1.05;
+}
+
+function advanceContract(game, stat, amount = 1, x = game.reticle.x, y = game.reticle.y) {
+  if (!game.contract || game.contract.stat !== stat) return;
+  game.contractProgress = Math.min(game.contract.target, game.contractProgress + Math.max(1, amount));
+  if (game.contractProgress < game.contract.target) return;
+  completeContract(game, x, y);
+}
+
+function completeContract(game, x = game.reticle.x, y = game.reticle.y) {
+  if (!game.contract) return;
+  const reward = game.contract.reward;
+  const bonus = reward.score + game.level * 60 + game.contractMedals * 85;
+  game.score += bonus;
+  game.focus = Math.min(100, game.focus + (reward.focus || 0));
+  game.time = Math.min(game.mode === 'learn' ? 112 : 92, game.time + (reward.time || 0));
+  game.fever = Math.max(game.fever, reward.fever || 0);
+  game.shield = Math.min(100, game.shield + (reward.shield || 0));
+  game.ammo = Math.min(game.maxAmmo, game.ammo + (reward.ammo || 0));
+  game.contractMedals += 1;
+  addFloater(game, x, y - 16, `Auftrag +${bonus}`, '#facc15');
+  spawnParticles(game, x, y, '#facc15', 24, 260);
+  game.message = `${game.contract.label}: geschafft`;
+  game.messageTimer = 1.15;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.9;
+}
+
+function failContract(game) {
+  if (!game.contract) return;
+  game.contractFails += 1;
+  game.focus = Math.max(0, game.focus - 10);
+  game.message = `${game.contract.label}: verpasst`;
+  game.messageTimer = 0.9;
+  game.contract = null;
+  game.contractProgress = 0;
+  game.contractTimer = 0;
+  game.contractCooldown = 1.4;
+}
+
+function updateContract(game, dt) {
+  if (game.contract) {
+    game.contractTimer = Math.max(0, game.contractTimer - dt);
+    if (game.contractTimer <= 0) failContract(game);
+    return;
+  }
+  game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+  if (game.contractCooldown <= 0) startNextContract(game);
+}
+
 function makeTarget(game, type = 'standard', overrides = {}) {
   const spec = TARGET_TYPES[type];
   const fromLeft = seededUnit(game.spawnSeed, 9) > 0.5;
@@ -279,11 +412,20 @@ function makeInitialGame(mode = 'arcade') {
     hits: 0,
     reticle: { x: WIDTH / 2, y: HEIGHT / 2 },
     wind: 0,
+    contract: null,
+    contractIndex: -1,
+    contractProgress: 0,
+    contractTimer: 0,
+    contractCooldown: 0.7,
+    contractMedals: 0,
+    contractFails: 0,
+    lastWeaponIndex: 0,
+    swappedSinceHit: false,
     stats: createStats(),
     goals: createGoals(mode),
     message: mode === 'learn'
       ? 'Triff das Ziel mit der richtigen Antwort.'
-      : 'Trefferketten, Bonusziele und Gefahren sauber unterscheiden.',
+      : 'Trefferketten, Praezision und Auftraege sauber spielen.',
     messageTimer: 2.4,
     shake: 0,
   };
@@ -376,6 +518,8 @@ function cycleWeapon(game, explicitIndex = null) {
   const nextIndex = explicitIndex === null ? (game.weaponIndex + 1) % WEAPONS.length : explicitIndex % WEAPONS.length;
   if (nextIndex === game.weaponIndex) return;
   game.weaponIndex = nextIndex;
+  game.lastWeaponIndex = nextIndex;
+  game.swappedSinceHit = true;
   game.maxAmmo = WEAPONS[nextIndex].ammo + Math.max(0, Math.floor((game.level - 1) / 3));
   game.ammo = Math.min(game.ammo, game.maxAmmo);
   if (game.ammo <= 0) game.ammo = Math.ceil(game.maxAmmo / 2);
@@ -402,6 +546,13 @@ function scoreTarget(game, target, hitX, hitY) {
   game.streak += 1;
   game.hits += 1;
   game.focus = Math.min(100, game.focus + 7 + precision * 6);
+  advanceContract(game, 'hit', 1, target.x, target.y);
+  advanceContract(game, 'clean', 1, target.x, target.y);
+  if (precision > 0.72) advanceContract(game, 'precision', 1, target.x, target.y);
+  if (game.swappedSinceHit) {
+    advanceContract(game, 'weaponHit', 1, target.x, target.y);
+    game.swappedSinceHit = false;
+  }
 
   let points = Math.round(target.points + game.combo * 38 + precisionBonus + game.level * 24);
   if (game.fever > 0) points = Math.round(points * 1.35);
@@ -411,17 +562,20 @@ function scoreTarget(game, target, hitX, hitY) {
 
   if (target.type === 'bonus') {
     recordStat(game, 'bonusTargets');
+    advanceContract(game, 'bonus', 1, target.x, target.y);
     game.time = Math.min(game.mode === 'learn' ? 110 : 86, game.time + 3.5);
     game.fever = Math.max(game.fever, 4);
   }
   if (target.type === 'shield') {
     recordStat(game, 'shieldTargets');
+    advanceContract(game, 'shield', 1, target.x, target.y);
     game.shield = Math.min(100, game.shield + 42);
     game.focus = Math.min(100, game.focus + 16);
     addFloater(game, target.x, target.y + target.radius + 24, 'SCHILD', '#22c55e');
   }
   if (target.type === 'boss') {
     recordStat(game, 'bossKills');
+    advanceContract(game, 'boss', 1, target.x, target.y);
     game.time = Math.min(game.mode === 'learn' ? 110 : 92, game.time + 7);
     game.fever = Math.max(game.fever, 7);
     game.shield = Math.min(100, game.shield + 35);
@@ -445,6 +599,7 @@ function handleLearnTarget(game, target, hitX, hitY) {
     game.correct += 1;
     game.learnIndex += 1;
     recordStat(game, 'learnCorrect');
+    advanceContract(game, 'learn', 1, target.x, target.y);
     game.message = `${task.correct} stimmt`;
     game.messageTimer = 1;
     scoreTarget(game, target, hitX, hitY);
@@ -459,6 +614,7 @@ function handleLearnTarget(game, target, hitX, hitY) {
   game.focus = Math.max(0, game.focus - 16);
   game.score = Math.max(0, game.score - 180);
   game.time = Math.max(8, game.time - 4);
+  if (game.contract?.stat === 'learn') failContract(game);
   game.message = `${target.label} passt nicht. Gesucht: ${task.correct}`;
   game.messageTimer = 1.25;
   addFloater(game, target.x, target.y - target.radius - 12, 'falsch', '#fb7185');
@@ -502,6 +658,7 @@ function fireAt(game, x, y) {
   if (!target) {
     game.combo = 0;
     game.streak = 0;
+    if (['hit', 'precision', 'weaponHit'].includes(game.contract?.stat)) game.contractProgress = 0;
     game.focus = Math.max(0, game.focus - 4);
     addFloater(game, aim.x, aim.y - 14, 'daneben', '#cbd5e1');
     spawnParticles(game, aim.x, aim.y, '#e2e8f0', 6, 90);
@@ -516,6 +673,8 @@ function fireAt(game, x, y) {
   if (target.type === 'hazard') {
     game.combo = 0;
     game.streak = 0;
+    if (['hit', 'precision', 'weaponHit'].includes(game.contract?.stat)) game.contractProgress = 0;
+    if (game.contract?.stat === 'clean') failContract(game);
     game.score = Math.max(0, game.score - 240);
     if (game.shield > 0) game.shield = Math.max(0, game.shield - 42);
     else game.lives -= 1;
@@ -633,6 +792,7 @@ function updateGame(game, dt) {
 
   updateEffects(game, dt);
   if (!game.started || game.finished) return;
+  updateContract(game, dt);
 
   game.time -= dt;
   if (game.time <= 0) {
@@ -919,7 +1079,7 @@ function drawHud(ctx, game) {
   const weapon = currentWeapon(game);
   ctx.save();
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, 24, 22, 468, game.mode === 'learn' ? 178 : 140, 18);
+  drawRoundedRect(ctx, 24, 22, 468, game.mode === 'learn' ? 200 : 164, 18);
   ctx.fill();
   ctx.fillStyle = '#f8fafc';
   ctx.font = '900 25px Outfit, sans-serif';
@@ -929,17 +1089,19 @@ function drawHud(ctx, game) {
   ctx.fillText(`Score ${game.score}  High ${Math.max(game.highScore, game.score)}  Level ${game.level}`, 48, 88);
   ctx.fillStyle = '#a7f3d0';
   ctx.fillText(`Waffe ${weapon.label}  Schild ${Math.round(game.shield)}  Power ${game.powerShot ? 'bereit' : '-'}`, 48, 116);
+  ctx.fillStyle = '#fef3c7';
+  ctx.fillText(`Auftraege ${game.contractMedals}  Verpasst ${game.contractFails}`, 48, 144);
   if (game.mode === 'learn') {
     const task = currentTask(game);
     ctx.fillStyle = '#67e8f9';
-    ctx.fillText(`${task.subject} - ${task.kind}`, 48, 144);
+    ctx.fillText(`${task.subject} - ${task.kind}`, 48, 166);
     ctx.fillStyle = '#f8fafc';
     ctx.font = '900 16px Outfit, sans-serif';
-    ctx.fillText(task.prompt, 48, 170, 390);
+    ctx.fillText(task.prompt, 48, 192, 390);
   }
 
   ctx.fillStyle = 'rgba(2,6,23,.78)';
-  drawRoundedRect(ctx, WIDTH - 430, 22, 406, 236, 18);
+  drawRoundedRect(ctx, WIDTH - 430, 22, 406, 326, 18);
   ctx.fill();
   ctx.textAlign = 'right';
   ctx.fillStyle = '#f8fafc';
@@ -956,10 +1118,29 @@ function drawHud(ctx, game) {
   drawGauge(ctx, WIDTH - 392, 166, 150, 'SCHILD', game.shield, '#a78bfa');
   ctx.fillStyle = '#93c5fd';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText('MISSIONEN', WIDTH - 210, 176);
+  ctx.fillText('AKTIVER AUFTRAG', WIDTH - 210, 176);
+  if (game.contract) {
+    const ratio = game.contractProgress / Math.max(1, game.contract.target);
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillText(game.contract.label, WIDTH - 392, 198, 350);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText(`${game.contractProgress}/${game.contract.target} · ${Math.ceil(game.contractTimer)}s`, WIDTH - 392, 216);
+    ctx.fillStyle = 'rgba(148,163,184,.22)';
+    drawRoundedRect(ctx, WIDTH - 392, 228, 322, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#22d3ee';
+    drawRoundedRect(ctx, WIDTH - 392, 228, 322 * clamp(ratio, 0, 1), 10, 5);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Naechstes Ziel wird vorbereitet', WIDTH - 392, 198, 350);
+  }
+  ctx.fillStyle = '#93c5fd';
+  ctx.font = '900 12px Outfit, sans-serif';
+  ctx.fillText('MISSIONEN', WIDTH - 210, 260);
   game.goals.slice(0, 4).forEach((goal, index) => {
     const progress = Math.min(game.stats[goal.stat] || 0, goal.target);
-    const y = 198 + index * 15;
+    const y = 282 + index * 15;
     ctx.fillStyle = goal.completed ? '#bbf7d0' : '#e2e8f0';
     ctx.fillText(`${progress}/${goal.target} ${goal.label}`, WIDTH - 392, y);
   });
@@ -985,7 +1166,7 @@ function drawMessage(ctx, game) {
     ctx.fillText(game.finished ? game.message : 'FASKA TARGET RUSH PRO', WIDTH / 2, 264);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 18px Outfit, sans-serif';
-    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.score, game.highScore)}` : 'Schnelles Zielspiel mit Combo, Munition, Fever und Learncade-Zielen im Spielfeld.', WIDTH / 2, 304);
+    ctx.fillText(game.finished ? `Score ${game.score} - Highscore ${Math.max(game.score, game.highScore)}` : 'Schnelles Zielspiel mit Waffen, Munition, Fever, Zeit-Auftraegen und Learncade-Zielen im Spielfeld.', WIDTH / 2, 304);
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 16px Outfit, sans-serif';
     ctx.fillText('Oben Normal oder Learncade waehlen.', WIDTH / 2, 336);
@@ -1061,8 +1242,8 @@ export default function FaskaMoorhuhnSwarm() {
     gameRef.current = makeInitialGame(nextMode);
     gameRef.current.started = true;
     gameRef.current.message = nextMode === 'learn'
-      ? 'Lies die Aufgabe und triff die richtige Antwort.'
-      : 'Trefferketten aufbauen, Gefahrenziele meiden.';
+      ? 'Lies die Aufgabe, triff Antworten und erfuell Auftraege.'
+      : 'Trefferketten, Praezision und Auftraege sauber spielen.';
     gameRef.current.messageTimer = 1.7;
     syncUi();
   }, [syncUi]);

@@ -24,6 +24,8 @@ const FOV := 1.0471975512
 const RAY_COUNT := 192
 const MAX_DIST := 14.0
 const LEARN_GOAL := 7
+const EXIT_POS := Vector2(7.5, 14.5)
+const MAX_WAVE := 4
 const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 
 const QUESTIONS_WORD := [
@@ -219,8 +221,15 @@ var grenades := 3
 var reactor_keys := 0
 var score := 0
 var combo := 0
+var kills := 0
+var elite_kills := 0
+var shots_fired := 0
+var shots_hit := 0
+var wave := 1
+var wave_spawn_timer := 0.0
+var alarm := 0.0
 var exit_open := false
-var mode_learn := true
+var mode_learn := false
 var lesson_index := 0
 var question_index := 0
 var learn_hits := 0
@@ -264,8 +273,15 @@ func reset_game() -> void:
 	reactor_keys = 0
 	score = 0
 	combo = 0
+	kills = 0
+	elite_kills = 0
+	shots_fired = 0
+	shots_hit = 0
+	wave = 1
+	wave_spawn_timer = 0.0
+	alarm = 0.0
 	exit_open = false
-	mode_learn = true
+	mode_learn = false
 	lesson_index = 0
 	question_index = 0
 	learn_hits = 0
@@ -282,7 +298,7 @@ func reset_game() -> void:
 	spawn_pickups()
 	setup_terminals()
 	blasts.clear()
-	message = "Doom Pro: Reaktorjagd, Gegnerdruck, Ressourcen und Learncade-Terminals."
+	message = "Doom Pro: Normalmodus. Reaktorschluessel holen, Wellen stoppen, Exit oeffnen."
 	message_timer = 5.0
 
 func spawn_enemies() -> void:
@@ -293,13 +309,63 @@ func spawn_enemies() -> void:
 		Vector2(13.3, 13.2),
 	]
 	for i in range(starts.size()):
-		enemies.append({
-			"pos": starts[i],
-			"hp": 30 + int(i % 3 == 0) * 25,
-			"kind": "brute" if i % 3 == 0 else "imp",
-			"cooldown": 0.6 + float(i) * 0.11,
-			"hit": 0.0,
-		})
+		var kind := "brute" if i % 3 == 0 else ("runner" if i % 3 == 1 else "imp")
+		add_enemy(starts[i], kind, 0.6 + float(i) * 0.11)
+
+func add_enemy(pos: Vector2, kind: String, cooldown: float) -> void:
+	enemies.append({
+		"pos": pos,
+		"hp": enemy_hp(kind),
+		"kind": kind,
+		"cooldown": cooldown,
+		"hit": 0.0,
+	})
+
+func enemy_hp(kind: String) -> int:
+	if kind == "brute":
+		return 68
+	if kind == "runner":
+		return 34
+	if kind == "elite":
+		return 96
+	return 42
+
+func enemy_speed(kind: String) -> float:
+	if kind == "brute":
+		return 0.62
+	if kind == "runner":
+		return 1.34
+	if kind == "elite":
+		return 0.94
+	return 1.02
+
+func enemy_damage(kind: String) -> int:
+	if kind == "brute":
+		return 17
+	if kind == "runner":
+		return 8
+	if kind == "elite":
+		return 21
+	return 10
+
+func spawn_wave() -> void:
+	if wave >= MAX_WAVE:
+		return
+	wave += 1
+	wave_spawn_timer = 0.0
+	alarm = minf(100.0, alarm + 28.0)
+	var starts: Array = [Vector2(2.6, 2.6), Vector2(13.4, 2.5), Vector2(2.5, 13.2), Vector2(13.2, 13.0), Vector2(8.5, 10.5)]
+	for i in range(wave + 2):
+		var kind := "imp"
+		if wave >= 3 and i == 0:
+			kind = "elite"
+		elif i % 3 == 0:
+			kind = "brute"
+		elif i % 3 == 1:
+			kind = "runner"
+		add_enemy(starts[i % starts.size()], kind, 0.55 + float(i) * 0.14)
+	message = "Welle %d: Reaktor-Alarm steigt." % wave
+	message_timer = 2.0
 
 func spawn_pickups() -> void:
 	pickups.clear()
@@ -416,13 +482,23 @@ func _process(delta: float) -> void:
 		dash_timer -= delta
 	if dash_cooldown > 0.0:
 		dash_cooldown -= delta
+	alarm = maxf(0.0, alarm - delta * 2.2)
 	update_touch_actions()
 	update_player(delta)
 	update_enemies(delta)
 	update_pickups()
 	update_blasts(delta)
 	update_exit()
+	update_waves(delta)
 	queue_redraw()
+
+func update_waves(delta: float) -> void:
+	if enemies.size() > 2 or wave >= MAX_WAVE or exit_open:
+		wave_spawn_timer = 0.0
+		return
+	wave_spawn_timer += delta
+	if wave_spawn_timer >= 2.2:
+		spawn_wave()
 
 func update_touch_actions() -> void:
 	if touch_overlay == null:
@@ -500,12 +576,13 @@ func update_enemies(delta: float) -> void:
 		enemy["cooldown"] = maxf(0.0, float(enemy["cooldown"]) - delta)
 		if dist < 8.0 and has_line_of_sight(pos, player_pos):
 			if dist > 0.85:
-				var move: Vector2 = to_player.normalized() * delta * (0.72 if str(enemy["kind"]) == "brute" else 1.05)
+				var speed_boost := 1.0 + alarm / 260.0
+				var move: Vector2 = to_player.normalized() * delta * enemy_speed(str(enemy["kind"])) * speed_boost
 				var next: Vector2 = pos + move
 				if can_stand(next):
 					enemy["pos"] = next
 			elif float(enemy["cooldown"]) <= 0.0:
-				damage_player(16 if str(enemy["kind"]) == "brute" else 9)
+				damage_player(enemy_damage(str(enemy["kind"])))
 				enemy["cooldown"] = 1.05
 		enemies[i] = enemy
 
@@ -551,6 +628,7 @@ func fire_weapon() -> void:
 	if shot_timer > 0.0 or ammo <= 0:
 		return
 	ammo -= 1
+	shots_fired += 1
 	shot_timer = 0.18
 	var hit_index := -1
 	var hit_dist := 999.0
@@ -564,6 +642,7 @@ func fire_weapon() -> void:
 			hit_index = i
 			hit_dist = dist
 	if hit_index >= 0:
+		shots_hit += 1
 		var target: Dictionary = enemies[hit_index]
 		target["hp"] = int(target["hp"]) - (28 if hit_dist < 3.2 else 19)
 		target["hit"] = 0.16
@@ -571,6 +650,7 @@ func fire_weapon() -> void:
 		score += 80 * combo
 		blasts.append({"pos": target["pos"], "time": 0.14, "radius": 0.3})
 		if int(target["hp"]) <= 0:
+			register_kill(str(target["kind"]))
 			enemies.remove_at(hit_index)
 			message = "%d Combo" % combo
 		else:
@@ -582,6 +662,15 @@ func fire_weapon() -> void:
 	if mode_learn:
 		check_terminal_shot()
 	message_timer = 1.0
+
+func register_kill(kind: String) -> void:
+	kills += 1
+	if kind == "brute" or kind == "elite":
+		elite_kills += 1
+		score += 160
+	if kind == "runner":
+		ammo += 2
+	alarm = minf(100.0, alarm + 6.0)
 
 func throw_grenade() -> void:
 	if grenades <= 0 or shot_timer > 0.0:
@@ -599,6 +688,7 @@ func throw_grenade() -> void:
 			enemy["hp"] = int(enemy["hp"]) - int(46.0 * (1.0 - dist / 1.8))
 			enemy["hit"] = 0.25
 			if int(enemy["hp"]) <= 0:
+				register_kill(str(enemy["kind"]))
 				enemies.remove_at(i)
 				score += 260
 			else:
@@ -644,12 +734,32 @@ func check_terminal_shot() -> void:
 		break
 
 func update_exit() -> void:
-	exit_open = (reactor_keys >= 2 or (mode_learn and learn_hits >= LEARN_GOAL)) and enemies.size() <= 3
-	if exit_open and player_pos.distance_to(Vector2(7.5, 14.5)) < 0.58:
+	if mode_learn:
+		exit_open = (reactor_keys >= 2 or learn_hits >= LEARN_GOAL) and enemies.size() <= 3
+	else:
+		exit_open = reactor_keys >= 2 and (kills >= 8 or enemies.size() <= 2)
+	if exit_open and player_pos.distance_to(EXIT_POS) < 0.58:
 		won = true
-		score += 1600
-		message = "Ausgang erreicht. Score %d. R startet neu." % score
+		score += 1600 + accuracy_bonus()
+		message = "Ausgang erreicht. Rang %s. Score %d. R startet neu." % [run_grade(), score]
 		message_timer = 99.0
+
+func accuracy_bonus() -> int:
+	return int(accuracy_ratio() * 520.0)
+
+func accuracy_ratio() -> float:
+	if shots_fired <= 0:
+		return 0.0
+	return clampf(float(shots_hit) / float(shots_fired), 0.0, 1.0)
+
+func run_grade() -> String:
+	if hp >= 70 and accuracy_ratio() >= 0.62 and wave >= 3:
+		return "S"
+	if hp >= 48 and accuracy_ratio() >= 0.46:
+		return "A"
+	if hp >= 25:
+		return "B"
+	return "C"
 
 func damage_player(amount: int) -> void:
 	if hurt_timer > 0.0:
@@ -810,7 +920,7 @@ func draw_sprite(sprite: Dictionary) -> void:
 		draw_circle(Vector2(screen_x, base_y - sprite_h * 0.32), r * 0.52, Color(1.0, 0.9, 0.25, 0.72))
 		return
 	if bool(sprite["enemy"]):
-		var color: Color = Color.html("#ef4444") if kind == "imp" else Color.html("#7f1d1d")
+		var color: Color = enemy_color(kind)
 		if float(sprite["hit"]) > 0.0:
 			color = Color.html("#f8fafc")
 		var rect := Rect2(Vector2(screen_x - sprite_h * 0.18, base_y - sprite_h), Vector2(sprite_h * 0.36, sprite_h))
@@ -829,6 +939,15 @@ func draw_sprite(sprite: Dictionary) -> void:
 		draw_string(get_theme_default_font(), rect_term.position + Vector2(3.0, rect_term.size.y * 0.64), str(sprite["label"]), HORIZONTAL_ALIGNMENT_CENTER, rect_term.size.x - 6.0, max(8, int(item_size * 0.42)), Color.html("#f8fafc"))
 	else:
 		draw_rect(Rect2(center - Vector2(item_size * 0.5, item_size * 0.5), Vector2(item_size, item_size)), icon_color, true)
+
+func enemy_color(kind: String) -> Color:
+	if kind == "brute":
+		return Color.html("#7f1d1d")
+	if kind == "runner":
+		return Color.html("#f97316")
+	if kind == "elite":
+		return Color.html("#a855f7")
+	return Color.html("#ef4444")
 
 func pickup_color(kind: String) -> Color:
 	if kind == "health":
@@ -856,11 +975,12 @@ func draw_weapon() -> void:
 
 func draw_hud() -> void:
 	var font := get_theme_default_font()
-	draw_rect(Rect2(12.0, 12.0, 386.0, 94.0), Color(0.02, 0.05, 0.09, 0.78), true)
+	draw_rect(Rect2(12.0, 12.0, 438.0, 122.0), Color(0.02, 0.05, 0.09, 0.80), true)
+	draw_rect(Rect2(12.0, 12.0, 438.0, 122.0), Color(1.0, 1.0, 1.0, 0.12), false, 1.0)
 	draw_string(font, Vector2(25.0, 40.0), "FASKA DOOM PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#facc15"))
 	draw_string(font, Vector2(25.0, 66.0), "HP %d  Armor %d  Ammo %d  Grenades %d" % [hp, armor, ammo, grenades], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))
-	draw_string(font, Vector2(25.0, 89.0), "Keys %d/2  Enemies %d  Score %d" % [reactor_keys, enemies.size(), score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(25.0, 110.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(25.0, 89.0), "Wave %d/%d  Keys %d/2  Gegner %d  Kills %d  Score %d" % [wave, MAX_WAVE, reactor_keys, enemies.size(), kills, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(25.0, 112.0), "Mode %s  Accuracy %d%%  Alarm %d%%  Ziel: %s" % ["Learncade" if mode_learn else "Normal", int(accuracy_ratio() * 100.0), int(alarm), objective_text()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(size.x * 0.5 - 305.0, 24.0, 610.0, 35.0), Color(0.02, 0.05, 0.09, 0.78), true)
@@ -873,6 +993,15 @@ func draw_hud() -> void:
 		draw_string(font, Vector2(26.0, size.y - 22.0), message, HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 52.0, 820.0), 15, Color.html("#f8fafc"))
 	draw_crosshair()
 	draw_minimap()
+
+func objective_text() -> String:
+	if mode_learn:
+		return "%s %d/%d, Fehler %d, Wdh %d" % [str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()]
+	if reactor_keys < 2:
+		return "2 Keys holen"
+	if kills < 8 and enemies.size() > 2:
+		return "Gegnerdruck senken"
+	return "Exit suchen"
 
 func draw_crosshair() -> void:
 	var c := Vector2(size.x * 0.5, size.y * 0.5)
@@ -892,6 +1021,14 @@ func draw_minimap() -> void:
 				draw_rect(Rect2(origin + Vector2(float(x) * scale, float(y) * scale), Vector2(scale, scale)), wall_color(tile), true)
 	for enemy in enemies:
 		var foe: Dictionary = enemy
-		draw_rect(Rect2(origin + foe["pos"] * scale - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), Color.html("#ef4444"), true)
+		draw_rect(Rect2(origin + foe["pos"] * scale - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), enemy_color(str(foe["kind"])), true)
+	for pickup in pickups:
+		var item: Dictionary = pickup
+		if bool(item["taken"]):
+			continue
+		if str(item["type"]) == "key":
+			draw_circle(origin + Vector2(item["pos"]) * scale, 2.8, Color.html("#fb923c"))
+	if exit_open:
+		draw_circle(origin + EXIT_POS * scale, 3.4, Color.html("#facc15"))
 	draw_circle(origin + player_pos * scale, 3.5, Color.html("#facc15"))
 	draw_line(origin + player_pos * scale, origin + (player_pos + Vector2(cos(player_angle), sin(player_angle)) * 0.8) * scale, Color.html("#facc15"), 1.5)

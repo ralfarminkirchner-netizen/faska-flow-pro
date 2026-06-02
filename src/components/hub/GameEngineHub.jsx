@@ -157,7 +157,7 @@ const GAMES = [
   {
     id: 'brawler',
     name: 'Faska Brawler Pro',
-    description: 'FASKA-FLOW-Canvas-2.5D-Beat-em-up nach Final-Fight-/Streets-of-Rage-Prinzip mit Lanes, sichtbaren Figuren, Kombos, Launcher/Air-Hits, Guard/Parry, Wuerfen, Waffen, Fernkampf-/Medic-/Brute-/Boss-Gegnern, zerstoerbaren Props, rotierenden Brawl-Auftraegen, Bosswellen, Touchsteuerung und Learncade-Stelen fuer Wortarten, Mathe, Englisch und Sachkunde!',
+    description: 'FASKA-FLOW-Canvas-2.5D-Beat-em-up nach Final-Fight-/Streets-of-Rage-Prinzip mit Lanes, sichtbaren Figuren, Kombos, Launcher/Air-Hits, Guard/Parry, Wuerfen, Waffen, telegraphierten Gegner-Windups mit Konterfenstern, Fernkampf-/Medic-/Brute-/Boss-Gegnern, zerstoerbaren Props, rotierenden Brawl-Auftraegen, Bosswellen, Touchsteuerung und Learncade-Stelen fuer Wortarten, Mathe, Englisch und Sachkunde!',
     emoji: '👊',
     category: 'Fighting',
     gradient: 'linear-gradient(135deg, #e11d48, #facc15)',

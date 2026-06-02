@@ -82,6 +82,7 @@ const BRAWLER_GOALS = [
   { id: 'weapon_10', label: '10 Waffen-Treffer', stat: 'weaponHits', target: 10, mode: 'both', reward: 850 },
   { id: 'props_5', label: '5 Objekte zerstoeren', stat: 'propsBroken', target: 5, mode: 'both', reward: 650 },
   { id: 'zones_3', label: '3 Lanes sichern', stat: 'zonesCaptured', target: 3, mode: 'both', reward: 900 },
+  { id: 'counter_5', label: '5 Windup-Konter', stat: 'counters', target: 5, mode: 'both', reward: 880 },
   { id: 'juggle_5', label: '5 Juggle-Treffer', stat: 'juggleHits', target: 5, mode: 'both', reward: 700 },
   { id: 'learn_3', label: '3 Learncade-Stelen', stat: 'learnCorrect', target: 3, mode: 'learn', reward: 1200 },
 ];
@@ -93,6 +94,7 @@ const BRAWL_CONTRACTS = [
   { id: 'prop-2', label: '2 Objekte zerstoeren', stat: 'propsBroken', target: 2, duration: 36, reward: { score: 300, health: 16 } },
   { id: 'weapon-4', label: '4 Waffen-Treffer landen', stat: 'weaponHits', target: 4, duration: 38, reward: { score: 390, energy: 20 } },
   { id: 'lane-1', label: '1 Lane sichern', stat: 'zonesCaptured', target: 1, duration: 46, reward: { score: 440, energy: 26, health: 12 } },
+  { id: 'counter-2', label: '2 Windup-Konter setzen', stat: 'counters', target: 2, duration: 40, reward: { score: 430, energy: 24 } },
   { id: 'throw-1', label: '1 Gegner werfen', stat: 'throws', target: 1, duration: 34, reward: { score: 340, energy: 18 } },
   { id: 'parry-1', label: '1 Parry treffen', stat: 'parries', target: 1, duration: 48, reward: { score: 420, energy: 28 } },
   { id: 'pickup-1', label: '1 Drop nutzen', stat: 'pickups', target: 1, duration: 30, reward: { score: 260, health: 20 } },
@@ -152,6 +154,8 @@ function createStats() {
     pickups: 0,
     foodPickups: 0,
     weaponPickups: 0,
+    counters: 0,
+    windupDodges: 0,
   };
 }
 
@@ -277,6 +281,8 @@ function makeEnemy(type, x, y, wave) {
     attackTimer: 0.9 + Math.random() * 0.65,
     specialTimer: type === 'medic' ? 1.2 : type === 'boss' ? 1.8 : 0.8,
     windup: 0,
+    windupDuration: 0,
+    windupKind: 'strike',
     stun: 0,
     airborne: 0,
     enrage: false,
@@ -489,6 +495,18 @@ function hitPlayer(game, enemy) {
 function damageEnemy(game, enemy, amount, knock, label, options = {}) {
   if (enemy.hp <= 0) return;
   if (enemy.airborne > 0) recordStat(game, 'juggleHits');
+  const counterHit = enemy.windup > 0 && enemy.stun <= 0;
+  if (counterHit) {
+    enemy.windup = 0;
+    enemy.windupDuration = 0;
+    amount = Math.round(amount * 1.22);
+    game.score += 120;
+    game.player.energy = Math.min(100, game.player.energy + 14);
+    game.hitStop = Math.max(game.hitStop, 0.045);
+    recordStat(game, 'counters');
+    addFloater(game, enemy.x, enemy.y - 104, 'COUNTER', '#fef08a');
+    spawnParticles(game, enemy.x, enemy.y - 54, '#fef08a', 16, 260);
+  }
   enemy.hp -= amount;
   enemy.stun = Math.max(enemy.stun, 0.16);
   enemy.airborne = Math.max(enemy.airborne || 0, options.launch || 0);
@@ -868,6 +886,23 @@ function updateEnemy(game, enemy, dt) {
   enemy.facing = dx >= 0 ? 1 : -1;
   const laneDistance = Math.abs(dy);
   const xDistance = Math.abs(dx);
+  if (enemy.windup > 0) {
+    enemy.windup = Math.max(0, enemy.windup - dt);
+    enemy.vx = lerp(enemy.vx, 0, 0.32);
+    if (enemy.windup <= 0 && enemy.stun <= 0) {
+      const stillAligned = Math.abs(player.x - enemy.x) < enemy.range + (enemy.type === 'boss' ? 36 : 18)
+        && Math.abs(player.y - enemy.y) < 54;
+      if (stillAligned) {
+        hitPlayer(game, enemy);
+      } else if (player.dashTimer > 0) {
+        recordStat(game, 'windupDodges');
+        game.player.energy = Math.min(100, game.player.energy + 10);
+        game.score += 80;
+        addFloater(game, player.x, player.y - 88, 'DODGE', '#67e8f9');
+        spawnParticles(game, player.x, player.y - 42, '#67e8f9', 10, 180);
+      }
+    }
+  }
   if (enemy.type === 'medic' && enemy.specialTimer <= 0) {
     const ally = game.enemies
       .filter((candidate) => candidate !== enemy && candidate.hp > 0 && candidate.hp < candidate.maxHp && dist(enemy.x, enemy.y, candidate.x, candidate.y) < 230)
@@ -891,7 +926,7 @@ function updateEnemy(game, enemy, dt) {
     game.shake = Math.max(game.shake, 0.18);
   }
 
-  if (enemy.stun <= 0) {
+  if (enemy.stun <= 0 && enemy.windup <= 0) {
     const preferRange = enemy.type === 'thrower' ? 145 : enemy.range * 0.75;
     const chaseX = xDistance > preferRange ? Math.sign(dx) * enemy.speed : enemy.type === 'thrower' && xDistance < 110 ? -Math.sign(dx) * enemy.speed * 0.75 : 0;
     const chaseY = laneDistance > 14 ? Math.sign(dy) * enemy.speed * 0.72 : 0;
@@ -900,9 +935,12 @@ function updateEnemy(game, enemy, dt) {
   }
   enemy.x = clamp(enemy.x + enemy.vx * dt, 80, STAGE_W - 80);
   enemy.vx *= Math.pow(0.88, dt * 60);
-  if (xDistance < enemy.range && laneDistance < 46 && enemy.attackTimer <= 0 && enemy.stun <= 0) {
-    enemy.attackTimer = enemy.type === 'boss' ? 0.74 : 0.95;
-    hitPlayer(game, enemy);
+  if (xDistance < enemy.range && laneDistance < 46 && enemy.attackTimer <= 0 && enemy.stun <= 0 && enemy.windup <= 0) {
+    enemy.attackTimer = enemy.type === 'boss' ? 1.08 : enemy.type === 'brute' ? 1.2 : 1.0;
+    enemy.windup = enemy.type === 'boss' ? 0.58 : enemy.type === 'brute' ? 0.46 : enemy.type === 'kicker' ? 0.34 : 0.38;
+    enemy.windupDuration = enemy.windup;
+    enemy.windupKind = enemy.type === 'boss' ? 'slam' : enemy.type === 'kicker' ? 'kick' : 'strike';
+    addFloater(game, enemy.x, enemy.y - 96, '!', '#f97316');
   }
 }
 
@@ -1179,6 +1217,20 @@ function drawActor(ctx, actor, cameraX, player = false) {
     ctx.arc(42, -height * 0.52, actor.attackKind === 'super' ? 92 : actor.attackKind === 'special' ? 62 : 42, -0.6, 0.7);
     ctx.stroke();
   }
+  if (!player && actor.windup > 0) {
+    const ratio = actor.windupDuration > 0 ? clamp(actor.windup / actor.windupDuration, 0, 1) : 0;
+    ctx.strokeStyle = ratio > 0.45 ? '#fb923c' : '#fef08a';
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = actor.type === 'boss' ? 28 : 18;
+    ctx.lineWidth = actor.type === 'boss' ? 9 : 6;
+    ctx.beginPath();
+    ctx.arc(0, -height * 0.54, actor.type === 'boss' ? 78 : 54, -0.95, 0.95);
+    ctx.stroke();
+    ctx.fillStyle = '#fef08a';
+    ctx.font = '900 22px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', 0, -height - 36);
+  }
   if (player && actor.guardTimer > 0) {
     ctx.strokeStyle = actor.parryWindow > 0 ? '#67e8f9' : '#bfdbfe';
     ctx.shadowColor = ctx.strokeStyle;
@@ -1282,7 +1334,7 @@ function drawHud(ctx, game) {
   ctx.fillText(`Combo ${game.combo} · Spezial ${Math.floor(player.energy)}%`, WIDTH - 54, 94);
   ctx.fillStyle = player.laneBoostTimer > 0 ? '#bbf7d0' : '#cbd5e1';
   ctx.font = '900 12px Outfit, sans-serif';
-  ctx.fillText(`Lane ${game.stats.zonesCaptured}/3 · Props ${game.stats.propsBroken}`, WIDTH - 54, 111);
+  ctx.fillText(`Lane ${game.stats.zonesCaptured}/3 · Konter ${game.stats.counters} · Props ${game.stats.propsBroken}`, WIDTH - 54, 111);
 
   const contractProgress = brawlContractProgress(game);
   ctx.fillStyle = '#fef08a';
@@ -1400,6 +1452,12 @@ export default function FaskaBrawlerSwarm() {
 
   const setPressed = useCallback((name, pressed) => {
     gameRef.current.input[name] = pressed;
+  }, []);
+
+  const runPointerAction = useCallback((event, action) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
   }, []);
 
   const holdButton = useCallback((name) => ({
@@ -1527,10 +1585,38 @@ export default function FaskaBrawlerSwarm() {
       }} />
 
       <div style={{ position: 'fixed', top: chromeTop, left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', gap: 10 }}>
-        <button className="btn-primary" onClick={() => setGameMode('arcade')} style={{ opacity: mode === 'arcade' ? 1 : 0.56 }}>Normal</button>
-        <button className="btn-primary" onClick={() => setGameMode('learn')} style={{ opacity: mode === 'learn' ? 1 : 0.56 }}>Learncade</button>
-        <button className="btn-primary" onClick={restart}>Restart</button>
-        <button className="btn-primary" onClick={() => navigate('/')}>Exit</button>
+        <button
+          className="btn-primary"
+          aria-pressed={mode === 'arcade'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('arcade'))}
+          onClick={() => setGameMode('arcade')}
+          style={{ opacity: mode === 'arcade' ? 1 : 0.56 }}
+        >
+          Normal
+        </button>
+        <button
+          className="btn-primary"
+          aria-pressed={mode === 'learn'}
+          onPointerDown={(event) => runPointerAction(event, () => setGameMode('learn'))}
+          onClick={() => setGameMode('learn')}
+          style={{ opacity: mode === 'learn' ? 1 : 0.56 }}
+        >
+          Learncade
+        </button>
+        <button
+          className="btn-primary"
+          onPointerDown={(event) => runPointerAction(event, restart)}
+          onClick={restart}
+        >
+          Restart
+        </button>
+        <button
+          className="btn-primary"
+          onPointerDown={(event) => runPointerAction(event, () => navigate('/'))}
+          onClick={() => navigate('/')}
+        >
+          Exit
+        </button>
       </div>
 
       <div className="brawler-touch-controls" style={{

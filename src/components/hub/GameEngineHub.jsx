@@ -197,7 +197,7 @@ const GAMES = [
   {
     id: 'kart',
     name: 'Faska Kart Pro',
-    description: 'Godot-4-Arcade-Kart nach Mario-Kart-Prinzip mit Rundkurs, Drift-Mini-Turbo, Rivalen, Itemboxen, Boost, Rocket, Shield, Oelspur, Checkpoints, Rundenzeit, Fehler-Wiederholung, Touchsteuerung und Learncade-Gates fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
+    description: 'Godot-4-Arcade-Kart nach Mario-Kart-Prinzip mit Rundkurs, Platzierung, Drift-Tiers, Slipstream, Rivalen mit Stun/Rubberbanding, Itemboxen, homing Rocket, Shock, Shield, Oelspur, Coins, Checkpoints, Rundenzeit, Touchsteuerung und Learncade-Gates mit Fehler-Wiederholung!',
     emoji: '🏎️',
     category: 'Racing',
     gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',

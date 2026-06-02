@@ -9,6 +9,8 @@ const BRAKE := 650.0
 const DRAG := 130.0
 const STEER := 2.75
 const TOTAL_LAPS := 3
+const SLIPSTREAM_RANGE := 185.0
+const SLIPSTREAM_TRIGGER := 1.35
 
 const LEARN_GOAL := 8
 const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
@@ -100,6 +102,7 @@ var best_lap := 0.0
 var lap_time := 0.0
 var score := 0
 var combo := 0
+var race_rank := 1
 var item_slot := "none"
 var question_index := 0
 var message := ""
@@ -122,14 +125,16 @@ func reset_game() -> void:
 		"angle": track_angle(0),
 		"speed": 0.0,
 		"drift": 0.0,
+		"drift_charge": 0.0,
 		"boost": 0.0,
 		"shield": 0.0,
 		"spin": 0.0,
+		"slipstream": 0.0,
 		"coins": 0
 	}
 	rivals.clear()
 	for i in range(5):
-		rivals.append({"progress": -0.03 * float(i + 1), "speed": 0.21 + float(i) * 0.012, "lane": -0.8 + float(i % 3) * 0.8, "pos": path[0], "angle": 0.0, "color": Color.from_hsv(0.02 + float(i) * 0.12, 0.75, 0.95)})
+		rivals.append({"progress": -0.03 * float(i + 1), "speed": 0.21 + float(i) * 0.012, "base_speed": 0.21 + float(i) * 0.012, "lane": -0.8 + float(i % 3) * 0.8, "pos": path[0], "angle": 0.0, "color": Color.from_hsv(0.02 + float(i) * 0.12, 0.75, 0.95), "stun": 0.0, "boost": 0.0})
 	item_boxes.clear()
 	hazards.clear()
 	rockets.clear()
@@ -154,6 +159,7 @@ func reset_game() -> void:
 	lap_time = 0.0
 	score = 0
 	combo = 0
+	race_rank = 1
 	item_slot = "none"
 	question_index = 0
 	stats = {"drifts": 0, "items": 0, "learn": 0, "rockets": 0, "coins": 0, "laps": 0}
@@ -203,6 +209,7 @@ func update_race(delta: float) -> void:
 	update_items(delta)
 	update_rockets(delta)
 	update_hazards(delta)
+	update_rank()
 	if mode == "Learncade":
 		update_learn_gates()
 	camera = (Vector2(player.pos) - size * 0.5).clamp(Vector2.ZERO, Vector2(max(0.0, WORLD_W - size.x), max(0.0, WORLD_H - size.y)))
@@ -224,6 +231,9 @@ func update_player(delta: float) -> void:
 	var throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch_axis.y < -0.18 or is_touch_down("gas")
 	var brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch_axis.y > 0.35 or is_touch_down("brake")
 	var drifting := Input.is_key_pressed(KEY_SPACE) or is_touch_down("drift")
+	if float(player.spin) > 0.0:
+		throttle = false
+		drifting = false
 	var speed: float = float(player.speed)
 	if throttle:
 		speed += ACCEL * delta
@@ -234,20 +244,32 @@ func update_player(delta: float) -> void:
 	if float(player.boost) > 0.0:
 		speed += 620.0 * delta
 		player.boost = max(0.0, float(player.boost) - delta)
+	if int(player.coins) > 0:
+		speed += float(mini(10, int(player.coins))) * 6.0 * delta
 	speed = clamp(speed, -180.0, MAX_SPEED + (220.0 if float(player.boost) > 0.0 else 0.0))
 	var grip := track_grip(Vector2(player.pos))
 	var steer_power: float = STEER * (0.35 + min(abs(speed) / MAX_SPEED, 1.0) * 0.85)
 	player.angle = float(player.angle) + steer_input * steer_power * delta * (1.35 if drifting else 1.0)
 	if drifting and abs(steer_input) > 0.2 and abs(speed) > 260.0:
-		player.drift = min(1.0, float(player.drift) + delta * 0.72)
+		player.drift = min(1.0, float(player.drift) + delta * 0.78)
+		player.drift_charge = min(1.65, float(player.drift_charge) + delta * (0.68 + abs(steer_input) * 0.28))
 		spawn_tire_smoke()
 	else:
-		if float(player.drift) > 0.68:
-			player.boost = max(float(player.boost), 1.25)
+		var charge := float(player.drift_charge)
+		if charge > 0.55:
+			var tier := 1
+			if charge > 1.24:
+				tier = 3
+			elif charge > 0.88:
+				tier = 2
+			var boost_time := 0.95 + float(tier) * 0.42
+			player.boost = max(float(player.boost), boost_time)
 			stats.drifts += 1
-			score += 280
-			add_text("MINI TURBO", Vector2(player.pos), Color(0.35, 0.9, 1.0))
+			score += 220 * tier + combo * 25
+			combo += tier
+			add_text(["", "MINI TURBO", "SUPER TURBO", "ULTRA TURBO"][tier], Vector2(player.pos), Color(0.35, 0.9, 1.0))
 		player.drift = max(0.0, float(player.drift) - delta * 2.4)
+		player.drift_charge = max(0.0, float(player.drift_charge) - delta * 3.2)
 	if grip < 0.65:
 		speed *= 1.0 - delta * 0.42
 	var dir := Vector2(cos(float(player.angle)), sin(float(player.angle)))
@@ -256,8 +278,29 @@ func update_player(delta: float) -> void:
 	player.pos = Vector2(clamp(Vector2(player.pos).x, 40.0, WORLD_W - 40.0), clamp(Vector2(player.pos).y, 40.0, WORLD_H - 40.0))
 	player.speed = speed
 	player.spin = max(0.0, float(player.spin) - delta)
+	update_slipstream(delta)
 	player.shield = max(0.0, float(player.shield) - delta)
 	update_checkpoint()
+
+func update_slipstream(delta: float) -> void:
+	var dir := Vector2(cos(float(player.angle)), sin(float(player.angle)))
+	var charging := false
+	for rival in rivals:
+		var to_rival := Vector2(rival.pos) - Vector2(player.pos)
+		var dist := to_rival.length()
+		if dist > 28.0 and dist < SLIPSTREAM_RANGE and dir.dot(to_rival.normalized()) > 0.62:
+			charging = true
+			break
+	if charging and abs(float(player.speed)) > 250.0:
+		player.slipstream = min(SLIPSTREAM_TRIGGER, float(player.slipstream) + delta)
+		if float(player.slipstream) >= SLIPSTREAM_TRIGGER:
+			player.boost = max(float(player.boost), 1.15)
+			player.slipstream = 0.0
+			combo += 1
+			score += 180 + combo * 15
+			add_text("SLIPSTREAM", Vector2(player.pos), Color(0.62, 0.92, 1.0))
+	else:
+		player.slipstream = max(0.0, float(player.slipstream) - delta * 0.75)
 
 func update_checkpoint() -> void:
 	var target: Vector2 = path[checkpoint % path.size()]
@@ -277,16 +320,51 @@ func update_checkpoint() -> void:
 func update_rivals(delta: float) -> void:
 	for i in range(rivals.size()):
 		var r = rivals[i]
-		r.progress = fposmod(float(r.progress) + float(r.speed) * delta, 1.0)
-		var base := sample_track(float(r.progress))
-		var normal := sample_normal(float(r.progress))
+		r.stun = max(0.0, float(r.get("stun", 0.0)) - delta)
+		r.boost = max(0.0, float(r.get("boost", 0.0)) - delta)
+		var player_total := player_total_progress()
+		var rubber := clampf((player_total - float(r.progress)) * 0.018, -0.018, 0.028)
+		var current_speed := float(r.get("base_speed", r.speed)) + rubber
+		if float(r.get("stun", 0.0)) > 0.0:
+			current_speed *= 0.22
+		if float(r.get("boost", 0.0)) > 0.0:
+			current_speed += 0.035
+		r.speed = current_speed
+		r.progress = float(r.progress) + current_speed * delta
+		var base := sample_track(fposmod(float(r.progress), 1.0))
+		var normal := sample_normal(fposmod(float(r.progress), 1.0))
 		r.pos = base + normal * float(r.lane) * 76.0
-		r.angle = sample_angle(float(r.progress))
+		r.angle = sample_angle(fposmod(float(r.progress), 1.0))
 		if Vector2(player.pos).distance_to(Vector2(r.pos)) < 54.0:
-			player.speed = float(player.speed) * 0.72
-			shake = 0.7
-			add_text("BUMP", Vector2(player.pos), Color(1.0, 0.36, 0.25))
+			if float(player.shield) > 0.0 or float(player.boost) > 0.0:
+				r.stun = max(float(r.stun), 0.55)
+				score += 120
+				add_text("CHECK", Vector2(r.pos), Color(0.62, 0.92, 1.0))
+			else:
+				player.speed = float(player.speed) * 0.72
+				combo = 0
+				shake = 0.7
+				add_text("BUMP", Vector2(player.pos), Color(1.0, 0.36, 0.25))
 		rivals[i] = r
+
+func player_total_progress() -> float:
+	var progress := float(max(0, lap - 1))
+	progress += float(checkpoint) / float(path.size())
+	var next_cp: Vector2 = path[checkpoint % path.size()]
+	var prev_cp: Vector2 = path[(checkpoint - 1 + path.size()) % path.size()]
+	var segment := next_cp - prev_cp
+	if segment.length_squared() > 1.0:
+		var t := clampf((Vector2(player.pos) - prev_cp).dot(segment) / segment.length_squared(), 0.0, 1.0)
+		progress += t / float(path.size())
+	return progress
+
+func update_rank() -> void:
+	var player_progress := player_total_progress()
+	var rank := 1
+	for rival in rivals:
+		if float(rival.progress) > player_progress:
+			rank += 1
+	race_rank = rank
 
 func update_items(delta: float) -> void:
 	for i in range(item_boxes.size()):
@@ -302,7 +380,13 @@ func update_items(delta: float) -> void:
 		item_boxes[i] = box
 
 func give_item() -> void:
-	var options = ["boost", "rocket", "shield", "oil"]
+	var options = ["boost", "rocket", "shield", "oil", "coin"]
+	if race_rank >= 4:
+		options.append("shock")
+		options.append("rocket")
+	elif race_rank == 1:
+		options.append("oil")
+		options.append("coin")
 	item_slot = options[rng.randi_range(0, options.size() - 1)]
 	score += 120
 	stats.items = int(stats.items) + 1
@@ -313,27 +397,60 @@ func use_item() -> void:
 		return
 	if item_slot == "boost":
 		player.boost = max(float(player.boost), 2.0)
+		combo += 1
 	elif item_slot == "shield":
 		player.shield = 4.0
+	elif item_slot == "coin":
+		player.coins = mini(10, int(player.coins) + 2)
+		score += 160
+		add_text("+2 COINS", Vector2(player.pos), Color(1.0, 0.86, 0.25))
+	elif item_slot == "shock":
+		for i in range(rivals.size()):
+			var rival = rivals[i]
+			if Vector2(rival.pos).distance_to(Vector2(player.pos)) < 420.0 or float(rival.progress) > player_total_progress():
+				rival.stun = max(float(rival.get("stun", 0.0)), 1.15)
+				rivals[i] = rival
+		score += 480
+		shake = 1.2
+		spawn_sparks(Vector2(player.pos), Color(0.55, 0.86, 1.0), 26)
+		add_text("SHOCK", Vector2(player.pos), Color(0.55, 0.86, 1.0))
 	elif item_slot == "oil":
 		var back := Vector2(cos(float(player.angle)), sin(float(player.angle))) * -72.0
-		hazards.append({"pos": Vector2(player.pos) + back, "life": 14.0})
+		hazards.append({"pos": Vector2(player.pos) + back, "life": 14.0, "hits": [], "player_hit": false})
 	elif item_slot == "rocket":
 		var dir := Vector2(cos(float(player.angle)), sin(float(player.angle)))
-		rockets.append({"pos": Vector2(player.pos) + dir * 40.0, "vel": dir * 980.0, "life": 1.8})
+		rockets.append({"pos": Vector2(player.pos) + dir * 40.0, "vel": dir * 980.0, "life": 2.4, "target": nearest_rival_ahead()})
 		stats.rockets = int(stats.rockets) + 1
 	item_slot = "none"
+
+func nearest_rival_ahead() -> int:
+	var best := -1
+	var best_gap := 999.0
+	var player_progress := player_total_progress()
+	for i in range(rivals.size()):
+		var gap := float(rivals[i].progress) - player_progress
+		if gap > -0.04 and gap < best_gap:
+			best_gap = gap
+			best = i
+	return best
 
 func update_rockets(delta: float) -> void:
 	for i in range(rockets.size() - 1, -1, -1):
 		var rocket = rockets[i]
+		var target := int(rocket.get("target", -1))
+		if target >= 0 and target < rivals.size():
+			var to_target := Vector2(rivals[target].pos) - Vector2(rocket.pos)
+			if to_target.length() > 1.0:
+				var desired := to_target.normalized() * 1040.0
+				rocket.vel = Vector2(rocket.vel).lerp(desired, min(1.0, delta * 3.4))
 		rocket.pos = Vector2(rocket.pos) + Vector2(rocket.vel) * delta
 		rocket.life = float(rocket.life) - delta
 		var hit := false
 		for r_i in range(rivals.size()):
 			var rival = rivals[r_i]
 			if Vector2(rocket.pos).distance_to(Vector2(rival.pos)) < 42.0:
-				rival.progress = fposmod(float(rival.progress) - 0.035, 1.0)
+				rival.progress = max(-0.08, float(rival.progress) - 0.035)
+				rival.stun = max(float(rival.get("stun", 0.0)), 1.1)
 				rivals[r_i] = rival
 				score += 360
 				add_text("ROCKET HIT", Vector2(rival.pos), Color(1.0, 0.55, 0.18))
@@ -348,10 +465,22 @@ func update_hazards(delta: float) -> void:
 	for i in range(hazards.size() - 1, -1, -1):
 		var hazard = hazards[i]
 		hazard.life = float(hazard.life) - delta
-		if Vector2(player.pos).distance_to(Vector2(hazard.pos)) < 42.0 and float(player.shield) <= 0.0:
+		if not bool(hazard.get("player_hit", false)) and Vector2(player.pos).distance_to(Vector2(hazard.pos)) < 42.0 and float(player.shield) <= 0.0:
 			player.spin = 0.8
 			player.speed = float(player.speed) * 0.45
+			combo = 0
 			shake = 1.0
+			hazard.player_hit = true
+		var hits: Array = hazard.get("hits", [])
+		for r_i in range(rivals.size()):
+			var rival = rivals[r_i]
+			if not hits.has(r_i) and Vector2(rival.pos).distance_to(Vector2(hazard.pos)) < 42.0:
+				rival.stun = max(float(rival.get("stun", 0.0)), 0.85)
+				rivals[r_i] = rival
+				score += 130
+				hits.append(r_i)
+				add_text("OIL HIT", Vector2(rival.pos), Color(0.95, 0.75, 0.18))
+		hazard.hits = hits
 		if float(hazard.life) <= 0.0:
 			hazards.remove_at(i)
 		else:
@@ -674,7 +803,19 @@ func draw_car(pos: Vector2, angle: float, color: Color, label: String) -> void:
 	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color.WHITE, 2.0)
 	draw_text_at(p + Vector2(-16, -24), label, Color.WHITE, 11)
 	if label == "YOU" and float(player.drift) > 0.05:
-		draw_arc(p, 42.0, 0.0, TAU * float(player.drift), 36, Color(0.22, 0.85, 1.0), 4.0)
+		var drift_color := Color(0.22, 0.85, 1.0)
+		if float(player.drift_charge) > 1.24:
+			drift_color = Color(1.0, 0.42, 0.95)
+		elif float(player.drift_charge) > 0.88:
+			drift_color = Color(1.0, 0.72, 0.22)
+		draw_arc(p, 42.0, 0.0, TAU * minf(1.0, float(player.drift_charge)), 36, drift_color, 4.0)
+	if label == "YOU" and float(player.slipstream) > 0.05:
+		draw_arc(p, 54.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(float(player.slipstream) / SLIPSTREAM_TRIGGER, 0.0, 1.0), 42, Color(0.62, 0.92, 1.0), 3.0)
+	if label == "R":
+		for rival in rivals:
+			if Vector2(rival.pos).distance_to(pos) < 1.0 and float(rival.get("stun", 0.0)) > 0.0:
+				draw_arc(p, 42.0, 0.0, TAU, 28, Color(1.0, 0.88, 0.28), 3.0)
+				break
 
 func draw_effects() -> void:
 	for rocket in rockets:
@@ -689,17 +830,17 @@ func draw_hud() -> void:
 	var hud_w := minf(size.x - 20.0, 520.0 if compact else 420.0)
 	draw_rect(Rect2(Vector2(10, 10), Vector2(hud_w, (148.0 if compact else 142.0) * ui)), Color(0.0, 0.0, 0.0, 0.6))
 	draw_text_at(Vector2(20, 31 * ui), "FASKA KART PRO", Color(1.0, 0.9, 0.25), int(18 * ui))
-	draw_text_at(Vector2(20, 56 * ui), "Lap " + str(min(lap, TOTAL_LAPS)) + "/" + str(TOTAL_LAPS) + "  CP " + str(checkpoint + 1) + "/" + str(path.size()), Color(0.9, 0.96, 1.0), int(14 * ui))
+	draw_text_at(Vector2(20, 56 * ui), "P" + str(race_rank) + "/6  Lap " + str(min(lap, TOTAL_LAPS)) + "/" + str(TOTAL_LAPS) + "  CP " + str(checkpoint + 1) + "/" + str(path.size()), Color(0.9, 0.96, 1.0), int(14 * ui))
 	draw_bar(Vector2(20, 76 * ui), "SPEED", abs(float(player.speed)), MAX_SPEED + 220.0, Color(0.34, 0.85, 1.0), ui)
-	draw_bar(Vector2(20, 98 * ui), "DRIFT", float(player.drift), 1.0, Color(1.0, 0.65, 0.18), ui)
-	draw_text_at(Vector2(20, 124 * ui), "Score %d  Mode %s  Time %s" % [score, mode, format_time(race_time)], Color(0.86, 0.92, 1.0), int(13 * ui))
+	draw_bar(Vector2(20, 98 * ui), "DRIFT", float(player.drift_charge), 1.65, Color(1.0, 0.65, 0.18), ui)
+	draw_text_at(Vector2(20, 124 * ui), "Score %d  Combo %d  Mode %s  Time %s" % [score, combo, mode, format_time(race_time)], Color(0.86, 0.92, 1.0), int(13 * ui))
 	draw_text_at(Vector2(20, 146 * ui), "Fach %s  Ziel %d/%d  Fehler %d  Wdh %d" % [LESSONS[lesson_index], correct_gates % LEARN_GOAL, LEARN_GOAL, mistakes, repeat_queue.size()], Color(0.72, 0.94, 1.0), int(12 * ui))
 	if not compact:
 		draw_rect(Rect2(Vector2(size.x - 306, 10), Vector2(292, 106)), Color(0.0, 0.0, 0.0, 0.56))
 		draw_text_at(Vector2(size.x - 294, 32), "Item " + String(item_slot).to_upper(), Color(0.94, 0.98, 1.0), 15)
-		draw_text_at(Vector2(size.x - 294, 55), "Coins " + str(player.coins) + "  Mini " + str(stats.drifts), Color(0.94, 0.98, 1.0), 14)
+		draw_text_at(Vector2(size.x - 294, 55), "Coins " + str(player.coins) + "  Turbo " + str(stats.drifts), Color(0.94, 0.98, 1.0), 14)
 		draw_text_at(Vector2(size.x - 294, 78), "Learn " + str(stats.learn) + "  Rockets " + str(stats.rockets), Color(0.94, 0.98, 1.0), 14)
-		draw_text_at(Vector2(size.x - 294, 101), "C Fach  E/Q/Shift Item", Color(0.74, 0.84, 0.96), 12)
+		draw_text_at(Vector2(size.x - 294, 101), "Drift-Tiers · Slipstream · E/Q Item", Color(0.74, 0.84, 0.96), 12)
 
 func draw_bar(pos: Vector2, label: String, value: float, max_value: float, color: Color, scale_factor: float = 1.0) -> void:
 	draw_text_at(pos, label, Color(0.76, 0.84, 0.92), int(12 * scale_factor))

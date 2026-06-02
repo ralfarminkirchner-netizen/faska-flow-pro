@@ -139,6 +139,11 @@ function RaceHUD() {
   const goals = useKartStore(s => s.goals);
   const completedGoalNotice = useKartStore(s => s.completedGoalNotice);
   const completedGoalTimer = useKartStore(s => s.completedGoalTimer);
+  const activeContract = useKartStore(s => s.activeContract);
+  const contractTimer = useKartStore(s => s.contractTimer);
+  const contractCooldown = useKartStore(s => s.contractCooldown);
+  const contractWins = useKartStore(s => s.contractWins);
+  const contractFails = useKartStore(s => s.contractFails);
   const learnGateStreak = useKartStore(s => s.learnGateStreak);
   const lastLapTime = useKartStore(s => s.lastLapTime);
   const bestLapTime = useKartStore(s => s.bestLapTime);
@@ -165,6 +170,10 @@ function RaceHUD() {
   const posText = ['', '1st', '2nd', '3rd', '4th'][position] || `${position}th`;
   const racecraftGrade = racecraft >= 220 ? 'S' : racecraft >= 150 ? 'A' : racecraft >= 80 ? 'B' : 'C';
   const formatDuration = (time) => (time > 0 ? `${time.toFixed(2)}s` : '--');
+  const contractProgress = activeContract
+    ? Math.min(activeContract.target, Math.max(0, (stats?.[activeContract.type] ?? 0) - activeContract.startValue))
+    : 0;
+  const contractRatio = activeContract ? Math.min(1, contractProgress / activeContract.target) : 0;
   const itemLabel = {
     boost: 'Turbo',
     shield: 'Schild',
@@ -337,6 +346,50 @@ function RaceHUD() {
           {completedGoalNotice}
         </div>
       )}
+
+      <div style={{
+        position: 'absolute',
+        top: mode === 'learn' ? 236 : 158,
+        right: 16,
+        width: 304,
+        padding: '13px 15px',
+        borderRadius: 16,
+        background: 'rgba(2, 6, 23, 0.78)',
+        border: '1px solid rgba(216, 180, 254, 0.28)',
+        color: '#e2e8f0',
+        fontFamily: 'Outfit, sans-serif',
+        pointerEvents: 'none',
+        boxShadow: '0 18px 38px rgba(0, 0, 0, 0.26)',
+        backdropFilter: 'blur(12px)',
+      }}>
+        <div style={{ fontSize: 11, color: '#c084fc', fontWeight: 900, textTransform: 'uppercase' }}>
+          Rennauftrag · {contractWins} OK · {contractFails} Fail
+        </div>
+        {activeContract ? (
+          <>
+            <div style={{ marginTop: 7, fontSize: 14, color: '#f8fafc', fontWeight: 900 }}>
+              {activeContract.label}
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: 'rgba(30, 41, 59, 0.86)', overflow: 'hidden', marginTop: 9 }}>
+              <div style={{
+                width: `${contractRatio * 100}%`,
+                height: '100%',
+                background: contractRatio >= 1
+                  ? 'linear-gradient(90deg, #22c55e, #86efac)'
+                  : 'linear-gradient(90deg, #a855f7, #facc15)',
+              }} />
+            </div>
+            <div style={{ marginTop: 7, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#cbd5e1', fontWeight: 900 }}>
+              <span>{contractProgress}/{activeContract.target}</span>
+              <span>{Math.ceil(contractTimer)}s</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 7, fontSize: 12, color: '#94a3b8', fontWeight: 900 }}>
+            Naechster Auftrag in {Math.ceil(contractCooldown)}s
+          </div>
+        )}
+      </div>
 
       {/* Bottom HUD bar */}
       <div style={{

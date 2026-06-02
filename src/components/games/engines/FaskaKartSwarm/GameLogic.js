@@ -116,6 +116,19 @@ const KART_GOALS = [
   { id: 'learn-3', label: '3 Wort-Gates', type: 'learnCorrect', target: 3, reward: 520, mode: 'learn' },
 ];
 
+const KART_CONTRACTS = [
+  { id: 'mini-2', label: '2 Mini-Turbos setzen', type: 'miniTurbos', target: 2, duration: 34, reward: { score: 360, boost: 1, racecraft: 8 } },
+  { id: 'super-1', label: '1 Super-Drift laden', type: 'superMiniTurbos', target: 1, duration: 42, reward: { score: 460, boost: 1, racecraft: 12 } },
+  { id: 'apex-3', label: '3 Apex-Gates treffen', type: 'apexHits', target: 3, duration: 38, reward: { score: 420, boostTimer: 0.7, racecraft: 10 } },
+  { id: 'clean-2', label: '2 saubere Sektoren', type: 'cleanSectors', target: 2, duration: 46, reward: { score: 440, boost: 1, racecraft: 12 } },
+  { id: 'draft-1', label: '1 Windschatten-Schub', type: 'slipstreams', target: 1, duration: 48, reward: { score: 430, boostTimer: 0.9, racecraft: 9 } },
+  { id: 'shortcut-1', label: '1 Shortcut nehmen', type: 'shortcuts', target: 1, duration: 44, reward: { score: 390, boostTimer: 0.85, racecraft: 8 } },
+  { id: 'hazard-1', label: '1 Hazard blocken', type: 'hazardEvades', target: 1, duration: 52, reward: { score: 400, shield: 2, racecraft: 10 } },
+  { id: 'rival-1', label: '1 Rivalen stoeren', type: 'rivalHits', target: 1, duration: 50, reward: { score: 430, boost: 1, racecraft: 10 } },
+  { id: 'pad-2', label: '2 Boost-Pads treffen', type: 'boostPads', target: 2, duration: 40, reward: { score: 320, boost: 1, racecraft: 7 } },
+  { id: 'learn-1', label: '1 Wort-Gate richtig', type: 'learnCorrect', target: 1, duration: 44, reward: { score: 480, boost: 1, racecraft: 12 }, learnOnly: true },
+];
+
 const createAIKarts = () => AI_PRESETS.map((kart) => ({ ...kart }));
 const createKartStats = () => ({
   miniTurbos: 0,
@@ -135,6 +148,15 @@ const createKartGoals = (mode) => KART_GOALS
   .sort((a, b) => Number(b.mode === mode) - Number(a.mode === mode))
   .map((goal) => ({ ...goal, progress: 0, done: false }));
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const availableKartContracts = (state) => KART_CONTRACTS.filter((contract) => state.mode === 'learn' || !contract.learnOnly);
+const kartContractProgress = (state) => {
+  if (!state.activeContract) return 0;
+  return clamp(
+    (state.stats?.[state.activeContract.type] ?? 0) - state.activeContract.startValue,
+    0,
+    state.activeContract.target,
+  );
+};
 
 const useKartStore = createGameStore(
   // Game-specific initial state
@@ -180,6 +202,12 @@ const useKartStore = createGameStore(
     stats: createKartStats(),
     completedGoalNotice: '',
     completedGoalTimer: 0,
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.2,
+    contractWins: 0,
+    contractFails: 0,
     rivalBumpCooldown: 0,
     itemSlot: null,
     itemFlashTimer: 0,
@@ -241,6 +269,87 @@ const useKartStore = createGameStore(
           completedGoalTimer,
         };
       });
+    },
+
+    startRaceContract: () => {
+      const state = get();
+      const contracts = availableKartContracts(state);
+      if (!contracts.length) {
+        set({ contractCooldown: 3 });
+        return;
+      }
+      const template = contracts[state.contractIndex % contracts.length];
+      set({
+        activeContract: {
+          ...template,
+          startValue: state.stats?.[template.type] ?? 0,
+        },
+        contractIndex: state.contractIndex + 1,
+        contractTimer: template.duration,
+        raceMessage: `Rennauftrag: ${template.label}`,
+        raceMessageTimer: 1.1,
+      });
+    },
+
+    completeRaceContract: () => {
+      const state = get();
+      const contract = state.activeContract;
+      if (!contract) return;
+      const reward = contract.reward ?? {};
+      const nextScore = state.score + (reward.score ?? 0);
+      set({
+        activeContract: null,
+        contractTimer: 0,
+        contractCooldown: 2.6,
+        contractWins: state.contractWins + 1,
+        score: nextScore,
+        highScore: Math.max(state.highScore, nextScore),
+        boostCount: reward.boost ? Math.min(3, state.boostCount + reward.boost) : state.boostCount,
+        boostActive: reward.boostTimer ? true : state.boostActive,
+        boostTimer: reward.boostTimer ? Math.max(state.boostTimer, reward.boostTimer) : state.boostTimer,
+        shieldTimer: reward.shield ? Math.max(state.shieldTimer, reward.shield) : state.shieldTimer,
+        racecraft: clamp(state.racecraft + (reward.racecraft ?? 0), 0, 999),
+        completedGoalNotice: `Rennauftrag +${reward.score ?? 0}`,
+        completedGoalTimer: 2.2,
+        raceMessage: `Auftrag geschafft: ${contract.label}`,
+        raceMessageTimer: 1.05,
+      });
+    },
+
+    failRaceContract: () => {
+      const state = get();
+      const contract = state.activeContract;
+      if (!contract) return;
+      set({
+        activeContract: null,
+        contractTimer: 0,
+        contractCooldown: 3.4,
+        contractFails: state.contractFails + 1,
+        racecraft: clamp(state.racecraft - 5, 0, 999),
+        raceMessage: `Auftrag verpasst: ${contract.label}`,
+        raceMessageTimer: 1,
+      });
+    },
+
+    updateRaceContract: (dt) => {
+      const state = get();
+      if (!state.raceStarted || state.finished || state.isPaused) return;
+      if (!state.activeContract) {
+        const cooldown = Math.max(0, state.contractCooldown - dt);
+        set({ contractCooldown: cooldown });
+        if (cooldown <= 0) get().startRaceContract();
+        return;
+      }
+      if (kartContractProgress(state) >= state.activeContract.target) {
+        get().completeRaceContract();
+        return;
+      }
+      const contractTimer = Math.max(0, state.contractTimer - dt);
+      if (contractTimer <= 0) {
+        get().failRaceContract();
+      } else {
+        set({ contractTimer });
+      }
     },
 
     setMode: (mode) => {
@@ -375,6 +484,7 @@ const useKartStore = createGameStore(
         shortcutCooldown: Math.max(0, state.shortcutCooldown - dt),
         hazardCooldown: Math.max(0, state.hazardCooldown - dt),
       };
+      get().updateRaceContract(dt);
       if (!state.boostActive) {
         set(baseTimers);
         return;
@@ -838,6 +948,12 @@ const useKartStore = createGameStore(
         stats: createKartStats(),
         completedGoalNotice: '',
         completedGoalTimer: 0,
+        activeContract: null,
+        contractIndex: 0,
+        contractTimer: 0,
+        contractCooldown: 1.2,
+        contractWins: 0,
+        contractFails: 0,
         rivalBumpCooldown: 0,
         itemSlot: null,
         itemFlashTimer: 0,

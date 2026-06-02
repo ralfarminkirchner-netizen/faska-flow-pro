@@ -30,7 +30,7 @@ const GAMES = [
   {
     id: 'zelda',
     name: 'Faska Zelda Pro',
-    description: 'Godot-4-16-Bit-Top-Down-Adventure mit normalem Quest-Modus, Wegen, Ruinen, Truhen, Schluesseln, verriegelten Gates, Schwert, Schild, Dash, Bomben, Torwaechter, Sternentor, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
+    description: 'Godot-4-16-Bit-Top-Down-Adventure mit normalem Quest-Modus, Wegen, Ruinen, Truhen, Schluesseln, verriegelten Gates, Schwert-Combos, Schild-Counter, Dash-Slash, Bomben, mehrphasigem Torwaechter, Sternentor, Touchsteuerung und zuschaltbaren Learncade-Schreinen!',
     emoji: '⚔️',
     category: 'Adventure',
     gradient: 'linear-gradient(135deg, #10b981, #059669)',

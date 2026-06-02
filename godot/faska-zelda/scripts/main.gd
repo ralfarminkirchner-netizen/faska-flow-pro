@@ -4,6 +4,8 @@ const TILE_SIZE := 40.0
 const MAP_W := 38
 const MAP_H := 28
 const LEARN_GOAL := 6
+const COMBO_WINDOW := 4.5
+const GUARDIAN_WAVE_DELAY := 0.42
 
 const FLOOR := 0
 const WALL := 1
@@ -221,6 +223,9 @@ var facing := Vector2(0.0, 1.0)
 var velocity := Vector2.ZERO
 var camera_pos := Vector2.ZERO
 var score := 0
+var combat_combo := 0
+var combo_timer := 0.0
+var best_combo := 0
 var shards := 0
 var keys := 0
 var opened_chests := 0
@@ -234,8 +239,10 @@ var learn_hits := 0
 var mistakes := 0
 var attack_timer := 0.0
 var attack_cooldown := 0.0
+var attack_chain := 0
 var dash_timer := 0.0
 var dash_cooldown := 0.0
+var counter_timer := 0.0
 var hurt_cooldown := 0.0
 var shield_active := false
 var message := "Finde 3 Splitter, besiege den Torwaechter und oeffne das Sternentor."
@@ -247,6 +254,7 @@ var objects: Array = []
 var pickups: Array = []
 var bombs: Array = []
 var explosions: Array = []
+var guardian_waves: Array = []
 var shrines: Array = []
 var chests: Array = []
 var locked_doors: Array = []
@@ -281,6 +289,9 @@ func reset_game() -> void:
 	facing = Vector2(0.0, 1.0)
 	velocity = Vector2.ZERO
 	score = 0
+	combat_combo = 0
+	combo_timer = 0.0
+	best_combo = 0
 	shards = 0
 	keys = 0
 	opened_chests = 0
@@ -294,14 +305,17 @@ func reset_game() -> void:
 	mistakes = 0
 	attack_timer = 0.0
 	attack_cooldown = 0.0
+	attack_chain = 0
 	dash_timer = 0.0
 	dash_cooldown = 0.0
+	counter_timer = 0.0
 	hurt_cooldown = 0.0
 	won = false
 	game_over = false
 	exit_open = false
 	bombs.clear()
 	explosions.clear()
+	guardian_waves.clear()
 	pickups.clear()
 	chests.clear()
 	locked_doors.clear()
@@ -381,14 +395,21 @@ func spawn_enemies() -> void:
 		Vector2i(17, 20), Vector2i(26, 23), Vector2i(33, 15),
 	]
 	for i in range(starts.size()):
+		var hp := 2 + int(i % 3 == 0)
 		enemies.append({
 			"pos": cell_center(starts[i]),
-			"hp": 2 + int(i % 3 == 0),
+			"hp": hp,
+			"max_hp": hp,
 			"kind": "slime" if i % 2 == 0 else "soldier",
 			"timer": 0.2 + float(i) * 0.07,
+			"phase": 1,
+			"slam": 0.0,
+			"rush": 0.0,
+			"rush_dir": Vector2.ZERO,
+			"slam_done": true,
 			"hit": 0.0,
 		})
-	enemies.append({"pos": cell_center(Vector2i(MAP_W - 6, 5)), "hp": 9, "kind": "guardian", "timer": 0.2, "hit": 0.0})
+	enemies.append({"pos": cell_center(Vector2i(MAP_W - 6, 5)), "hp": 14, "max_hp": 14, "kind": "guardian", "timer": 0.2, "phase": 1, "slam": 0.0, "rush": 0.0, "rush_dir": Vector2.ZERO, "slam_done": true, "hit": 0.0})
 
 func setup_shrines() -> void:
 	shrines.clear()
@@ -453,6 +474,7 @@ func _process(delta: float) -> void:
 	handle_player(delta)
 	update_locked_doors()
 	update_bombs(delta)
+	update_guardian_waves(delta)
 	update_enemies(delta)
 	collect_pickups()
 	update_exit_state()
@@ -487,12 +509,19 @@ func tick_timers(delta: float) -> void:
 		attack_timer -= delta
 	if attack_cooldown > 0.0:
 		attack_cooldown -= delta
+	if counter_timer > 0.0:
+		counter_timer -= delta
 	if dash_timer > 0.0:
 		dash_timer -= delta
 	if dash_cooldown > 0.0:
 		dash_cooldown -= delta
 	if hurt_cooldown > 0.0:
 		hurt_cooldown -= delta
+	if combo_timer > 0.0:
+		combo_timer -= delta
+	elif combat_combo > 0:
+		combat_combo = 0
+		attack_chain = 0
 	stamina = minf(100.0, stamina + delta * 28.0)
 
 func handle_player(delta: float) -> void:
@@ -540,27 +569,45 @@ func move_player(move_delta: Vector2) -> void:
 func start_attack() -> void:
 	if attack_cooldown > 0.0 or shield_active:
 		return
-	attack_timer = 0.16
-	attack_cooldown = 0.32
-	hit_attack()
+	attack_chain = min(3, attack_chain + 1) if combo_timer > 0.0 else 1
+	attack_timer = 0.15 + float(attack_chain) * 0.025
+	attack_cooldown = 0.30 - float(attack_chain) * 0.025
+	var damage := 1
+	var source := "Schwert"
+	if counter_timer > 0.0:
+		damage += 2
+		source = "Counter"
+		counter_timer = 0.0
+	elif dash_timer > 0.0:
+		damage += 1
+		source = "Dash-Slash"
+	if attack_chain >= 3:
+		damage += 1
+	hit_attack(damage, source)
 
 func attack_rect() -> Rect2:
-	var center: Vector2 = player_pos + facing.normalized() * 34.0
+	var reach := 34.0 + float(attack_chain) * 4.0
+	var center: Vector2 = player_pos + facing.normalized() * reach
 	if absf(facing.x) > absf(facing.y):
-		return Rect2(center - Vector2(34.0, 23.0), Vector2(68.0, 46.0))
-	return Rect2(center - Vector2(23.0, 34.0), Vector2(46.0, 68.0))
+		return Rect2(center - Vector2(34.0 + float(attack_chain) * 6.0, 24.0), Vector2(68.0 + float(attack_chain) * 12.0, 48.0))
+	return Rect2(center - Vector2(24.0, 34.0 + float(attack_chain) * 6.0), Vector2(48.0, 68.0 + float(attack_chain) * 12.0))
 
-func hit_attack() -> void:
+func hit_attack(damage := 1, source := "Schwert") -> void:
 	var hit_rect: Rect2 = attack_rect()
+	var did_hit := false
 	for i in range(enemies.size() - 1, -1, -1):
 		var enemy: Dictionary = enemies[i]
 		var pos: Vector2 = enemy["pos"]
 		if hit_rect.has_point(pos):
-			enemy["hp"] = int(enemy["hp"]) - 1
-			enemy["hit"] = 0.16
-			score += 25
+			did_hit = true
+			enemy["hp"] = int(enemy["hp"]) - damage
+			enemy["hit"] = 0.18
+			add_combo(1, source, 30 * damage)
 			var push: Vector2 = (pos - player_pos).normalized() * 18.0
 			enemy["pos"] = pos + push
+			if str(enemy["kind"]) == "guardian" and int(enemy["hp"]) > 0:
+				enemy["slam"] = maxf(float(enemy.get("slam", 0.0)), 0.24)
+				enemy["slam_done"] = true
 			if int(enemy["hp"]) <= 0:
 				defeat_enemy(enemy)
 				enemies.remove_at(i)
@@ -570,6 +617,8 @@ func hit_attack() -> void:
 	hit_chests(hit_rect)
 	if mode_learn:
 		check_shrine_hit(hit_rect)
+	if not did_hit:
+		attack_chain = maxi(1, attack_chain - 1)
 
 func start_dash() -> void:
 	if dash_cooldown > 0.0 or stamina < 28.0 or shield_active:
@@ -578,6 +627,8 @@ func start_dash() -> void:
 	dash_timer = 0.18
 	dash_cooldown = 0.62
 	hurt_cooldown = maxf(hurt_cooldown, 0.2)
+	message = "Dash bereit fuer Dash-Slash."
+	message_timer = 0.7
 
 func place_bomb() -> void:
 	if bombs_left <= 0:
@@ -585,6 +636,7 @@ func place_bomb() -> void:
 	bombs_left -= 1
 	var cell: Vector2i = world_to_cell(player_pos)
 	bombs.append({"cell": cell, "timer": 1.35})
+	add_combo(1, "Bombe", 20)
 	message = "Bombe gelegt."
 	message_timer = 1.0
 
@@ -599,7 +651,7 @@ func hit_chests(hit_rect: Rect2) -> void:
 		chest["opened"] = true
 		chests[i] = chest
 		opened_chests += 1
-		score += 140
+		add_combo(1, "Truhe", 140)
 		var reward: String = str(chest["reward"])
 		if reward == "key":
 			keys += 1
@@ -631,7 +683,7 @@ func update_locked_doors() -> void:
 		opened_doors += 1
 		door["opened"] = true
 		locked_doors[i] = door
-		score += 220
+		add_combo(2, "Tor", 220)
 		if str(door["id"]) == "boss":
 			message = "Boss-Tor offen. Schild halten, dann zuschlagen."
 		else:
@@ -663,6 +715,31 @@ func update_bombs(delta: float) -> void:
 		else:
 			explosions[i] = explosion
 
+func update_guardian_waves(delta: float) -> void:
+	for i in range(guardian_waves.size() - 1, -1, -1):
+		var wave: Dictionary = guardian_waves[i]
+		wave["delay"] = float(wave["delay"]) - delta
+		wave["timer"] = float(wave["timer"]) - delta
+		if float(wave["delay"]) <= 0.0 and not bool(wave["hit"]):
+			wave["hit"] = true
+			var origin: Vector2 = wave["pos"]
+			var radius: float = float(wave["radius"])
+			if player_pos.distance_to(origin) <= radius and hurt_cooldown <= 0.0:
+				var block_vector: Vector2 = origin - player_pos
+				var block_ok: bool = shield_active and block_vector.length() > 0.1 and facing.dot(block_vector.normalized()) > 0.15
+				if block_ok:
+					stamina = maxf(0.0, stamina - 22.0)
+					counter_timer = 1.0
+					add_combo(2, "Block", 80)
+					message = "Guardian-Schock geblockt: Counter offen."
+					message_timer = 1.0
+				else:
+					hurt_player(2, "Guardian-Schock.")
+		if float(wave["timer"]) <= 0.0:
+			guardian_waves.remove_at(i)
+		else:
+			guardian_waves[i] = wave
+
 func explode_bomb(bomb: Dictionary) -> void:
 	var origin: Vector2i = bomb["cell"]
 	var rects: Array = []
@@ -683,6 +760,8 @@ func explode_bomb(bomb: Dictionary) -> void:
 			var enemy: Dictionary = enemies[i]
 			if rect.has_point(enemy["pos"]):
 				enemy["hp"] = int(enemy["hp"]) - 2
+				enemy["hit"] = 0.22
+				add_combo(2, "Bomb-Hit", 95)
 				if int(enemy["hp"]) <= 0:
 					defeat_enemy(enemy)
 					enemies.remove_at(i)
@@ -697,8 +776,9 @@ func update_enemies(delta: float) -> void:
 		var enemy: Dictionary = enemies[i]
 		var pos: Vector2 = enemy["pos"]
 		var kind: String = str(enemy["kind"])
+		var timer: float = float(enemy["timer"]) + delta
+		enemy["timer"] = timer
 		if kind == "guardian" and not is_boss_door_open():
-			enemy["timer"] = float(enemy["timer"]) + delta
 			enemies[i] = enemy
 			continue
 		var to_player: Vector2 = player_pos - pos
@@ -707,24 +787,65 @@ func update_enemies(delta: float) -> void:
 		if kind == "soldier":
 			speed = 68.0
 		elif kind == "guardian":
-			speed = 42.0
+			var hp_ratio: float = float(enemy["hp"]) / maxf(1.0, float(enemy.get("max_hp", 14)))
+			var phase := 1
+			if hp_ratio <= 0.34:
+				phase = 3
+			elif hp_ratio <= 0.67:
+				phase = 2
+			enemy["phase"] = phase
+			speed = 42.0 + float(phase) * 10.0
+			var slam: float = maxf(0.0, float(enemy.get("slam", 0.0)) - delta)
+			var rush: float = maxf(0.0, float(enemy.get("rush", 0.0)) - delta)
+			var slam_done: bool = bool(enemy.get("slam_done", true))
+			if slam > 0.0:
+				if slam <= 0.06 and not slam_done:
+					slam_done = true
+					trigger_guardian_wave(pos, 76.0 + float(phase) * 18.0)
+				enemy["slam"] = slam
+				enemy["rush"] = rush
+				enemy["slam_done"] = slam_done
+				if float(enemy["hit"]) > 0.0:
+					enemy["hit"] = float(enemy["hit"]) - delta
+				enemies[i] = enemy
+				continue
+			if phase >= 2 and distance > 88.0 and distance < 310.0 and timer > 2.2:
+				rush = 0.34
+				enemy["rush_dir"] = to_player.normalized()
+				enemy["timer"] = 0.0
+				message = "Guardian-Rush! Schild oder Dash."
+				message_timer = 0.9
+			elif distance < 104.0 and timer > (1.45 if phase == 1 else 1.05):
+				slam = GUARDIAN_WAVE_DELAY
+				slam_done = false
+				enemy["timer"] = 0.0
+				message = "Guardian hebt die Klinge."
+				message_timer = 0.75
+			enemy["slam"] = slam
+			enemy["rush"] = rush
+			enemy["slam_done"] = slam_done
 		var dir := Vector2.ZERO
-		if distance < 270.0 and distance > 4.0:
+		if kind == "guardian" and float(enemy.get("rush", 0.0)) > 0.0:
+			var rush_dir: Vector2 = enemy.get("rush_dir", Vector2.ZERO)
+			dir = rush_dir.normalized() if rush_dir.length() > 0.1 else to_player.normalized()
+			speed = 265.0
+		elif distance < 270.0 and distance > 4.0:
 			dir = to_player.normalized()
 		else:
-			var timer: float = float(enemy["timer"]) + delta
 			dir = Vector2(sin(timer * 1.7 + float(i)), cos(timer * 1.3 + float(i) * 0.4)).normalized()
-			enemy["timer"] = timer
 		var next_pos: Vector2 = pos + dir * speed * delta
 		if not collides_world(next_pos, 12.0):
 			enemy["pos"] = next_pos
 		if float(enemy["hit"]) > 0.0:
 			enemy["hit"] = float(enemy["hit"]) - delta
 		if distance < 22.0 and hurt_cooldown <= 0.0:
-			var block_ok: bool = shield_active and facing.dot((pos - player_pos).normalized()) > 0.25
+			var block_vector: Vector2 = pos - player_pos
+			var block_ok: bool = shield_active and block_vector.length() > 0.1 and facing.dot(block_vector.normalized()) > 0.25
 			if block_ok:
 				stamina = maxf(0.0, stamina - 18.0)
-				message = "Geblockt."
+				counter_timer = 0.82
+				add_combo(1, "Block", 55)
+				message = "Geblockt - Counterfenster!"
 				message_timer = 0.8
 			else:
 				hurt_player(1 if kind != "guardian" else 2, "Treffer.")
@@ -732,7 +853,7 @@ func update_enemies(delta: float) -> void:
 
 func defeat_enemy(enemy: Dictionary) -> void:
 	var pos: Vector2 = enemy["pos"]
-	score += 120 if str(enemy["kind"]) != "guardian" else 900
+	add_combo(2 if str(enemy["kind"]) != "guardian" else 6, "Sieg", 120 if str(enemy["kind"]) != "guardian" else 900)
 	if str(enemy["kind"]) == "guardian":
 		shards = maxi(shards, 3)
 		message = "Torwaechter besiegt. Das Sternentor reagiert."
@@ -752,7 +873,7 @@ func hit_objects(hit_rect: Rect2, damage: int) -> void:
 		obj["hp"] = int(obj["hp"]) - damage
 		if int(obj["hp"]) <= 0:
 			var center: Vector2 = rect.get_center()
-			score += 20
+			add_combo(1, "Objekt", 20)
 			if str(obj["type"]) == "crystal":
 				pickups.append({"pos": center, "type": "shard"})
 			elif (int(center.x) + int(center.y)) % 3 == 0:
@@ -778,7 +899,7 @@ func check_shrine_hit(hit_rect: Rect2) -> void:
 			shards = mini(3, shards + 1)
 			learn_hits += 1
 			var repeated := bool(q.get("repeat", false))
-			score += 440 if repeated else 350
+			add_combo(2, "Lernschrein", 440 if repeated else 350)
 			_remove_repeat(q)
 			if repeated:
 				message = "Wiederholung geloest: %s (%d/%d)." % [str(shrine["label"]), learn_hits, LEARN_GOAL]
@@ -804,9 +925,9 @@ func collect_pickups() -> void:
 			player_hp = mini(player_max_hp, player_hp + 1)
 		elif kind == "shard":
 			shards = mini(3, shards + 1)
-			score += 180
+			add_combo(2, "Splitter", 180)
 		else:
-			score += 40
+			add_combo(1, "Fund", 40)
 		pickups.remove_at(i)
 
 func update_exit_state() -> void:
@@ -818,14 +939,17 @@ func update_exit_state() -> void:
 	exit_open = (mode_learn and learn_hits >= LEARN_GOAL) or (shards >= 3 and not guardian_alive)
 	if exit_open and player_pos.distance_to(cell_center(exit_cell)) < 34.0:
 		won = true
-		score += 1200
-		message = "Sternentor offen. Abenteuer geschafft! R startet neu."
+		score += 1200 + best_combo * 45
+		message = "Sternentor offen. Abenteuer geschafft! Best-Combo %d. R startet neu." % best_combo
 		message_timer = 99.0
 
 func hurt_player(amount: int, text: String) -> void:
 	if hurt_cooldown > 0.0:
 		return
 	player_hp -= amount
+	combat_combo = 0
+	combo_timer = 0.0
+	attack_chain = 0
 	hurt_cooldown = 0.95
 	message = text
 	message_timer = 1.6
@@ -840,6 +964,37 @@ func update_camera() -> void:
 	var target: Vector2 = player_pos - visible_size * 0.5
 	camera_pos.x = clampf(target.x, 0.0, maxf(0.0, world_size.x - visible_size.x))
 	camera_pos.y = clampf(target.y, 0.0, maxf(0.0, world_size.y - visible_size.y))
+
+func add_combo(amount: int, label: String, base_points: int) -> void:
+	combat_combo += amount
+	best_combo = maxi(best_combo, combat_combo)
+	combo_timer = COMBO_WINDOW
+	var gained: int = int(round(float(base_points) * combo_multiplier()))
+	score += gained
+	if amount >= 2 or combat_combo % 5 == 0:
+		message = "%s-Combo %d! +%d" % [label, combat_combo, gained]
+		message_timer = 0.85
+
+func combo_multiplier() -> float:
+	if combat_combo < 3:
+		return 1.0
+	return minf(3.0, 1.0 + float(combat_combo) * 0.08)
+
+func trigger_guardian_wave(origin: Vector2, radius: float) -> void:
+	guardian_waves.append({"pos": origin, "radius": radius, "delay": 0.08, "timer": 0.58, "hit": false})
+
+func objective_text() -> String:
+	if mode_learn and learn_hits < LEARN_GOAL:
+		return "Quest: Lernschreine treffen, Fehler kommen wieder. Danach oeffnet das Sternentor."
+	if shards < 3:
+		return "Quest: Splitter aus Truhen, Gegnern und Kristallen holen."
+	if not is_boss_door_open():
+		return "Quest: Schluessel finden und Boss-Tor oeffnen."
+	for enemy in enemies:
+		var item: Dictionary = enemy
+		if str(item["kind"]) == "guardian":
+			return "Quest: Guardian lesen, Schockwellen blocken, Counter setzen."
+	return "Quest: Sternentor erreichen."
 
 func collides_world(pos: Vector2, radius: float) -> bool:
 	var samples: Array = [
@@ -925,6 +1080,7 @@ func _draw() -> void:
 	draw_shrines()
 	draw_bombs()
 	draw_explosions()
+	draw_guardian_waves()
 	draw_pickups()
 	draw_enemies()
 	draw_player()
@@ -1057,6 +1213,19 @@ func draw_explosions() -> void:
 			draw_rect(world_rect_to_screen(rect), Color(1.0, 0.8, 0.18, 0.76), true)
 			draw_rect(world_rect_to_screen(rect.grow(-12.0)), Color(1.0, 0.18, 0.08, 0.76), true)
 
+func draw_guardian_waves() -> void:
+	for wave in guardian_waves:
+		var item: Dictionary = wave
+		var pos: Vector2 = world_pos_to_screen(item["pos"])
+		var timer: float = maxf(0.0, float(item["timer"]))
+		var delay: float = maxf(0.0, float(item["delay"]))
+		var reveal: float = clampf(1.0 - timer / 0.58, 0.0, 1.0)
+		if delay > 0.0:
+			reveal = clampf(1.0 - delay / 0.08, 0.0, 1.0) * 0.35
+		var radius: float = float(item["radius"]) * world_scale() * maxf(0.22, reveal)
+		draw_arc(pos, radius, 0.0, TAU, 48, Color.html("#fde047"), 4.0)
+		draw_arc(pos, radius + 7.0, 0.0, TAU, 48, Color(1.0, 0.28, 0.12, 0.58), 2.0)
+
 func draw_pickups() -> void:
 	for pickup in pickups:
 		var item: Dictionary = pickup
@@ -1069,6 +1238,7 @@ func draw_pickups() -> void:
 		draw_rect(Rect2(pos - Vector2(7.0, 7.0), Vector2(14.0, 14.0)), color, true)
 
 func draw_enemies() -> void:
+	var font := get_theme_default_font()
 	for enemy in enemies:
 		var item: Dictionary = enemy
 		var pos: Vector2 = world_pos_to_screen(item["pos"])
@@ -1078,7 +1248,15 @@ func draw_enemies() -> void:
 		if kind == "soldier":
 			color = Color.html("#a855f7")
 		elif kind == "guardian":
-			color = Color.html("#7f1d1d") if is_boss_door_open() else Color.html("#334155")
+			var phase: int = int(item.get("phase", 1))
+			if not is_boss_door_open():
+				color = Color.html("#334155")
+			elif phase == 1:
+				color = Color.html("#7f1d1d")
+			elif phase == 2:
+				color = Color.html("#c2410c")
+			else:
+				color = Color.html("#dc2626")
 			size_px = 40.0
 		if float(item["hit"]) > 0.0:
 			color = Color.html("#f8fafc")
@@ -1088,7 +1266,15 @@ func draw_enemies() -> void:
 		draw_rect(Rect2(pos + Vector2(4.0, -6.0), Vector2(5.0, 5.0)), Color.html("#f8fafc"), true)
 		draw_rect(Rect2(pos + Vector2(-8.0, 8.0), Vector2(16.0, 4.0)), Color.html("#020617"), true)
 		if kind == "guardian" and not is_boss_door_open():
-			draw_string(get_theme_default_font(), pos + Vector2(-24.0, -28.0), "SIEGEL", HORIZONTAL_ALIGNMENT_CENTER, 48.0, 10, Color.html("#cbd5e1"))
+			draw_string(font, pos + Vector2(-24.0, -28.0), "SIEGEL", HORIZONTAL_ALIGNMENT_CENTER, 48.0, 10, Color.html("#cbd5e1"))
+		elif kind == "guardian":
+			var hp_ratio: float = clampf(float(item["hp"]) / maxf(1.0, float(item.get("max_hp", 14))), 0.0, 1.0)
+			draw_rect(Rect2(pos + Vector2(-32.0, -38.0), Vector2(64.0, 6.0)), Color.html("#020617"), true)
+			draw_rect(Rect2(pos + Vector2(-32.0, -38.0), Vector2(64.0 * hp_ratio, 6.0)), Color.html("#fde047"), true)
+			draw_string(font, pos + Vector2(-28.0, -44.0), "P%d" % int(item.get("phase", 1)), HORIZONTAL_ALIGNMENT_LEFT, 56.0, 10, Color.html("#fde68a"))
+			if float(item.get("slam", 0.0)) > 0.0:
+				var pulse: float = 1.0 - clampf(float(item.get("slam", 0.0)) / GUARDIAN_WAVE_DELAY, 0.0, 1.0)
+				draw_arc(pos, 48.0 + pulse * 24.0, 0.0, TAU, 40, Color.html("#facc15"), 3.0)
 
 func draw_player() -> void:
 	var pos: Vector2 = world_pos_to_screen(player_pos)
@@ -1164,15 +1350,16 @@ func draw_minimap() -> void:
 
 func draw_hud() -> void:
 	var font := get_theme_default_font()
-	draw_rect(Rect2(12.0, 10.0, minf(size.x - 24.0, 760.0), 104.0), Color(0.02, 0.05, 0.09, 0.74), true)
+	draw_rect(Rect2(12.0, 10.0, minf(size.x - 24.0, 810.0), 130.0), Color(0.02, 0.05, 0.09, 0.74), true)
 	draw_string(font, Vector2(24.0, 34.0), "FASKA ZELDA PRO - 16-BIT ABENTEUER", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.html("#facc15"))
 	draw_string(font, Vector2(24.0, 59.0), "HP %d/%d  STA %d  Splitter %d/3  Schluessel %d  Bomben %d  Score %d" % [player_hp, player_max_hp, int(stamina), shards, keys, bombs_left, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#f8fafc"))
 	draw_string(font, Vector2(24.0, 81.0), "Tore %d/%d  Truhen %d/%d  Mode %s  Fach %s  Lernziel %d/%d" % [opened_doors, locked_doors.size(), opened_chests, chests.size(), "Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(24.0, 102.0), "Quest: Schluessel holen, Boss-Tor oeffnen, Waechter besiegen. L schaltet Lernschreine zu.", HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 730.0), 12, Color.html("#fde68a"))
+	draw_string(font, Vector2(24.0, 103.0), "Combo %d  Best %d  Multi x%.1f  Counter %s  Kette %d" % [combat_combo, best_combo, combo_multiplier(), "offen" if counter_timer > 0.0 else "-", attack_chain], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(24.0, 124.0), objective_text(), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 780.0), 12, Color.html("#f8fafc"))
 	if mode_learn:
 		var q: Dictionary = current_question()
-		draw_rect(Rect2(12.0, 122.0, minf(size.x - 24.0, 760.0), 34.0), Color(0.02, 0.05, 0.09, 0.74), true)
-		draw_string(font, Vector2(24.0, 145.0), str(q["prompt"]), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 736.0), 16, Color.html("#f8fafc"))
+		draw_rect(Rect2(12.0, 148.0, minf(size.x - 24.0, 810.0), 34.0), Color(0.02, 0.05, 0.09, 0.74), true)
+		draw_string(font, Vector2(24.0, 171.0), str(q["prompt"]), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 786.0), 16, Color.html("#f8fafc"))
 	if message_timer > 0.0:
 		draw_rect(Rect2(12.0, size.y - 42.0, minf(size.x - 24.0, 720.0), 29.0), Color(0.02, 0.05, 0.09, 0.74), true)
 		draw_string(font, Vector2(24.0, size.y - 20.0), message, HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 48.0, 696.0), 14, Color.html("#f8fafc"))

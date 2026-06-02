@@ -82,6 +82,7 @@ class TouchFighterOverlay:
 	var low_down := false
 	var dash_down := false
 	var super_down := false
+	var throw_down := false
 	var learn_down := false
 	var subject_down := false
 	var _move_touch := -1
@@ -134,6 +135,7 @@ class TouchFighterOverlay:
 		low_down = false
 		dash_down = false
 		super_down = false
+		throw_down = false
 		learn_down = false
 		subject_down = false
 		for key in _button_touches.keys():
@@ -150,6 +152,8 @@ class TouchFighterOverlay:
 				dash_down = true
 			elif action == "super":
 				super_down = true
+			elif action == "throw":
+				throw_down = true
 			elif action == "learn":
 				learn_down = true
 			elif action == "subject":
@@ -181,6 +185,7 @@ class TouchFighterOverlay:
 			{"action": "guard", "label": "G\nBlock", "rect": Rect2(Vector2(x + (w + gap) * 2.0, y + h + gap), Vector2(w, h))},
 			{"action": "low", "label": "U\nLow", "rect": Rect2(Vector2(x, y + (h + gap) * 2.0), Vector2(w, h))},
 			{"action": "dash", "label": "A\nDash", "rect": Rect2(Vector2(x + w + gap, y + (h + gap) * 2.0), Vector2(w, h))},
+			{"action": "throw", "label": "O\nThrow", "rect": Rect2(Vector2(x + (w + gap) * 2.0, y + (h + gap) * 2.0), Vector2(w, h))},
 		]
 
 	func _draw() -> void:
@@ -210,7 +215,7 @@ class TouchFighterOverlay:
 		for button in _buttons():
 			var rect: Rect2 = button["rect"]
 			var action := str(button["action"])
-			var active := (action == "guard" and guard_down) or (action == "light" and light_down) or (action == "heavy" and heavy_down) or (action == "low" and low_down) or (action == "dash" and dash_down) or (action == "super" and super_down) or (action == "learn" and learn_down) or (action == "subject" and subject_down)
+			var active := (action == "guard" and guard_down) or (action == "light" and light_down) or (action == "heavy" and heavy_down) or (action == "low" and low_down) or (action == "dash" and dash_down) or (action == "super" and super_down) or (action == "throw" and throw_down) or (action == "learn" and learn_down) or (action == "subject" and subject_down)
 			draw_rect(rect, Color(0.02, 0.05, 0.09, 0.66), true)
 			draw_rect(rect, Color.html("#facc15") if active else Color(0.78, 0.88, 1.0, 0.55), false, 4.0 * ui)
 			var lines := str(button["label"]).split("\n")
@@ -244,8 +249,11 @@ var last_touch_heavy := false
 var last_touch_low := false
 var last_touch_dash := false
 var last_touch_super := false
+var last_touch_throw := false
+var last_touch_guard := false
 var last_touch_learn := false
 var last_touch_subject := false
+var rival_style := "Striker"
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -260,8 +268,10 @@ func reset_game() -> void:
 	rival_rounds = 0
 	round_number = 1
 	match_over = false
+	rival_style = "Striker"
 	player = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.28), ground_y()), 1, Color.html("#facc15"), Color.html("#22d3ee"))
 	rival = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.72), ground_y()), -1, Color.html("#ef4444"), Color.html("#7c3aed"))
+	rival["ai_timer"] = 1.05
 	mode_learn = false
 	lesson_index = 0
 	question_index = 0
@@ -280,16 +290,22 @@ func reset_game() -> void:
 
 func start_next_round() -> void:
 	round_number += 1
+	rival_style = _style_for_round(round_number)
 	player = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.28), ground_y()), 1, Color.html("#facc15"), Color.html("#22d3ee"))
 	rival = make_fighter(Vector2(lerpf(arena_left(), arena_right(), 0.72), ground_y()), -1, Color.html("#ef4444"), Color.html("#7c3aed"))
+	rival["ai_timer"] = 0.95
 	round_time = 99.0
 	round_over = false
 	shake_timer = 0.0
 	flash_timer = 0.0
 	hit_sparks.clear()
 	setup_answers()
-	message = "Runde %d. Fight!" % round_number
+	message = "Runde %d. CPU-Stil: %s. Fight!" % [round_number, rival_style]
 	message_timer = 2.2
+
+func _style_for_round(number: int) -> String:
+	var styles := ["Striker", "Grappler", "Counter"]
+	return str(styles[(number - 1) % styles.size()])
 
 func make_fighter(pos: Vector2, face: int, body: Color, trim: Color) -> Dictionary:
 	return {
@@ -307,6 +323,9 @@ func make_fighter(pos: Vector2, face: int, body: Color, trim: Color) -> Dictiona
 		"hitstun": 0.0,
 		"guard": false,
 		"crouch": false,
+		"parry": 0.0,
+		"throw_escape": 0.0,
+		"knockdown": 0.0,
 		"dash": 0.0,
 		"combo": 0,
 		"combo_timer": 0.0,
@@ -378,6 +397,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			player = start_attack(player, "low")
 		elif event.keycode == KEY_I:
 			player = start_attack(player, "super")
+		elif event.keycode == KEY_O:
+			player = start_attack(player, "throw")
+		elif event.keycode == KEY_G:
+			player = start_parry(player)
 		elif event.keycode == KEY_SPACE:
 			player = start_dash(player)
 
@@ -419,6 +442,10 @@ func update_touch_actions() -> void:
 		player = start_dash(player)
 	if touch_overlay.super_down and not last_touch_super:
 		player = start_attack(player, "super")
+	if touch_overlay.throw_down and not last_touch_throw:
+		player = start_attack(player, "throw")
+	if touch_overlay.guard_down and not last_touch_guard:
+		player = start_parry(player)
 	if touch_overlay.learn_down and not last_touch_learn:
 		mode_learn = not mode_learn
 		setup_answers()
@@ -431,6 +458,8 @@ func update_touch_actions() -> void:
 	last_touch_low = touch_overlay.low_down
 	last_touch_dash = touch_overlay.dash_down
 	last_touch_super = touch_overlay.super_down
+	last_touch_throw = touch_overlay.throw_down
+	last_touch_guard = touch_overlay.guard_down
 	last_touch_learn = touch_overlay.learn_down
 	last_touch_subject = touch_overlay.subject_down
 
@@ -438,6 +467,13 @@ func update_player_intent() -> void:
 	var p_pos: Vector2 = player["pos"]
 	var r_pos: Vector2 = rival["pos"]
 	player["face"] = 1 if r_pos.x >= p_pos.x else -1
+	if float(player["knockdown"]) > 0.0:
+		player["guard"] = false
+		player["crouch"] = false
+		var down_vel: Vector2 = player["vel"]
+		down_vel.x = 0.0
+		player["vel"] = down_vel
+		return
 	var dir := 0.0
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		dir -= 1.0
@@ -464,19 +500,31 @@ func update_player_intent() -> void:
 	player["vel"] = velocity
 
 func update_ai(delta: float) -> void:
+	if float(rival["knockdown"]) > 0.0:
+		rival["guard"] = false
+		rival["crouch"] = false
+		var down_vel: Vector2 = rival["vel"]
+		down_vel.x = 0.0
+		rival["vel"] = down_vel
+		return
 	var e_pos: Vector2 = rival["pos"]
 	var p_pos: Vector2 = player["pos"]
 	rival["face"] = 1 if p_pos.x >= e_pos.x else -1
 	var distance: float = absf(p_pos.x - e_pos.x)
 	var ai_timer: float = float(rival["ai_timer"]) - delta
-	var phase: float = sin(float(rival["ai_seed"]) + round_time * 2.1)
+	var phase: float = sin(float(rival["ai_seed"]) + round_time * (2.1 if rival_style != "Counter" else 2.7))
 	var velocity: Vector2 = rival["vel"]
 	var dir := 0.0
 	rival["guard"] = false
 	rival["crouch"] = false
 	if ai_timer <= 0.0:
 		rival["ai_timer"] = 0.22 + absf(phase) * 0.28
-		if distance < 82.0:
+		if rival_style == "Grappler" and distance < 74.0 and phase > -0.35:
+			rival = start_attack(rival, "throw")
+		elif rival_style == "Counter" and distance < 128.0 and phase < -0.42:
+			rival = start_parry(rival)
+			rival["guard"] = true
+		elif distance < 82.0:
 			if phase > 0.15:
 				rival = start_attack(rival, "light")
 			elif phase < -0.5:
@@ -509,14 +557,22 @@ func jump_fighter(fighter: Dictionary) -> Dictionary:
 	return fighter
 
 func start_dash(fighter: Dictionary) -> Dictionary:
-	if float(fighter["stamina"]) < 24.0 or float(fighter["dash"]) > 0.0 or float(fighter["hitstun"]) > 0.0:
+	if float(fighter["stamina"]) < 24.0 or float(fighter["dash"]) > 0.0 or float(fighter["hitstun"]) > 0.0 or float(fighter["knockdown"]) > 0.0:
 		return fighter
 	fighter["stamina"] = maxf(0.0, float(fighter["stamina"]) - 24.0)
 	fighter["dash"] = 0.16
 	return fighter
 
+func start_parry(fighter: Dictionary) -> Dictionary:
+	if float(fighter["stamina"]) < 14.0 or float(fighter["hitstun"]) > 0.0 or float(fighter["knockdown"]) > 0.0 or str(fighter["attack"]) != "none":
+		return fighter
+	fighter["stamina"] = maxf(0.0, float(fighter["stamina"]) - 14.0)
+	fighter["parry"] = 0.28
+	fighter["throw_escape"] = 0.34
+	return fighter
+
 func start_attack(fighter: Dictionary, attack_name: String) -> Dictionary:
-	if float(fighter["attack_cooldown"]) > 0.0 or float(fighter["hitstun"]) > 0.0:
+	if float(fighter["attack_cooldown"]) > 0.0 or float(fighter["hitstun"]) > 0.0 or float(fighter["knockdown"]) > 0.0:
 		return fighter
 	if attack_name == "super" and float(fighter["super"]) < 65.0:
 		return fighter
@@ -532,6 +588,9 @@ func start_attack(fighter: Dictionary, attack_name: String) -> Dictionary:
 		duration = 0.48
 		cooldown = 0.88
 		fighter["super"] = maxf(0.0, float(fighter["super"]) - 65.0)
+	elif attack_name == "throw":
+		duration = 0.36
+		cooldown = 0.62
 	fighter["attack"] = attack_name
 	fighter["attack_time"] = duration
 	fighter["attack_cooldown"] = cooldown
@@ -551,6 +610,12 @@ func update_fighter(fighter: Dictionary, delta: float) -> Dictionary:
 			fighter["attack_hit"] = false
 	if float(fighter["hitstun"]) > 0.0:
 		fighter["hitstun"] = maxf(0.0, float(fighter["hitstun"]) - delta)
+	if float(fighter["parry"]) > 0.0:
+		fighter["parry"] = maxf(0.0, float(fighter["parry"]) - delta)
+	if float(fighter["throw_escape"]) > 0.0:
+		fighter["throw_escape"] = maxf(0.0, float(fighter["throw_escape"]) - delta)
+	if float(fighter["knockdown"]) > 0.0:
+		fighter["knockdown"] = maxf(0.0, float(fighter["knockdown"]) - delta)
 	if float(fighter["dash"]) > 0.0:
 		fighter["dash"] = maxf(0.0, float(fighter["dash"]) - delta)
 	if int(fighter["combo"]) > 0:
@@ -593,8 +658,24 @@ func resolve_one_attack(attacker: Dictionary, defender: Dictionary, player_attac
 	if not hitbox.intersects(body):
 		last_defender = defender
 		return attacker
+	if str(attacker["attack"]) == "throw":
+		return resolve_throw(attacker, defender, player_attacks)
+	if can_parry(defender, attacker):
+		attacker["hitstun"] = 0.42
+		attacker["attack"] = "none"
+		attacker["attack_hit"] = true
+		defender["super"] = minf(100.0, float(defender["super"]) + 22.0)
+		defender["stamina"] = minf(100.0, float(defender["stamina"]) + 18.0)
+		message = "Parry! Counter-Fenster offen."
+		message_timer = 1.35
+		shake_timer = 0.08
+		spawn_hit_spark(defender, "parry")
+		last_defender = defender
+		return attacker
 	var blocked: bool = can_block(defender, attacker)
 	var damage: int = attack_damage(str(attacker["attack"]))
+	if not player_attacks:
+		damage = maxi(1, int(ceil(float(damage) * 0.72)))
 	var push: float = attack_push(str(attacker["attack"]))
 	var d_vel: Vector2 = defender["vel"]
 	if blocked:
@@ -637,6 +718,40 @@ func resolve_one_attack(attacker: Dictionary, defender: Dictionary, player_attac
 	last_defender = defender
 	return attacker
 
+func resolve_throw(attacker: Dictionary, defender: Dictionary, player_attacks: bool) -> Dictionary:
+	var d_vel: Vector2 = defender["vel"]
+	if float(defender["throw_escape"]) > 0.0:
+		attacker["attack_hit"] = true
+		attacker["hitstun"] = 0.18
+		defender["super"] = minf(100.0, float(defender["super"]) + 12.0)
+		message = "Throw-Tech!"
+		message_timer = 1.2
+		spawn_hit_spark(defender, "parry")
+		last_defender = defender
+		return attacker
+	var damage := attack_damage("throw")
+	if not player_attacks:
+		damage = maxi(1, int(ceil(float(damage) * 0.72)))
+	defender["hp"] = maxi(0, int(defender["hp"]) - damage)
+	defender["hitstun"] = 0.34
+	defender["knockdown"] = 0.72
+	defender["guard"] = false
+	defender["crouch"] = false
+	d_vel.x = float(attacker["face"]) * attack_push("throw")
+	d_vel.y = -135.0
+	defender["vel"] = d_vel
+	attacker["attack_hit"] = true
+	attacker["super"] = minf(100.0, float(attacker["super"]) + 14.0)
+	attacker["combo"] = int(attacker["combo"]) + 1
+	attacker["combo_timer"] = 1.2
+	score += damage * (13 if player_attacks else 4)
+	message = "Throw! Block geknackt."
+	message_timer = 1.35
+	shake_timer = 0.16
+	spawn_hit_spark(defender, "throw")
+	last_defender = defender
+	return attacker
+
 func attack_is_active(fighter: Dictionary) -> bool:
 	var name: String = str(fighter["attack"])
 	var t: float = float(fighter["attack_time"])
@@ -648,6 +763,8 @@ func attack_is_active(fighter: Dictionary) -> bool:
 		return t < 0.24 and t > 0.06
 	if name == "super":
 		return t < 0.38 and t > 0.06
+	if name == "throw":
+		return t < 0.25 and t > 0.08
 	return false
 
 func attack_damage(name: String) -> int:
@@ -657,6 +774,8 @@ func attack_damage(name: String) -> int:
 		return 8
 	if name == "super":
 		return 23
+	if name == "throw":
+		return 12
 	return 6
 
 func attack_push(name: String) -> float:
@@ -666,6 +785,8 @@ func attack_push(name: String) -> float:
 		return 120.0
 	if name == "super":
 		return 390.0
+	if name == "throw":
+		return 280.0
 	return 150.0
 
 func spawn_hit_spark(target: Dictionary, kind: String) -> void:
@@ -677,6 +798,10 @@ func spawn_hit_spark(target: Dictionary, kind: String) -> void:
 		y = -118.0
 	elif kind == "super":
 		y = -96.0
+	elif kind == "parry":
+		y = -112.0
+	elif kind == "throw":
+		y = -84.0
 	hit_sparks.append({"pos": pos + Vector2(0.0, y), "kind": kind, "timer": 0.24})
 	if hit_sparks.size() > 10:
 		hit_sparks.pop_front()
@@ -707,6 +832,10 @@ func attack_box(fighter: Dictionary) -> Rect2:
 	elif name == "super":
 		width = 150.0
 		height = 82.0
+	elif name == "throw":
+		width = 70.0
+		height = 100.0
+		y_offset = 112.0
 	var x: float = pos.x + face * 30.0
 	if face < 0.0:
 		x -= width
@@ -722,7 +851,19 @@ func fighter_body(fighter: Dictionary) -> Rect2:
 func can_block(defender: Dictionary, attacker: Dictionary) -> bool:
 	if not bool(defender["guard"]) or float(defender["stamina"]) <= 2.0 or float(defender["hitstun"]) > 0.0:
 		return false
+	if str(attacker["attack"]) == "throw":
+		return false
 	if str(attacker["attack"]) == "low" and not bool(defender["crouch"]):
+		return false
+	var d_pos: Vector2 = defender["pos"]
+	var a_pos: Vector2 = attacker["pos"]
+	var incoming: float = signf(a_pos.x - d_pos.x)
+	return incoming == float(defender["face"])
+
+func can_parry(defender: Dictionary, attacker: Dictionary) -> bool:
+	if float(defender["parry"]) <= 0.0 or float(defender["hitstun"]) > 0.0 or float(defender["knockdown"]) > 0.0:
+		return false
+	if str(attacker["attack"]) == "low" or str(attacker["attack"]) == "throw" or str(attacker["attack"]) == "super":
 		return false
 	var d_pos: Vector2 = defender["pos"]
 	var a_pos: Vector2 = attacker["pos"]
@@ -885,8 +1026,12 @@ func draw_fighter(fighter: Dictionary, is_player: bool, offset: Vector2) -> void
 	if float(fighter["hitstun"]) > 0.0 and int(round_time * 22.0) % 2 == 0:
 		body = Color.html("#f8fafc")
 	var crouch: bool = bool(fighter["crouch"])
+	var knocked: bool = float(fighter["knockdown"]) > 0.0
 	var torso_h: float = 72.0 if not crouch else 48.0
 	var leg_h: float = 44.0 if not crouch else 24.0
+	if knocked:
+		torso_h = 34.0
+		leg_h = 18.0
 	var step: float = sin(float(fighter["anim"]))
 	var left_step := maxf(0.0, step) * 5.0
 	var right_step := maxf(0.0, -step) * 5.0
@@ -899,6 +1044,8 @@ func draw_fighter(fighter: Dictionary, is_player: bool, offset: Vector2) -> void
 	draw_rect(Rect2(Vector2(arm_x, pos.y - torso_h - leg_h + 16.0), Vector2(32.0, 12.0)), trim, true)
 	draw_rect(Rect2(pos + Vector2(-8.0, -torso_h - leg_h - 14.0), Vector2(5.0, 5.0)), Color.html("#020617"), true)
 	draw_rect(Rect2(pos + Vector2(4.0, -torso_h - leg_h - 14.0), Vector2(5.0, 5.0)), Color.html("#020617"), true)
+	if float(fighter["parry"]) > 0.0:
+		draw_arc(pos + Vector2(0.0, -82.0), 54.0, -PI * 0.85, PI * 0.85, 32, Color.html("#38bdf8"), 5.0)
 	if bool(fighter["guard"]):
 		var shield_x: float = face * 30.0
 		draw_rect(Rect2(pos + Vector2(shield_x - 8.0, -104.0), Vector2(16.0, 76.0)), Color(0.38, 0.77, 1.0, 0.46), true)
@@ -910,11 +1057,17 @@ func draw_fighter(fighter: Dictionary, is_player: bool, offset: Vector2) -> void
 			color = Color(0.22, 0.86, 0.74, 0.38)
 		if str(fighter["attack"]) == "super":
 			color = Color(0.56, 0.19, 1.0, 0.48)
+		if str(fighter["attack"]) == "throw":
+			color = Color(0.98, 0.28, 0.42, 0.42)
 		draw_rect(screen_box, color, true)
 	if is_player:
 		draw_string(get_theme_default_font(), pos + Vector2(-38.0, 22.0), "DU", HORIZONTAL_ALIGNMENT_CENTER, 76.0, 12, Color.html("#facc15"))
 	var state_label := ""
-	if float(fighter["hitstun"]) > 0.0:
+	if knocked:
+		state_label = "DOWN"
+	elif float(fighter["parry"]) > 0.0:
+		state_label = "PARRY"
+	elif float(fighter["hitstun"]) > 0.0:
 		state_label = "STUN"
 	elif bool(fighter["guard"]):
 		state_label = "GUARD"
@@ -928,6 +1081,8 @@ func draw_attack_effects(offset: Vector2) -> void:
 		draw_string(get_theme_default_font(), Vector2(538.0, 156.0), "%d HIT" % int(player["combo"]), HORIZONTAL_ALIGNMENT_CENTER, 200.0, 34, Color.html("#facc15"))
 	if mode_learn and learn_hits >= LEARN_GOAL:
 		draw_string(get_theme_default_font(), Vector2(size.x * 0.5 - 190.0, 164.0), "KNOWLEDGE BREAK", HORIZONTAL_ALIGNMENT_CENTER, 380.0, 24, Color.html("#38bdf8"))
+	if float(player["parry"]) > 0.0:
+		draw_string(get_theme_default_font(), Vector2(size.x * 0.5 - 126.0, 192.0), "PARRY WINDOW", HORIZONTAL_ALIGNMENT_CENTER, 252.0, 20, Color.html("#38bdf8"))
 
 func draw_hit_sparks(offset: Vector2) -> void:
 	for spark in hit_sparks:
@@ -942,6 +1097,10 @@ func draw_hit_sparks(offset: Vector2) -> void:
 			color = Color.html("#f97316")
 		elif kind == "super":
 			color = Color.html("#c084fc")
+		elif kind == "parry":
+			color = Color.html("#38bdf8")
+		elif kind == "throw":
+			color = Color.html("#fb7185")
 		var radius := lerpf(35.0, 8.0, 1.0 - t)
 		draw_circle(pos, radius, Color(color.r, color.g, color.b, 0.32 * t))
 		for i in range(8):
@@ -957,8 +1116,8 @@ func draw_hud() -> void:
 	draw_string(font, Vector2(size.x * 0.5 - 45.0, 56.0), "%02d" % int(ceil(round_time)), HORIZONTAL_ALIGNMENT_CENTER, 90.0, 34, Color.html("#f8fafc"))
 	draw_string(font, Vector2(size.x * 0.5 - 120.0, 28.0), "Runde %d  %d:%d" % [round_number, player_rounds, rival_rounds], HORIZONTAL_ALIGNMENT_CENTER, 240.0, 17, Color.html("#facc15"))
 	draw_string(font, Vector2(42.0, 84.0), "Super %d  Stamina %d" % [int(player["super"]), int(player["stamina"])], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(size.x - 278.0, 84.0), "CPU Super %d" % int(rival["super"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(size.x * 0.5 - 190.0, 88.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_CENTER, 380.0, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(size.x - 318.0, 84.0), "CPU %s  Super %d" % [rival_style, int(rival["super"])], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
+	draw_string(font, Vector2(size.x * 0.5 - 220.0, 88.0), "Mode %s  Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % ["Learncade" if mode_learn else "Normal", str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_CENTER, 440.0, 13, Color.html("#fde68a"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(Vector2(size.x * 0.5 - 330.0, 108.0), Vector2(660.0, 38.0)), Color(0.02, 0.05, 0.09, 0.76), true)
@@ -968,6 +1127,8 @@ func draw_hud() -> void:
 		var msg_y := size.y - bottom_clearance
 		draw_rect(Rect2(Vector2(28.0, msg_y), Vector2(minf(size.x - 56.0, 780.0), 34.0)), Color(0.02, 0.05, 0.09, 0.76), true)
 		draw_string(font, Vector2(42.0, msg_y + 23.0), message, HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 84.0, 752.0), 16, Color.html("#f8fafc"))
+	if not is_mobile_layout():
+		draw_string(font, Vector2(38.0, size.y - 38.0), "J Jab  K Kick  U Low  O Throw  G Parry/Block  Space Dash  I Super  L Learncade", HORIZONTAL_ALIGNMENT_LEFT, size.x - 76.0, 13, Color.html("#94a3b8"))
 
 func draw_health_bar(pos: Vector2, width: float, fighter: Dictionary, left_to_right: bool) -> void:
 	var ratio: float = clampf(float(fighter["hp"]) / float(fighter["max_hp"]), 0.0, 1.0)

@@ -127,7 +127,7 @@ const GAMES = [
   {
     id: 'parkour',
     name: 'Faska Parkour Pro',
-    description: "Godot-4-Jump'n'Run mit Kamera, Plattformkollision, Coyote-Jump, Double-Jump, Dash-Charges, Grapple-Punkten, Gegner-Stomps, Checkpoints, Touchsteuerung, Portalziel, Fehler-Wiederholung und Learncade-Gates fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!",
+    description: "Godot-4-Jump'n'Run mit Normalmodus zuerst, Kamera, Plattformkollision, Coyote-Jump, Double-Jump, Dash-Charges, Wall-Kick/Wall-Slide, Grapple-Punkten, Gegner-Stomps, Runen, Checkpoints, Flow-Multiplikator, Touchsteuerung, Portalziel und optionalen Learncade-Gates fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch mit Fehler-Wiederholung!",
     emoji: '🕹️',
     category: 'Platformer',
     gradient: 'linear-gradient(135deg, #0ea5e9, #22c55e)',

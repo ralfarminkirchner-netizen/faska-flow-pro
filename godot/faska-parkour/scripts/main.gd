@@ -7,6 +7,10 @@ const GRAVITY := 1550.0
 const RUN_SPEED := 285.0
 const JUMP_SPEED := -620.0
 const LEARN_GOAL := 7
+const FLOW_WINDOW := 4.2
+const WALL_SLIDE_SPEED := 225.0
+const WALL_JUMP_X := 455.0
+const WALL_JUMP_Y := -615.0
 const LESSONS := ["WORTART", "MATHE", "SATZ", "LESEN", "KOMPOSITUM", "ENGLISCH"]
 const GATE_BASES := [
 	Vector2(890.0, 365.0),
@@ -242,9 +246,12 @@ var attack_timer := 0.0
 var hurt_timer := 0.0
 var score := 0
 var ring_combo := 0
+var flow_combo := 0
+var flow_timer := 0.0
+var best_flow := 0
 var shard_count := 0
 var checkpoint_index := 0
-var mode_learn := true
+var mode_learn := false
 var lesson_index := 0
 var question_index := 0
 var repeat_queue := []
@@ -257,6 +264,10 @@ var game_over := false
 var coyote_timer := 0.0
 var jump_buffer := 0.0
 var dash_charges := 1
+var wall_dir := 0
+var wall_timer := 0.0
+var run_timer := 0.0
+var run_started := false
 var touch_overlay: TouchParkourOverlay
 var last_touch_jump := false
 var last_touch_dash := false
@@ -289,9 +300,12 @@ func reset_game() -> void:
 	hurt_timer = 0.0
 	score = 0
 	ring_combo = 0
+	flow_combo = 0
+	flow_timer = 0.0
+	best_flow = 0
 	shard_count = 0
 	checkpoint_index = 0
-	mode_learn = true
+	mode_learn = false
 	lesson_index = 0
 	question_index = 0
 	repeat_queue.clear()
@@ -300,9 +314,13 @@ func reset_game() -> void:
 	coyote_timer = 0.0
 	jump_buffer = 0.0
 	dash_charges = 1
+	wall_dir = 0
+	wall_timer = 0.0
+	run_timer = 0.0
+	run_started = false
 	won = false
 	game_over = false
-	message = "Parkour Pro: Flow-Run mit Double-Jump, Dash, Grapple, Gegnern und echten Learncade-Gates."
+	message = "Normalmodus: Flow-Run. Sammle 3 Runen, halte Combo, erreiche das Portal."
 	message_timer = 4.5
 
 func build_level() -> void:
@@ -407,6 +425,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_J:
 			try_grapple()
 		elif event.keycode == KEY_K:
+			start_run()
 			attack_timer = 0.16
 			hit_near_enemy()
 
@@ -417,6 +436,8 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 	tick_timers(delta)
+	if run_started:
+		run_timer += delta
 	update_touch_actions()
 	update_player(delta)
 	update_enemies(delta)
@@ -437,6 +458,7 @@ func update_touch_actions() -> void:
 	if touch_overlay.grapple_down and not last_touch_grapple:
 		try_grapple()
 	if touch_overlay.attack_down and not last_touch_attack:
+		start_run()
 		attack_timer = 0.16
 		hit_near_enemy()
 	if touch_overlay.learn_down and not last_touch_learn:
@@ -466,6 +488,13 @@ func tick_timers(delta: float) -> void:
 		coyote_timer -= delta
 	if jump_buffer > 0.0:
 		jump_buffer -= delta
+	if wall_timer > 0.0:
+		wall_timer -= delta
+	if flow_timer > 0.0:
+		flow_timer -= delta
+	elif flow_combo > 0:
+		flow_combo = 0
+		ring_combo = 0
 	stamina = minf(100.0, stamina + delta * 24.0)
 
 func update_player(delta: float) -> void:
@@ -476,12 +505,19 @@ func update_player(delta: float) -> void:
 		input_dir += 1.0
 	if touch_overlay != null and absf(touch_overlay.move_x) > 0.08:
 		input_dir = touch_overlay.move_x
+	if absf(input_dir) > 0.05:
+		start_run()
 	if input_dir != 0.0:
 		facing = int(signf(input_dir))
 	if dash_timer <= 0.0:
-		player_vel.x = lerpf(player_vel.x, input_dir * RUN_SPEED, delta * 10.0)
+		var flow_speed_bonus: float = minf(95.0, float(flow_combo) * 4.5)
+		player_vel.x = lerpf(player_vel.x, input_dir * (RUN_SPEED + flow_speed_bonus), delta * 10.0)
 	player_vel.y += GRAVITY * delta
+	if wall_timer > 0.0 and not grounded and player_vel.y > WALL_SLIDE_SPEED and absf(input_dir) > 0.1 and int(signf(input_dir)) == wall_dir:
+		player_vel.y = WALL_SLIDE_SPEED
+		stamina = minf(100.0, stamina + delta * 10.0)
 	grounded = false
+	wall_dir = 0
 	move_player(Vector2(player_vel.x * delta, 0.0))
 	move_player(Vector2(0.0, player_vel.y * delta))
 	if grounded:
@@ -493,9 +529,20 @@ func update_player(delta: float) -> void:
 		respawn("Sturz.")
 
 func buffer_jump() -> void:
+	start_run()
 	jump_buffer = 0.14
 
 func try_jump() -> void:
+	if wall_timer > 0.0 and not grounded:
+		player_vel = Vector2(-float(wall_dir) * WALL_JUMP_X, WALL_JUMP_Y)
+		facing = -wall_dir
+		jumps_left = 1
+		jump_buffer = 0.0
+		wall_timer = 0.0
+		add_flow(2, "Wall-Kick", 120)
+		message = "Wall-Kick."
+		message_timer = 0.8
+		return
 	if jumps_left <= 0 and coyote_timer <= 0.0:
 		return
 	player_vel.y = JUMP_SPEED
@@ -505,21 +552,26 @@ func try_jump() -> void:
 	jump_buffer = 0.0
 	coyote_timer = 0.0
 	grounded = false
+	if not grounded and jumps_left == 0:
+		add_flow(1, "Double", 55)
 	message = "Jump."
 	message_timer = 0.7
 
 func try_dash() -> void:
 	if stamina < 26.0 or dash_timer > 0.0 or dash_charges <= 0:
 		return
+	start_run()
 	stamina -= 26.0
 	dash_charges -= 1
 	dash_timer = 0.18
 	player_vel.x = float(facing) * 690.0
 	player_vel.y *= 0.45
+	add_flow(1, "Dash", 65)
 	message = "Dash."
 	message_timer = 0.7
 
 func try_grapple() -> void:
+	start_run()
 	var best := Vector2.ZERO
 	var best_dist := 9999.0
 	for point in grapples:
@@ -535,6 +587,7 @@ func try_grapple() -> void:
 	var direction: Vector2 = (best - player_pos).normalized()
 	player_vel = direction * 640.0
 	jumps_left = maxi(jumps_left, 1)
+	add_flow(2, "Grapple", 110)
 	message = "Grapple."
 	message_timer = 0.8
 
@@ -550,9 +603,15 @@ func move_player(delta_pos: Vector2) -> void:
 	if delta_pos.x > 0.0:
 		player_pos.x = rect.position.x - PLAYER_W * 0.5
 		player_vel.x = minf(0.0, player_vel.x)
+		if not grounded:
+			wall_dir = 1
+			wall_timer = 0.18
 	elif delta_pos.x < 0.0:
 		player_pos.x = rect.position.x + rect.size.x + PLAYER_W * 0.5
 		player_vel.x = maxf(0.0, player_vel.x)
+		if not grounded:
+			wall_dir = -1
+			wall_timer = 0.18
 	elif delta_pos.y > 0.0:
 		if previous_rect.position.y + previous_rect.size.y <= rect.position.y + 8.0:
 			player_pos.y = rect.position.y
@@ -607,7 +666,7 @@ func update_enemies(delta: float) -> void:
 			if player_vel.y > 110.0 and player_pos.y - PLAYER_H * 0.5 < pos.y - 22.0:
 				enemy["alive"] = false
 				player_vel.y = JUMP_SPEED * 0.62
-				score += 250
+				add_flow(3, "Stomp", 250)
 				message = "Stomp."
 				message_timer = 0.9
 			elif hurt_timer <= 0.0:
@@ -624,7 +683,7 @@ func hit_near_enemy() -> void:
 		if attack_rect.intersects(enemy_rect):
 			enemy["alive"] = false
 			enemies[i] = enemy
-			score += 180
+			add_flow(2, "Hit", 180)
 			message = "Treffer."
 			message_timer = 0.8
 			return
@@ -637,7 +696,7 @@ func collect_items() -> void:
 		if player_pos.distance_to(ring["pos"]) < 34.0:
 			ring["taken"] = true
 			ring_combo += 1
-			score += ring_combo * 35
+			add_flow(1, "Ring", ring_combo * 35)
 			stamina = minf(100.0, stamina + 9.0)
 			if ring_combo % 5 == 0:
 				dash_charges = 1
@@ -651,7 +710,7 @@ func collect_items() -> void:
 		if player_pos.distance_to(shard["pos"]) < 36.0:
 			shard["taken"] = true
 			shard_count += 1
-			score += 300
+			add_flow(3, "Rune", 300)
 			message = "Rune %d/8." % shard_count
 			message_timer = 1.4
 			shards[i] = shard
@@ -664,7 +723,7 @@ func check_checkpoints() -> void:
 		if player_pos.distance_to(cp) < 52.0:
 			checkpoint_index = i
 			spawn_pos = cp
-			score += 250
+			add_flow(2, "Checkpoint", 250)
 			message = "Checkpoint."
 			message_timer = 1.2
 
@@ -682,7 +741,7 @@ func check_gates() -> void:
 			if int(gate["index"]) == int(q["correct"]):
 				learn_hits += 1
 				var repeated := bool(q.get("repeat", false))
-				score += 850 if repeated else 700
+				add_flow(3, "Gate", 850 if repeated else 700)
 				stamina = 100.0
 				dash_charges = 1
 				shard_count = mini(8, shard_count + 1)
@@ -703,8 +762,9 @@ func check_gates() -> void:
 func check_finish() -> void:
 	if player_pos.x > 5120.0 and (shard_count >= 3 or (mode_learn and learn_hits >= LEARN_GOAL)):
 		won = true
-		score += 1500 + shard_count * 200
-		message = "Portal erreicht. Score %d. R startet neu." % score
+		var time_bonus: int = maxi(0, 4200 - int(run_timer * 42.0))
+		score += 1500 + shard_count * 200 + best_flow * 35 + time_bonus
+		message = "Portal erreicht. Flow %d. Zeitbonus %d. R startet neu." % [best_flow, time_bonus]
 		message_timer = 99.0
 	elif player_pos.x > 5120.0:
 		message = "Portal braucht 3 Runen oder %d Lern-Gates." % LEARN_GOAL
@@ -717,6 +777,8 @@ func hurt_player(text: String) -> void:
 	hurt_timer = 1.0
 	player_vel = Vector2(-float(facing) * 240.0, -360.0)
 	ring_combo = 0
+	flow_combo = 0
+	flow_timer = 0.0
 	message = text
 	message_timer = 1.4
 	if hp <= 0:
@@ -730,6 +792,9 @@ func respawn(text: String) -> void:
 	player_vel = Vector2.ZERO
 	jumps_left = 2
 	hurt_timer = 1.0
+	ring_combo = 0
+	flow_combo = 0
+	flow_timer = 0.0
 	message = text
 	message_timer = 1.2
 	if hp <= 0:
@@ -742,6 +807,29 @@ func player_rect() -> Rect2:
 
 func update_camera() -> void:
 	camera_x = clampf(player_pos.x - size.x * 0.38, 0.0, maxf(0.0, WORLD_W - size.x))
+
+func start_run() -> void:
+	run_started = true
+
+func add_flow(amount: int, label: String, base_points: int) -> void:
+	flow_combo = min(99, flow_combo + amount)
+	best_flow = maxi(best_flow, flow_combo)
+	flow_timer = FLOW_WINDOW
+	var multiplier: float = flow_multiplier()
+	score += int(round(float(base_points) * multiplier))
+	if label != "":
+		message = "%s-Flow x%.1f" % [label, multiplier]
+		message_timer = 0.85
+
+func flow_multiplier() -> float:
+	return minf(4.0, 1.0 + floorf(float(flow_combo) / 5.0) * 0.35)
+
+func objective_text() -> String:
+	if mode_learn:
+		return "Lernziel: %d/%d richtige Gates - %s" % [learn_hits, LEARN_GOAL, str(LESSONS[lesson_index])]
+	if shard_count < 3:
+		return "Ziel: 3 Runen sammeln, Flow halten, Portal erreichen."
+	return "Ziel: Portal rechts erreichen. Bonus fuer Zeit und Flow."
 
 func world_y_offset() -> float:
 	if size.y > size.x * 1.2:
@@ -817,7 +905,8 @@ func draw_gates() -> void:
 
 func draw_portal() -> void:
 	var pos := screen_pos(Vector2(5200.0, 510.0))
-	var color: Color = Color.html("#a855f7") if shard_count >= 3 else Color.html("#475569")
+	var portal_open := shard_count >= 3 or (mode_learn and learn_hits >= LEARN_GOAL)
+	var color: Color = Color.html("#a855f7") if portal_open else Color.html("#475569")
 	draw_circle(pos + Vector2(0.0, -60.0), 58.0, Color(color.r, color.g, color.b, 0.35))
 	draw_arc(pos + Vector2(0.0, -60.0), 58.0, 0.0, TAU, 24, color, 6.0)
 	draw_string(get_theme_default_font(), pos + Vector2(-50.0, -54.0), "PORTAL", HORIZONTAL_ALIGNMENT_CENTER, 100.0, 14, Color.html("#f8fafc"))
@@ -864,17 +953,21 @@ func draw_player() -> void:
 	draw_rect(Rect2(rect.position + Vector2(21.0, 31.0), Vector2(6.0, 6.0)), Color.html("#020617"), true)
 	if dash_timer > 0.0:
 		draw_rect(rect.grow(8.0), Color(0.32, 0.81, 1.0, 0.22), true)
+	if wall_timer > 0.0 and not grounded:
+		var slide_edge := rect.position.x + rect.size.x if wall_dir > 0 else rect.position.x
+		draw_line(Vector2(slide_edge, rect.position.y + 5.0), Vector2(slide_edge, rect.position.y + rect.size.y - 4.0), Color.html("#38bdf8"), 4.0)
 	if attack_timer > 0.0:
 		var blade := Rect2(rect.position + Vector2(float(facing) * 18.0, 14.0), Vector2(float(facing) * 58.0, 12.0)).abs()
 		draw_rect(blade, Color(0.96, 0.95, 0.68, 0.68), true)
 
 func draw_hud() -> void:
 	var font := get_theme_default_font()
-	draw_rect(Rect2(12.0, 12.0, minf(size.x - 24.0, 548.0), 112.0), Color(0.02, 0.05, 0.09, 0.75), true)
+	draw_rect(Rect2(12.0, 12.0, minf(size.x - 24.0, 610.0), 136.0), Color(0.02, 0.05, 0.09, 0.75), true)
 	draw_string(font, Vector2(25.0, 40.0), "FASKA PARKOUR PRO", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.html("#facc15"))
 	draw_string(font, Vector2(25.0, 66.0), "HP %d  Stamina %d  Runen %d/8  Score %d" % [hp, int(stamina), shard_count, score], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.html("#f8fafc"))
 	draw_string(font, Vector2(25.0, 89.0), "Jumps %d  Dash %d  Checkpoint %d/3  Mode %s" % [jumps_left, dash_charges, checkpoint_index, "Learncade" if mode_learn else "Normal"], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.html("#cbd5e1"))
-	draw_string(font, Vector2(25.0, 111.0), "Fach %s  Lernziel %d/%d  Fehler %d  Wdh %d" % [str(LESSONS[lesson_index]), learn_hits, LEARN_GOAL, mistakes, repeat_queue.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(25.0, 111.0), "Flow %d  Best %d  x%.1f  Zeit %02d:%02d" % [flow_combo, best_flow, flow_multiplier(), int(run_timer) / 60, int(run_timer) % 60], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.html("#fde68a"))
+	draw_string(font, Vector2(25.0, 134.0), objective_text(), HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 60.0, 560.0), 13, Color.html("#f8fafc"))
 	if mode_learn:
 		var q: Dictionary = current_question()
 		draw_rect(Rect2(size.x * 0.5 - 330.0, 28.0, 660.0, 38.0), Color(0.02, 0.05, 0.09, 0.76), true)
@@ -885,7 +978,6 @@ func draw_hud() -> void:
 	draw_rect(Rect2(size.x - 230.0, 18.0, 200.0, 12.0), Color.html("#0f172a"), true)
 	draw_rect(Rect2(size.x - 230.0, 18.0, 200.0 * clampf(player_pos.x / WORLD_W, 0.0, 1.0), 12.0), Color.html("#22c55e"), true)
 	draw_string(font, Vector2(size.x - 230.0, 52.0), "%d%% STRECKE" % int(player_pos.x / WORLD_W * 100.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color.html("#f8fafc"))
-	draw_string(font, Vector2(size.x * 0.5 - 330.0, size.y - 18.0), "A/D oder Touch-Stick laufen · W Jump · Space Dash · J Grapple · K Angriff · L Lernen · C Fach · R Neustart", HORIZONTAL_ALIGNMENT_CENTER, 660.0, 12, Color.html("#cbd5e1"))
 
 func _question_id(question: Dictionary) -> String:
 	return "%s|%s" % [str(question.get("lesson", str(LESSONS[lesson_index]))), str(question.get("prompt", ""))]

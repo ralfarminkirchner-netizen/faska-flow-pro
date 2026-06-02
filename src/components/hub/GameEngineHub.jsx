@@ -302,7 +302,7 @@ const GAMES = [
   {
     id: 'type-hero',
     name: 'Faska Type Hero Pro',
-    description: 'Godot-4-Word-Blaster nach Typing-/Math-Blaster-Prinzip: fallende Wortkarten tippen, adaptive Wortarten-, Mathe- und Lesephasen, Fehler-Wiederholung, Mastery-Anzeige, Focus-Burst, Prefix-Lock-on, Touch-Tastatur und sichtbares Lernziel!',
+    description: 'Godot-4-Typing-Arcade nach Typing-/Math-Blaster-Prinzip: fallende Karten mit Timing-Zonen, Perfect-/Great-Hits, Overdrive, Boss-Aufgabenketten, Silben-, Wortarten-, Mathe- und Lesephasen, Fehler-Wiederholung und Touch-Tastatur!',
     emoji: '⌨️',
     category: 'Education',
     gradient: 'linear-gradient(135deg, #10b981, #3b82f6)',

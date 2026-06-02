@@ -302,13 +302,12 @@ const GAMES = [
   {
     id: 'type-hero',
     name: 'Faska Type Hero Pro',
-    description: 'Godot-4-Typing-Arcade nach Typing-/Math-Blaster-Prinzip: fallende Karten mit Timing-Zonen, Perfect-/Great-Hits, Overdrive, Boss-Aufgabenketten, Silben-, Wortarten-, Mathe- und Lesephasen, Fehler-Wiederholung und Touch-Tastatur!',
+    description: '3D-Typing-Arcade nach Typing-/Math-Blaster-Prinzip mit Kartenwellen, Ziel-Lock, Bossketten, Bonuskarten, Fehlerdruck, Freeze, Overdrive, aktiven Zeit-Auftraegen, Bildschirm-Tastatur und Lernkarten fuer Deutsch, Mathe, Englisch, Geografie und Sachkunde!',
     emoji: '⌨️',
     category: 'Education',
     gradient: 'linear-gradient(135deg, #10b981, #3b82f6)',
     path: '/game/type-hero',
     featured: true,
-    engine: 'Godot 4',
   },
   {
     id: 'geo-runner',

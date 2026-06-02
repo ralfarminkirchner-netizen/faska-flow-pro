@@ -87,12 +87,12 @@ const GAMES = [
   {
     id: 'doom',
     name: 'Faska Doom Pro',
-    description: 'Godot-4-Raycaster-Shooter mit Normalmodus zuerst, pseudo-3D-Korridoren, Waffenfeedback, Reaktor-Keys, Gegnerwellen, Runner/Brutes/Elite-Gegnern, Ammo/Armor, Granaten, Dash, Accuracy-/Alarmwertung, Exit-Ziel, Minimap, Touch-Move/Look, Fehler-Wiederholung und optionalen Learncade-Terminals fuer Wortarten, Mathe, Satzbau, Lesen, Komposita und Englisch!',
+    description: 'FASKA-FLOW-React-Three-Fiber-Arena-Shooter mit Normalmodus zuerst, FPS-Bewegung, Repeater/Scatter/Ripper, Gegnerwellen, Champions, Armor, Granaten, Dash, Glory-Finishern, Reaktor-Siegeln, rotierenden Einsatzauftraegen, Touch-Move/Look und Learncade-Quiz fuer Deutsch, Mathe, Englisch und Sachkunde!',
     emoji: '🔫',
     category: 'Action',
     gradient: 'linear-gradient(135deg, #ef4444, #b91c1c)',
     path: '/game/doom',
-    engine: 'Godot 4',
+    engine: 'React Three Fiber',
   },
   {
     id: 'arsenal',

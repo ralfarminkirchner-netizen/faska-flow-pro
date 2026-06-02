@@ -82,6 +82,19 @@ const LEARN_QUESTIONS = [
   { subject: 'Sachkunde', question: 'Welche Kraft zieht dich im Sprung nach unten?', answer: 'Schwerkraft', options: ['Schwerkraft', 'Magnetismus', 'Licht'] },
 ];
 
+const DOOM_CONTRACTS = [
+  { id: 'kills_5', label: '5 Gegner ausschalten', stat: 'kills', target: 5, duration: 44, reward: { score: 520, ammo: 12, ripper: 10 } },
+  { id: 'glory_2', label: '2 Glory-Finisher', stat: 'gloryKills', target: 2, duration: 52, reward: { score: 620, health: 20, armor: 14 } },
+  { id: 'grenade_2', label: '2 Granaten-Kills', stat: 'grenadeKills', target: 2, duration: 50, reward: { score: 680, grenades: 1, ammo: 10 } },
+  { id: 'dash_3', label: '3 Dashes ueberleben', stat: 'dashes', target: 3, duration: 34, reward: { score: 360, armor: 18 } },
+  { id: 'seals_1', label: '1 Reaktor-Siegel sichern', stat: 'seals', target: 1, duration: 58, reward: { score: 540, ammo: 14, ripper: 18 } },
+  { id: 'pickups_3', label: '3 Pickups bergen', stat: 'pickups', target: 3, duration: 48, reward: { score: 420, health: 12, ammo: 10 } },
+  { id: 'waves_1', label: '1 Welle klaeren', stat: 'wavesCleared', target: 1, duration: 70, reward: { score: 760, armor: 25, grenades: 1 } },
+  { id: 'ripper_1', label: '1 Ripper-Modus starten', stat: 'ripperActivations', target: 1, duration: 64, reward: { score: 700, ammo: 18 }, arcadeOnly: true },
+  { id: 'quiz_1', label: '1 Learncade-Frage loesen', stat: 'quizCorrect', target: 1, duration: 48, reward: { score: 620, ammo: 20, armor: 12 }, learnOnly: true },
+  { id: 'champion_1', label: '1 Champion besiegen', stat: 'championKills', target: 1, duration: 66, reward: { score: 820, ripper: 24, health: 18 }, learnOnly: true },
+];
+
 /* ───────────────────────────── helpers ───────────────────────────── */
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
@@ -153,6 +166,35 @@ function pickupMessage(pickup) {
   return 'Pickup';
 }
 
+function createDoomStats() {
+  return {
+    kills: 0,
+    gloryKills: 0,
+    grenadeKills: 0,
+    championKills: 0,
+    dashes: 0,
+    seals: 0,
+    pickups: 0,
+    wavesCleared: 0,
+    ripperActivations: 0,
+    quizCorrect: 0,
+  };
+}
+
+function availableDoomContracts(state) {
+  return DOOM_CONTRACTS.filter((contract) => {
+    if (contract.learnOnly && state.mode !== 'learn') return false;
+    if (contract.arcadeOnly && state.mode !== 'arcade') return false;
+    return true;
+  });
+}
+
+function doomContractProgress(state) {
+  const contract = state.activeContract;
+  if (!contract) return 0;
+  return clamp((state.doomStats[contract.stat] || 0) - contract.startValue, 0, contract.target);
+}
+
 /* ───────────────────────────── store ───────────────────────────── */
 
 const useDoomStore = createGameStore(
@@ -195,6 +237,12 @@ const useDoomStore = createGameStore(
     // Mode
     mode: 'arcade',
     lastQuizScoreThreshold: 0,
+    doomStats: createDoomStats(),
+    activeContract: null,
+    contractIndex: 0,
+    contractCooldown: 1.25,
+    contractWins: 0,
+    contractFails: 0,
 
     // Combat timers
     elapsed: 0,
@@ -206,6 +254,96 @@ const useDoomStore = createGameStore(
   },
   (set, get) => ({
     /* ─── shoot ─── */
+    startDoomContract: () => {
+      const state = get();
+      const contracts = availableDoomContracts(state);
+      if (!contracts.length) return;
+      const template = contracts[state.contractIndex % contracts.length];
+      set({
+        activeContract: {
+          ...template,
+          startValue: state.doomStats[template.stat] || 0,
+          timeLeft: template.duration,
+        },
+        contractIndex: state.contractIndex + 1,
+        contractCooldown: template.duration,
+        message: `Einsatzauftrag: ${template.label}`,
+        messageTimer: 1.15,
+      });
+    },
+
+    applyDoomContractReward: (reward = {}) => {
+      const state = get();
+      const nextScore = state.score + (reward.score || 0);
+      set({
+        score: nextScore,
+        highScore: Math.max(nextScore, state.highScore),
+        health: reward.health ? Math.min(state.maxHealth, state.health + reward.health) : state.health,
+        armor: reward.armor ? Math.min(state.maxArmor, state.armor + reward.armor) : state.armor,
+        ammo: reward.ammo ? Math.min(state.maxAmmo, state.ammo + reward.ammo) : state.ammo,
+        grenades: reward.grenades ? Math.min(5, state.grenades + reward.grenades) : state.grenades,
+        ripperCharge: reward.ripper ? clamp(state.ripperCharge + reward.ripper, 0, 100) : state.ripperCharge,
+      });
+    },
+
+    completeDoomContract: () => {
+      const state = get();
+      if (!state.activeContract) return;
+      const contract = state.activeContract;
+      get().applyDoomContractReward(contract.reward);
+      set({
+        activeContract: null,
+        contractWins: state.contractWins + 1,
+        contractCooldown: 2.8,
+        message: `Auftrag geschafft: ${contract.label}`,
+        messageTimer: 1.25,
+      });
+    },
+
+    failDoomContract: () => {
+      const state = get();
+      if (!state.activeContract) return;
+      const contract = state.activeContract;
+      set({
+        activeContract: null,
+        contractFails: state.contractFails + 1,
+        contractCooldown: 3.6,
+        message: `Auftrag verpasst: ${contract.label}`,
+        messageTimer: 1.05,
+      });
+    },
+
+    updateDoomContract: (delta = 0) => {
+      const state = get();
+      if (!state.isPlaying || state.isPaused || state.isGameOver) return;
+      if (!state.activeContract) {
+        const nextCooldown = Math.max(0, state.contractCooldown - delta);
+        set({ contractCooldown: nextCooldown });
+        if (nextCooldown <= 0) get().startDoomContract();
+        return;
+      }
+
+      const timeLeft = Math.max(0, state.activeContract.timeLeft - delta);
+      set({ activeContract: { ...state.activeContract, timeLeft } });
+      const latest = get();
+      if (doomContractProgress(latest) >= latest.activeContract.target) {
+        get().completeDoomContract();
+      } else if (timeLeft <= 0) {
+        get().failDoomContract();
+      }
+    },
+
+    recordDoomStat: (stat, amount = 1) => {
+      const state = get();
+      set({
+        doomStats: {
+          ...state.doomStats,
+          [stat]: (state.doomStats[stat] || 0) + amount,
+        },
+      });
+      get().updateDoomContract(0);
+    },
+
     shoot: () => {
       const state = get();
       if (!state.isPlaying || state.isPaused) return false;
@@ -278,6 +416,7 @@ const useDoomStore = createGameStore(
       // Wave cleared
       if (aliveCount === 0) {
         set({ waveCleared: true, message: 'Welle geschafft!', messageTimer: 1.5 });
+        get().recordDoomStat('wavesCleared');
         setTimeout(() => {
           const latest = get();
           if (!latest.isPlaying || latest.isPaused) return;
@@ -295,6 +434,10 @@ const useDoomStore = createGameStore(
       if (enemy.champion && state.mode === 'learn') {
         setTimeout(() => get().triggerDoomQuiz(), 250);
       }
+      get().recordDoomStat('kills');
+      if (source === 'glory') get().recordDoomStat('gloryKills');
+      if (source === 'grenade') get().recordDoomStat('grenadeKills');
+      if (enemy.champion) get().recordDoomStat('championKills');
       return true;
     },
 
@@ -383,6 +526,7 @@ const useDoomStore = createGameStore(
         messageTimer: 0.9,
       });
       get().addScore(pickup.type === 'weapon' ? 120 : 35);
+      get().recordDoomStat('pickups');
     },
 
     collectSeal: (sealId) => {
@@ -396,6 +540,7 @@ const useDoomStore = createGameStore(
         messageTimer: 1,
       });
       get().addScore(180);
+      get().recordDoomStat('seals');
       if (seals.length >= DOOM_SEALS.length) {
         set({
           ammo: Math.min(get().maxAmmo, get().ammo + 18),
@@ -428,6 +573,7 @@ const useDoomStore = createGameStore(
         message: 'Dash',
         messageTimer: 0.35,
       });
+      get().recordDoomStat('dashes');
       return true;
     },
 
@@ -488,6 +634,7 @@ const useDoomStore = createGameStore(
         message: 'RIPPER-MODUS',
         messageTimer: 1.3,
       });
+      get().recordDoomStat('ripperActivations');
       return true;
     },
 
@@ -531,6 +678,7 @@ const useDoomStore = createGameStore(
           };
         }).filter(e => e.alive || e.deathTimer > 0),
       }));
+      get().updateDoomContract(delta);
     },
 
     /* ─── update enemies (move toward player) ─── */
@@ -607,6 +755,7 @@ const useDoomStore = createGameStore(
         message: correct ? `Richtig! +20 Munition (Streak x${streak})` : 'Falsch!',
         messageTimer: 1.2,
       });
+      if (correct) get().recordDoomStat('quizCorrect');
       if (!correct) {
         setTimeout(() => get().takeDamage(5), 100);
       }
@@ -662,14 +811,25 @@ const useDoomStore = createGameStore(
         muzzleFlash: false,
         lastShootTime: 0,
         lastQuizScoreThreshold: 0,
+        doomStats: createDoomStats(),
+        activeContract: null,
+        contractIndex: 0,
+        contractCooldown: 1.25,
+        contractWins: 0,
+        contractFails: 0,
         quizActive: false,
         quizScore: 0,
         quizStreak: 0,
         message: 'Arena online!',
         messageTimer: 2,
       });
-      // Spawn first wave after small delay
-      setTimeout(() => get().spawnWave(), 300);
+      // Spawn first wave and first contract after a small delay so the HUD has a concrete objective immediately.
+      setTimeout(() => {
+        const latest = get();
+        if (!latest.isPlaying || latest.isPaused || latest.isGameOver) return;
+        latest.spawnWave();
+        latest.startDoomContract();
+      }, 300);
     },
   })
 );

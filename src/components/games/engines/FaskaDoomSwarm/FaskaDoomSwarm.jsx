@@ -37,6 +37,15 @@ function DoomHUD() {
   const damageFlash = useDoomStore(s => s.damageFlash);
   const message = useDoomStore(s => s.message);
   const messageTimer = useDoomStore(s => s.messageTimer);
+  const activeContract = useDoomStore(s => s.activeContract);
+  const contractCooldown = useDoomStore(s => s.contractCooldown);
+  const contractWins = useDoomStore(s => s.contractWins);
+  const contractFails = useDoomStore(s => s.contractFails);
+  const contractProgress = useDoomStore(s => {
+    const contract = s.activeContract;
+    if (!contract) return 0;
+    return Math.min(Math.max((s.doomStats[contract.stat] || 0) - contract.startValue, 0), contract.target);
+  });
 
   const aliveCount = enemies.filter(e => e.alive).length;
   const healthPct = (health / maxHealth) * 100;
@@ -161,6 +170,66 @@ function DoomHUD() {
                 <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 900 }}>{value}</div>
               </div>
             ))}
+          </div>
+          <div style={{
+            marginTop: 8,
+            padding: '8px 10px',
+            borderRadius: 10,
+            background: 'rgba(15, 23, 42, 0.78)',
+            border: '1px solid rgba(196,181,253,0.22)',
+            textAlign: 'left',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 10,
+              fontFamily: 'Outfit, sans-serif',
+              fontSize: 10,
+              color: '#c4b5fd',
+              fontWeight: 900,
+              letterSpacing: 0.7,
+              textTransform: 'uppercase',
+            }}>
+              <span>Einsatzauftrag</span>
+              <span>{contractWins} OK · {contractFails} Fail</span>
+            </div>
+            {activeContract ? (
+              <>
+                <div style={{
+                  marginTop: 5,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  fontFamily: 'Outfit, sans-serif',
+                  fontSize: 12,
+                  color: '#f8fafc',
+                  fontWeight: 900,
+                }}>
+                  <span>{activeContract.label}</span>
+                  <span style={{ color: activeContract.timeLeft < 8 ? '#fb7185' : '#fde68a' }}>{Math.ceil(activeContract.timeLeft)}s</span>
+                </div>
+                <div style={{
+                  height: 7,
+                  marginTop: 7,
+                  overflow: 'hidden',
+                  borderRadius: 999,
+                  background: 'rgba(148,163,184,0.22)',
+                }}>
+                  <div style={{
+                    width: `${Math.min(100, (contractProgress / activeContract.target) * 100)}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #a78bfa, #67e8f9)',
+                  }} />
+                </div>
+                <div style={{ marginTop: 4, fontSize: 10, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 800 }}>
+                  {contractProgress}/{activeContract.target}
+                </div>
+              </>
+            ) : (
+              <div style={{ marginTop: 5, fontSize: 12, color: '#cbd5e1', fontFamily: 'Outfit, sans-serif', fontWeight: 800 }}>
+                Naechster Einsatz in {Math.ceil(contractCooldown)}s
+              </div>
+            )}
           </div>
         </div>
 
@@ -327,6 +396,8 @@ export default function FaskaDoomSwarm() {
   const quizScore = useDoomStore(s => s.quizScore);
   const quizStreak = useDoomStore(s => s.quizStreak);
   const mode = useDoomStore(s => s.mode);
+  const contractWins = useDoomStore(s => s.contractWins);
+  const contractFails = useDoomStore(s => s.contractFails);
 
   const startGame = useDoomStore(s => s.startGame);
   const pauseGame = useDoomStore(s => s.pauseGame);
@@ -444,6 +515,11 @@ export default function FaskaDoomSwarm() {
             fontFamily: 'Outfit, sans-serif', fontSize: 18, color: '#94a3b8',
           }}>
             Score: <span style={{ color: '#f8fafc', fontWeight: 900 }}>{score}</span>
+          </p>
+          <p style={{
+            fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#c4b5fd', fontWeight: 800, margin: -8,
+          }}>
+            Einsatzauftraege {contractWins}/{contractWins + contractFails}
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <button

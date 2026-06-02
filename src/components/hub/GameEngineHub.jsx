@@ -312,8 +312,8 @@ const GAMES = [
   },
   {
     id: 'geo-runner',
-    name: 'Faska Geo Runner',
-    description: 'NEU: 3D-Endless-Runner! Laufe durch das korrekte Tor mit der passenden Flagge zur gesuchten Hauptstadt oder dem Land.',
+    name: 'Faska Geo Runner Pro',
+    description: '3D-Fuenf-Spur-Runner mit Normalmodus und Learncade: Gates, Huerden, Low-Bar-Slides, Blocker, Spikes, Geo-Orbs, Schild, Turbo, Magnet, Schild-Burst, aktive Zeit-Auftraege und Spurfragen fuer Geografie, Deutsch, Mathe und Englisch!',
     emoji: '🌍',
     category: 'Education',
     gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)',

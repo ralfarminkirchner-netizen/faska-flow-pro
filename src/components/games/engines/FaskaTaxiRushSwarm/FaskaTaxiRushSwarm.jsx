@@ -439,6 +439,7 @@ const TAXI_GOALS = [
   { id: 'route-8', label: '8 Route-Gates', type: 'routeGates', target: 8, reward: 360 },
   { id: 'shortcuts-2', label: '2 Risk-Shortcuts', type: 'shortcuts', target: 2, reward: 500 },
   { id: 'style-tip-2', label: '2 Style-Tips', type: 'styleTips', target: 2, reward: 540 },
+  { id: 'rush-6', label: '6 Rush-Ketten', type: 'rushChains', target: 6, reward: 560 },
   { id: 'drift-3', label: '3s Drift', type: 'driftSeconds', target: 3, reward: 320 },
   { id: 'turbo-3', label: '3 Turbo-Pads', type: 'turboPads', target: 3, reward: 360 },
   { id: 'pickups-4', label: '4 Street-Boni', type: 'pickups', target: 4, reward: 440 },
@@ -457,6 +458,7 @@ const DISPATCH_CONTRACTS = [
   { id: 'dispatch-turbo', label: '1 Turbo-Pad nehmen', type: 'turboPads', target: 1, duration: 26, reward: { score: 220, boost: 34 } },
   { id: 'dispatch-jump', label: '1 Sprung schaffen', type: 'stuntJumps', target: 1, duration: 36, reward: { score: 360, boost: 16, time: 3 } },
   { id: 'dispatch-speed', label: '1 Speed-Gate', type: 'speedGates', target: 1, duration: 34, reward: { score: 330, boost: 20, reputation: 1 } },
+  { id: 'dispatch-rush', label: '3 Rush-Ketten fahren', type: 'rushChains', target: 3, duration: 42, reward: { score: 520, boost: 30, time: 5, reputation: 1 } },
   { id: 'dispatch-shortcut', label: '1 Shortcut nutzen', type: 'shortcuts', target: 1, duration: 45, reward: { score: 420, boost: 22, time: 5 } },
   { id: 'dispatch-pickups', label: '2 Street-Boni sammeln', type: 'pickups', target: 2, duration: 38, reward: { score: 280, repair: 8, boost: 14 } },
   { id: 'dispatch-rival', label: '1 Rivalen-Pass', type: 'rivalPasses', target: 1, duration: 42, reward: { score: 390, boost: 28, reputation: 1 } },
@@ -644,6 +646,11 @@ function makeInitialGame(mode = 'arcade') {
     routeGatesCollected: 0,
     passengerMood: 100,
     fareHeat: 0,
+    rushChain: 0,
+    rushTimer: 0,
+    rushPeak: 0,
+    rushSource: '',
+    rushPulseTimer: 0,
     fareIncidents: 0,
     pickupDamage: 0,
     wrongPads: 0,
@@ -672,6 +679,8 @@ function makeInitialGame(mode = 'arcade') {
       speedGates: 0,
       shortcuts: 0,
       styleTips: 0,
+      rushChains: 0,
+      bestRushChain: 0,
       perfectDropoffs: 0,
       shiftStreak: 0,
       bestShiftStreak: 0,
@@ -815,11 +824,44 @@ function addFareHeat(game, amount, label, color = '#fef08a') {
   }
 }
 
+function registerRushAction(game, source, heat = 8, color = '#fef08a') {
+  if (!game.carrying || game.finished) return;
+  const chained = game.rushTimer > 0 && game.rushChain > 0;
+  const nextChain = chained ? game.rushChain + 1 : 1;
+  game.rushChain = nextChain;
+  game.rushTimer = 3.4;
+  game.rushPeak = Math.max(game.rushPeak, nextChain);
+  game.stats.bestRushChain = Math.max(game.stats.bestRushChain, nextChain);
+  game.rushSource = source;
+  game.rushPulseTimer = 0.38;
+  game.fareHeat = clamp(game.fareHeat + heat + Math.min(18, nextChain * 1.8), 0, 150);
+  game.passengerMood = Math.min(100, game.passengerMood + 1.5 + nextChain * 0.45);
+  game.player.boost = Math.min(100, game.player.boost + 3 + nextChain * 0.9);
+
+  if (chained) {
+    game.stats.rushChains += 1;
+    game.combo += 1;
+    const bonus = Math.round(55 + nextChain * 28 + heat * 3);
+    game.score += bonus;
+    if (nextChain >= 4) game.time = Math.min(game.mode === 'learn' ? 136 : 116, game.time + 0.9);
+    addFloater(game, game.player.x, game.player.y - 122, `RUSH x${nextChain}`, color);
+    if (nextChain >= 3) {
+      game.message = `Rush-Kette x${nextChain}: ${source}`;
+      game.messageTimer = 0.78;
+      spawnParticles(game, game.player.x, game.player.y, color, 10 + Math.min(nextChain, 7) * 2, 240);
+    }
+    evaluateTaxiGoals(game);
+  }
+}
+
 function breakShiftStreak(game, label = 'Serie gebrochen') {
   if (!game.carrying || game.shiftStreak <= 0) return;
   game.shiftStreak = 0;
   game.stats.shiftStreak = 0;
   game.stats.streakBreaks += 1;
+  game.rushChain = 0;
+  game.rushTimer = 0;
+  game.rushSource = '';
   addFloater(game, game.player.x, game.player.y - 92, label, '#fb7185');
 }
 
@@ -843,6 +885,9 @@ function advanceShiftStreak(game, cleanFare) {
 function recordFareIncident(game, amount = 1) {
   if (!game.carrying) return;
   game.fareIncidents += amount;
+  game.rushChain = 0;
+  game.rushTimer = 0;
+  game.rushSource = '';
   breakShiftStreak(game);
 }
 
@@ -899,8 +944,9 @@ function scoreDelivery(game, job, cleanBonus) {
   const comboBonus = game.combo * 70;
   const routeBonus = game.routeGates.filter((gate) => gate.collected).length * 55;
   const moodBonus = Math.round(game.passengerMood * (game.mode === 'learn' ? 1.8 : 1.25));
+  const rushBonus = Math.round(game.rushPeak * 58 + game.fareHeat * 0.72);
   const streakBonus = advanceShiftStreak(game, cleanFare);
-  const reward = job.reward + timeBonus + comboBonus + cleanBonus + routeBonus + moodBonus + styleTip + streakBonus;
+  const reward = job.reward + timeBonus + comboBonus + cleanBonus + routeBonus + moodBonus + styleTip + rushBonus + streakBonus;
   game.score += reward;
   game.reputation += Math.round((game.passengerMood / 100) * 2 + (cleanBonus > 100 ? 1 : 0));
   game.jobIndex += 1;
@@ -909,13 +955,18 @@ function scoreDelivery(game, job, cleanBonus) {
   game.routeGatesCollected = 0;
   game.passengerMood = 100;
   game.fareHeat = 0;
+  game.rushChain = 0;
+  game.rushTimer = 0;
+  game.rushPeak = 0;
+  game.rushSource = '';
+  game.rushPulseTimer = 0;
   game.fareIncidents = 0;
   game.pickupDamage = game.player.damage;
   game.time = Math.min(game.mode === 'learn' ? 130 : 112, game.time + (game.mode === 'learn' ? 18 : 15));
   game.player.boost = Math.min(100, game.player.boost + 34);
   game.message = game.mode === 'learn'
-    ? `Richtig: ${job.cargo} -> ${job.target}${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`
-    : `${job.target} erreicht${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`;
+    ? `Richtig: ${job.cargo} -> ${job.target}${rushBonus > 0 ? ` · Rush +${rushBonus}` : ''}${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`
+    : `${job.target} erreicht${rushBonus > 0 ? ` · Rush +${rushBonus}` : ''}${streakBonus > 0 ? ` · Serie x${game.shiftStreak}` : ''}`;
   game.messageTimer = 1.2;
   addFloater(game, game.player.x, game.player.y - 48, `+${reward}`, '#facc15');
   spawnParticles(game, game.player.x, game.player.y, job.color, 24, 280);
@@ -960,6 +1011,7 @@ function updateRouteGates(game) {
   game.player.boost = Math.min(100, game.player.boost + 8);
   game.passengerMood = Math.min(100, game.passengerMood + 4);
   addFareHeat(game, nextGate.turn ? 10 : 7, nextGate.turn ? 'turn route' : null, '#67e8f9');
+  registerRushAction(game, nextGate.turn ? 'Route-Turn' : 'Route-Gate', nextGate.turn ? 9 : 5, '#67e8f9');
   addFloater(game, nextGate.x, nextGate.y - 42, 'route +', '#67e8f9');
   spawnParticles(game, nextGate.x, nextGate.y, nextGate.color, 10, 170);
   evaluateTaxiGoals(game);
@@ -987,6 +1039,7 @@ function updateTraffic(game, dt) {
       game.stats.nearMiss += 1;
       game.score += 90 + game.combo * 12;
       addFareHeat(game, 10, 'air weave', '#facc15');
+      registerRushAction(game, 'Air-Weave', 13, '#facc15');
       game.nearMissCooldown = 0.34;
       addFloater(game, player.x, player.y - 54, 'over traffic', '#facc15');
       return;
@@ -1012,6 +1065,7 @@ function updateTraffic(game, dt) {
       game.stats.nearMiss += 1;
       game.score += 45 + game.combo * 8;
       addFareHeat(game, 6, 'near miss', '#67e8f9');
+      registerRushAction(game, 'Near-Miss', 8, '#67e8f9');
       if (game.carrying) game.passengerMood = Math.max(0, game.passengerMood - 4);
       game.nearMissCooldown = 0.42;
       addFloater(game, player.x, player.y - 44, 'near +45', '#67e8f9');
@@ -1055,6 +1109,7 @@ function updateTurboPads(game) {
   game.stats.turboPads += 1;
   game.score += 80 + Math.max(0, game.combo) * 16;
   addFareHeat(game, 9, 'turbo tip', pad.color);
+  registerRushAction(game, 'Turbo-Pad', 10, pad.color);
   game.turboCooldown = 0.72;
   game.message = 'Turbo-Pad';
   game.messageTimer = 0.62;
@@ -1079,6 +1134,7 @@ function updateStuntRamps(game) {
   game.stats.stuntJumps += 1;
   game.score += 170 + game.combo * 35 + Math.round(speedFactor * 70);
   addFareHeat(game, 16, 'stunt tip', ramp.color);
+  registerRushAction(game, 'Stunt-Jump', 18, ramp.color);
   game.message = 'Stunt-Sprung';
   game.messageTimer = 0.8;
   addFloater(game, ramp.x, ramp.y - 58, `jump x${Math.max(1, game.combo)}`, ramp.color);
@@ -1098,6 +1154,7 @@ function updateSpeedGates(game) {
     game.stats.speedGates += 1;
     game.score += 120 + game.combo * 24;
     addFareHeat(game, 12, 'speed tip', gate.color);
+    registerRushAction(game, 'Speed-Gate', 14, gate.color);
     game.player.boost = Math.min(100, game.player.boost + 14);
     game.message = `${gate.label} Speed-Gate`;
     game.messageTimer = 0.7;
@@ -1127,6 +1184,7 @@ function updateShortcuts(game) {
   game.player.boost = Math.min(100, game.player.boost + 18);
   game.passengerMood = Math.min(100, game.passengerMood + 8);
   addFareHeat(game, 22, 'shortcut tip', shortcut.color);
+  registerRushAction(game, 'Risk-Shortcut', 24, shortcut.color);
   game.message = `${shortcut.label} Shortcut`;
   game.messageTimer = 0.75;
   addFloater(game, shortcut.x, shortcut.y - 54, `+${shortcut.reward}`, shortcut.color);
@@ -1200,6 +1258,7 @@ function updateRivals(game, dt) {
       game.score += 150 + game.combo * 20;
       game.player.boost = Math.min(100, game.player.boost + 16);
       addFareHeat(game, 14, 'air pass', '#fef08a');
+      registerRushAction(game, 'Air-Rival', 17, '#fef08a');
       addFloater(game, player.x, player.y - 62, 'air pass', '#fef08a');
       evaluateTaxiGoals(game);
       return;
@@ -1226,6 +1285,7 @@ function updateRivals(game, dt) {
       game.score += 100 + game.combo * 18;
       game.player.boost = Math.min(100, game.player.boost + 12);
       addFareHeat(game, 11, 'rival pass', '#fef08a');
+      registerRushAction(game, 'Rival-Pass', 13, '#fef08a');
       addFloater(game, player.x, player.y - 54, 'Rival +', '#fef08a');
       evaluateTaxiGoals(game);
     } else if (d > 150) {
@@ -1267,6 +1327,12 @@ function updateGame(game, keys, dt) {
   game.shortcutCooldown = Math.max(0, game.shortcutCooldown - dt);
   game.wrongPadCooldown = Math.max(0, game.wrongPadCooldown - dt);
   game.crashCooldown = Math.max(0, game.crashCooldown - dt);
+  game.rushTimer = Math.max(0, game.rushTimer - dt);
+  game.rushPulseTimer = Math.max(0, game.rushPulseTimer - dt);
+  if (game.rushTimer <= 0) {
+    game.rushChain = 0;
+    game.rushSource = '';
+  }
   game.player.impactTimer = Math.max(0, game.player.impactTimer - dt);
   game.player.driftBoostTimer = Math.max(0, game.player.driftBoostTimer - dt);
   game.player.jumpCooldown = Math.max(0, game.player.jumpCooldown - dt);
@@ -1336,6 +1402,7 @@ function updateGame(game, keys, dt) {
     player.boost = Math.min(100, player.boost + charge * 0.18);
     game.score += Math.round(charge * 3.2);
     addFareHeat(game, 8 + charge * 0.06, 'drift tip', '#67e8f9');
+    registerRushAction(game, charge > 72 ? 'Power-Drift' : 'Drift-Boost', 8 + charge * 0.05, '#67e8f9');
     game.message = 'Drift-Boost';
     game.messageTimer = 0.55;
     addFloater(game, player.x, player.y - 52, `drift +${Math.round(charge * 3.2)}`, '#67e8f9');
@@ -1952,6 +2019,11 @@ function drawHud(ctx, game) {
   const contract = game.activeContract;
   const contractValue = contract ? Math.min(contract.target, dispatchProgress(game)) : 0;
   const contractRatio = contract ? clamp(contractValue / contract.target, 0, 1) : 0;
+  const rushActive = game.rushChain > 0;
+  const rushRatio = clamp(game.rushTimer / 3.4, 0, 1);
+  const rushLabel = rushActive
+    ? `Rush x${game.rushChain} · ${game.rushSource}`
+    : `Rush Best x${game.stats.bestRushChain || 0}`;
   const mission = game.carrying
     ? game.mode === 'learn'
       ? reveal
@@ -1978,7 +2050,7 @@ function drawHud(ctx, game) {
     ctx.fillText(`${Math.ceil(game.time)}s`, panelRight, 52);
     ctx.fillStyle = '#67e8f9';
     ctx.font = '900 13px Outfit, sans-serif';
-    ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Serie x${game.shiftStreak} · Tip ${Math.round(game.fareHeat)}`, panelRight, 78);
+    ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Serie x${game.shiftStreak} · Rush x${game.rushChain} · Tip ${Math.round(game.fareHeat)}`, panelRight, 78);
     ctx.textAlign = 'left';
     ctx.fillStyle = job.color;
     drawFittedText(ctx, mission, panelLeft, 108, 334, 18, 11);
@@ -2010,6 +2082,21 @@ function drawHud(ctx, game) {
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '800 10px Outfit, sans-serif';
     ctx.fillText(contract ? `${contractValue}/${contract.target} · ${Math.ceil(game.contractTimer)}s · M${game.contractMedals}` : `Medaillen ${game.contractMedals} · Serie-Best ${game.stats.bestShiftStreak}`, panelLeft, 323);
+
+    if (rushActive) {
+      ctx.fillStyle = 'rgba(120,53,15,.48)';
+      drawRoundedRect(ctx, panelLeft + 246, 284, 94, 34, 10);
+      ctx.fill();
+      ctx.fillStyle = '#fef3c7';
+      ctx.font = '900 10px Outfit, sans-serif';
+      ctx.fillText(rushLabel, panelLeft + 254, 300, 82);
+      ctx.fillStyle = 'rgba(15,23,42,.72)';
+      drawRoundedRect(ctx, panelLeft + 254, 306, 74, 6, 3);
+      ctx.fill();
+      ctx.fillStyle = '#facc15';
+      drawRoundedRect(ctx, panelLeft + 254, 306, 74 * rushRatio, 6, 3);
+      ctx.fill();
+    }
 
     const meterY = HEIGHT - 116;
     ctx.fillStyle = 'rgba(2,6,23,.78)';
@@ -2064,7 +2151,15 @@ function drawHud(ctx, game) {
   ctx.fillText(`Fahrten ${game.deliveries}/${game.targetDeliveries} · Combo x${Math.max(1, game.combo)} · Serie x${game.shiftStreak} · Rep ${game.reputation}`, WIDTH - 44, 116);
   ctx.fillStyle = '#fef08a';
   ctx.font = '900 13px Outfit, sans-serif';
-  ctx.fillText(`Style-Tip ${Math.round(game.fareHeat)} · Incidents ${game.fareIncidents} · Best ${game.stats.bestShiftStreak}`, WIDTH - 44, 138);
+  ctx.fillText(`Style-Tip ${Math.round(game.fareHeat)} · ${rushLabel} · Incidents ${game.fareIncidents}`, WIDTH - 44, 138);
+  if (rushActive) {
+    ctx.fillStyle = 'rgba(15,23,42,.76)';
+    drawRoundedRect(ctx, WIDTH - 214, 126, 170, 9, 5);
+    ctx.fill();
+    ctx.fillStyle = game.rushPulseTimer > 0 ? '#fef08a' : '#facc15';
+    drawRoundedRect(ctx, WIDTH - 214, 126, 170 * rushRatio, 9, 5);
+    ctx.fill();
+  }
 
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(2,6,23,.76)';
@@ -2290,6 +2385,7 @@ export default function FaskaTaxiRushSwarm() {
     player.jumpCooldown = 1.1;
     gameRef.current.stats.stuntJumps += 1;
     gameRef.current.score += 95;
+    registerRushAction(gameRef.current, 'Hop', 9, '#38bdf8');
     gameRef.current.message = 'Hop';
     gameRef.current.messageTimer = 0.5;
     evaluateTaxiGoals(gameRef.current);
@@ -2363,6 +2459,7 @@ export default function FaskaTaxiRushSwarm() {
             reputation: gameRef.current.reputation,
             wrongPads: gameRef.current.wrongPads,
             bestShiftStreak: gameRef.current.stats.bestShiftStreak,
+            bestRushChain: gameRef.current.stats.bestRushChain,
           });
         }
       } catch (err) {
@@ -2484,7 +2581,7 @@ export default function FaskaTaxiRushSwarm() {
         }}>
           <div style={{ fontSize: 52, fontWeight: 900, color: '#f8fafc' }}>{endState.message}</div>
           <div style={{ fontSize: 28, color: '#facc15', fontWeight: 900 }}>
-            Score {endState.score} · Fahrten {endState.deliveries} · Rep {endState.reputation} · Serie {endState.bestShiftStreak} · Fehler {endState.wrongPads}
+            Score {endState.score} · Fahrten {endState.deliveries} · Rep {endState.reputation} · Serie {endState.bestShiftStreak} · Rush {endState.bestRushChain} · Fehler {endState.wrongPads}
           </div>
           <button className="btn-primary" onClick={restart}>Noch eine Fahrt</button>
         </div>

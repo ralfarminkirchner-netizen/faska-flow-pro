@@ -58,7 +58,7 @@ const GAMES = [
   {
     id: 'pinball',
     name: 'Faska Pinball Pro',
-    description: 'Flipper-Arcade mit Skill-Shot, Dropbank, Ramp-/Orbit-Shots, Magnet-Lock, Wizard-Mode, Nudge/Tilt-Risiko, Jackpot, Multiball, Missionen und Learncade-Targets!',
+    description: 'Godot-4-Flipper-Arcade mit Skill-Shot, Ball-Save, Combo-Fenster, laufenden Missionen, Dropbank, Ramp-/Orbit-Shots, Magnet-Lock, Wizard-Mode, Super-Jackpot, Multiball, Nudge/Tilt-Risiko und Learncade-Missionen!',
     emoji: '🎱',
     category: 'Arcade',
     gradient: 'linear-gradient(135deg, #0ea5e9, #a855f7)',

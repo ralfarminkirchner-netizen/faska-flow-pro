@@ -13,8 +13,21 @@ const DRAIN_Y := TABLE_Y + TABLE_H + 20.0
 const BALL_R := 12.0
 const GRAVITY := 760.0
 const MAX_LEARN := 8
+const BALL_SAVE_TIME := 8.0
+const SKILL_SHOT_TIME := 5.8
+const COMBO_WINDOW := 4.2
+const MISSION_TIME := 44.0
+const TILT_WINDOW := 3.2
+const TILT_LIMIT := 3.0
+const TILT_LOCK_TIME := 2.8
 
 const LESSONS = ["WORTART", "LESEN", "SATZ", "KOMPOSITUM", "MATHE", "ENGLISCH", "SACHKUNDE"]
+const MISSIONS = [
+	{"id": "lanes", "label": "Spell LEAR", "goal": 4, "hint": "Triff vier obere Lanes."},
+	{"id": "drops", "label": "Dropbank", "goal": 4, "hint": "Raeume FASK ab."},
+	{"id": "ramps", "label": "Ramp Run", "goal": 3, "hint": "Triff Rampen oder Orbits."},
+	{"id": "learn", "label": "Learncade", "goal": 3, "hint": "Loese drei Lernziele."}
+]
 
 const BUMPERS = [
 	{"id": "b1", "pos": Vector2(518, 228), "r": 34.0, "value": 260, "color": "#22d3ee"},
@@ -118,6 +131,19 @@ var multiplier := 1
 var locked_balls := 0
 var jackpot := 10000
 var wizard := false
+var combo := 0
+var max_combo := 0
+var combo_timer := 0.0
+var mission_index := 0
+var mission_progress := 0
+var mission_timer := 0.0
+var skill_shot_timer := 0.0
+var skill_shot_power := 0.0
+var ball_save_timer := 0.0
+var tilt_meter := 0.0
+var tilt_timer := 0.0
+var tilt_lock_timer := 0.0
+var super_jackpot_lit := false
 var learn_correct := 0
 var learn_streak := 0
 var lesson_index := 0
@@ -160,6 +186,19 @@ func reset_game() -> void:
 	locked_balls = 0
 	jackpot = 10000
 	wizard = false
+	combo = 0
+	max_combo = 0
+	combo_timer = 0.0
+	mission_index = 0
+	mission_progress = 0
+	mission_timer = MISSION_TIME
+	skill_shot_timer = 0.0
+	skill_shot_power = 0.0
+	ball_save_timer = 0.0
+	tilt_meter = 0.0
+	tilt_timer = 0.0
+	tilt_lock_timer = 0.0
+	super_jackpot_lit = false
 	learn_correct = 0
 	learn_streak = 0
 	lesson_index = 0
@@ -171,7 +210,7 @@ func reset_game() -> void:
 	touch_button_state.clear()
 	touch_edges.clear()
 	spawn_ball(true)
-	message = "FASKA PINBALL PRO - Space halten und loslassen."
+	message = "FASKA PINBALL PRO - Space halten und Skill-Shot suchen."
 	message_timer = 2.5
 
 func spawn_ball(held := true, offset := 0.0) -> void:
@@ -200,14 +239,27 @@ func update_timers(delta: float) -> void:
 	message_timer = maxf(0.0, message_timer - delta)
 	shake = maxf(0.0, shake - delta)
 	nudge_cd = maxf(0.0, nudge_cd - delta)
+	combo_timer = maxf(0.0, combo_timer - delta)
+	if combo_timer <= 0.0:
+		combo = 0
+	skill_shot_timer = maxf(0.0, skill_shot_timer - delta)
+	ball_save_timer = maxf(0.0, ball_save_timer - delta)
+	tilt_timer = maxf(0.0, tilt_timer - delta)
+	if tilt_timer <= 0.0:
+		tilt_meter = maxf(0.0, tilt_meter - delta * 0.7)
+	tilt_lock_timer = maxf(0.0, tilt_lock_timer - delta)
+	mission_timer = maxf(0.0, mission_timer - delta)
+	if mission_timer <= 0.0:
+		fail_mission()
 
 func update_game(delta: float) -> void:
 	if key_once(KEY_L) or consume_touch_edge("learn"):
 		toggle_mode()
 	if key_once(KEY_C) or consume_touch_edge("subject"):
 		cycle_subject()
-	var left_down := Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or bool(touch_button_state.get("left", false))
-	var right_down := Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or bool(touch_button_state.get("right", false))
+	var flippers_locked := tilt_lock_timer > 0.0
+	var left_down := not flippers_locked and (Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or bool(touch_button_state.get("left", false)))
+	var right_down := not flippers_locked and (Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or bool(touch_button_state.get("right", false)))
 	left_flip = move_toward(left_flip, 1.0 if left_down else 0.0, delta * 8.5)
 	right_flip = move_toward(right_flip, 1.0 if right_down else 0.0, delta * 8.5)
 	if (Input.is_key_pressed(KEY_SPACE) or bool(touch_button_state.get("plunger", false))) and has_held_ball():
@@ -244,11 +296,24 @@ func launch_held_balls() -> void:
 			ball.held = false
 			ball.vel = Vector2(rng.randf_range(-80.0, -28.0), -850.0 - plunger * 780.0)
 			spawn_particles(ball.pos, Color.html("#facc15"), 16, 180.0)
+	skill_shot_timer = SKILL_SHOT_TIME
+	skill_shot_power = plunger
+	ball_save_timer = BALL_SAVE_TIME
 	plunger = 0.0
 
 func nudge_table() -> void:
 	nudge_cd = 0.9
 	shake = 0.16
+	tilt_timer = TILT_WINDOW
+	tilt_meter += 1.0
+	if tilt_meter >= TILT_LIMIT:
+		tilt_lock_timer = TILT_LOCK_TIME
+		tilt_meter = 0.0
+		combo = 0
+		score = maxi(0, score - 1200)
+		add_floater(Vector2(TABLE_X + TABLE_W * 0.5, 590), "TILT - FLIPPER LOCK", Color.html("#fecaca"))
+		message = "Tilt: zu viel geschoben, Flipper kurz gesperrt."
+		message_timer = 1.8
 	for ball in balls:
 		ball.vel += Vector2(rng.randf_range(-165.0, 165.0), -95.0)
 	add_floater(Vector2(TABLE_X + TABLE_W * 0.5, 600), "NUDGE", Color.html("#facc15"))
@@ -275,8 +340,17 @@ func update_ball(ball: Dictionary, delta: float) -> void:
 		trail.pop_front()
 	ball.trail = trail
 	if float(ball.pos.y) > DRAIN_Y:
-		ball.alive = false
-		spawn_particles(ball.pos, Color.html("#fecaca"), 18, 220.0)
+		if ball_save_timer > 0.0:
+			ball.pos = Vector2(RIGHT_WALL - 26.0, TABLE_Y + TABLE_H - 118.0)
+			ball.vel = Vector2(rng.randf_range(-60.0, 60.0), -780.0)
+			ball.trail = []
+			spawn_particles(ball.pos, Color.html("#67e8f9"), 22, 240.0)
+			add_floater(ball.pos, "BALL SAVE", Color.html("#67e8f9"))
+			ball_save_timer = 0.0
+		else:
+			ball.alive = false
+			end_ball_bonus(ball.pos)
+			spawn_particles(ball.pos, Color.html("#fecaca"), 18, 220.0)
 
 func collide_walls(ball: Dictionary) -> void:
 	var pos: Vector2 = ball.pos
@@ -320,6 +394,8 @@ func collide_targets(ball: Dictionary) -> void:
 		if rect.grow(BALL_R).has_point(Vector2(ball.pos)):
 			lit_lanes[str(lane.id)] = true
 			add_score(int(lane.value), rect.get_center(), str(lane.label))
+			register_shot("ramp" if str(lane.id).begins_with("orbit") else "lane", rect.get_center(), str(lane.label))
+			resolve_skill_shot(rect.get_center(), str(lane.label))
 			ball.vel.y = -absf(float(ball.vel.y)) - 120.0
 			ball.target_cd = 0.16
 			if str(lane.id) == "orbit-r":
@@ -336,6 +412,7 @@ func collide_targets(ball: Dictionary) -> void:
 		if drect.grow(BALL_R).has_point(Vector2(ball.pos)):
 			down_drops[str(drop.id)] = true
 			add_score(int(drop.value), drect.get_center(), str(drop.label))
+			register_shot("drop", drect.get_center(), str(drop.label))
 			ball.vel.y = -absf(float(ball.vel.y)) - 160.0
 			ball.target_cd = 0.16
 			if down_drops.size() >= DROPS.size():
@@ -350,8 +427,13 @@ func collide_ramps(ball: Dictionary) -> void:
 		if rect.grow(BALL_R).has_point(Vector2(ball.pos)) and float(ball.vel.y) < 0.0:
 			ball.vel = Vector2(float(ramp.dir) * 360.0, -720.0)
 			add_score(int(ramp.value), rect.get_center(), str(ramp.label))
+			register_shot("ramp", rect.get_center(), str(ramp.label))
 			spawn_particles(rect.get_center(), Color.html("#67e8f9"), 12, 180.0)
-			if wizard:
+			if super_jackpot_lit:
+				add_score(jackpot * 2, rect.get_center(), "SUPER JACKPOT")
+				super_jackpot_lit = false
+				jackpot += 3500
+			elif wizard:
 				add_score(jackpot, rect.get_center(), "JACKPOT")
 			return
 
@@ -413,6 +495,7 @@ func collide_learn_targets(ball: Dictionary) -> void:
 				learn_correct += 1
 				learn_streak += 1
 				add_score(1200, rect.get_center(), "RICHTIG")
+				register_shot("learn", rect.get_center(), "LEARN")
 				active_task.clear()
 				learn_targets.clear()
 				if learn_correct >= MAX_LEARN:
@@ -428,6 +511,99 @@ func collide_learn_targets(ball: Dictionary) -> void:
 				learn_targets.clear()
 			ensure_learn_targets()
 			return
+
+func register_shot(kind: String, pos: Vector2, label: String) -> void:
+	combo += 1
+	combo_timer = COMBO_WINDOW
+	max_combo = maxi(max_combo, combo)
+	if combo >= 2:
+		var combo_bonus := combo * 140 * multiplier
+		score += combo_bonus
+		add_floater(pos + Vector2(0, -22), "COMBO " + str(combo) + " +" + str(combo_bonus), Color.html("#67e8f9"))
+	if combo >= 5:
+		jackpot += 900
+	if combo >= 7:
+		super_jackpot_lit = true
+	advance_mission(kind, pos, label)
+
+func resolve_skill_shot(pos: Vector2, label: String) -> void:
+	if skill_shot_timer <= 0.0:
+		return
+	var power_error := absf(skill_shot_power - 0.72)
+	var bonus := 1800
+	var grade := "SKILL"
+	if power_error < 0.08:
+		bonus = 5200
+		grade = "PERFECT SKILL"
+	elif power_error < 0.18:
+		bonus = 3200
+		grade = "GREAT SKILL"
+	score += bonus * multiplier
+	jackpot += bonus
+	add_floater(pos, grade + " " + label + " +" + str(bonus * multiplier), Color.html("#facc15"))
+	spawn_particles(pos, Color.html("#facc15"), 22, 260.0)
+	skill_shot_timer = 0.0
+
+func current_mission() -> Dictionary:
+	return MISSIONS[mission_index % MISSIONS.size()]
+
+func advance_mission(kind: String, pos: Vector2, label: String) -> void:
+	var mission: Dictionary = current_mission()
+	var mission_id := str(mission.id)
+	var counts := false
+	if mission_id == "lanes":
+		counts = kind == "lane"
+	elif mission_id == "drops":
+		counts = kind == "drop"
+	elif mission_id == "ramps":
+		counts = kind == "ramp"
+	elif mission_id == "learn":
+		counts = kind == "learn"
+	if not counts:
+		return
+	mission_progress += 1
+	add_floater(pos + Vector2(0, -42), str(mission.label) + " " + str(mission_progress) + "/" + str(mission.goal), Color.html("#c084fc"))
+	if mission_progress >= int(mission.goal):
+		complete_mission(pos, label)
+
+func complete_mission(pos: Vector2, label: String) -> void:
+	var mission: Dictionary = current_mission()
+	var reward := (3600 + mission_index * 850) * multiplier
+	score += reward
+	jackpot += 5200 + mission_index * 600
+	super_jackpot_lit = true
+	multiplier = mini(6, multiplier + 1)
+	spawn_particles(pos, Color.html("#c084fc"), 34, 330.0)
+	add_floater(pos, "MISSION " + str(mission.label) + " +" + str(reward), Color.html("#facc15"))
+	message = str(mission.label) + " geschafft durch " + label + ". Super-Jackpot ist an."
+	message_timer = 2.2
+	mission_index = (mission_index + 1) % MISSIONS.size()
+	mission_progress = 0
+	mission_timer = MISSION_TIME
+	if str(current_mission().id) == "learn" and mode != "Lernen":
+		mode = "Lernen"
+		ensure_learn_targets()
+
+func fail_mission() -> void:
+	if phase != "run":
+		return
+	var mission: Dictionary = current_mission()
+	add_floater(Vector2(TABLE_X + TABLE_W * 0.5, 214), "MISSION WECHSEL", Color.html("#fecaca"))
+	message = str(mission.label) + " verpasst - neues Ziel: " + str(MISSIONS[(mission_index + 1) % MISSIONS.size()].label)
+	message_timer = 1.7
+	mission_index = (mission_index + 1) % MISSIONS.size()
+	mission_progress = 0
+	mission_timer = MISSION_TIME
+
+func end_ball_bonus(pos: Vector2) -> void:
+	var bonus := (max_combo * 180 + learn_streak * 320 + locked_balls * 420) * multiplier
+	if bonus <= 0:
+		return
+	score += bonus
+	add_floater(pos, "END BONUS +" + str(bonus), Color.html("#facc15"))
+	combo = 0
+	combo_timer = 0.0
+	max_combo = 0
 
 func add_score(value: int, pos: Vector2, label: String) -> void:
 	var points := value * multiplier
@@ -692,14 +868,28 @@ func draw_particles_and_floaters() -> void:
 
 func draw_hud() -> void:
 	var compact := should_show_touch()
-	var panel := Rect2(14, 12, minf(size.x - 28.0, 430.0 if compact else 520.0), 86.0)
+	var panel := Rect2(14, 12, minf(size.x - 28.0, 450.0 if compact else 560.0), 136.0)
 	draw_rect(panel, Color(0.02, 0.05, 0.09, 0.78), true)
 	draw_rect(panel, Color(0.78, 0.88, 1.0, 0.22), false, 2.0)
 	draw_string(font, panel.position + Vector2(14, 25), "FASKA PINBALL PRO", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 20 if compact else 24, Color.html("#f8fafc"))
-	draw_string(font, panel.position + Vector2(14, 52), "Score " + str(score) + "   Ball " + str(ball_stock) + "   " + str(multiplier) + "X", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 15, Color.html("#cbd5e1"))
+	draw_string(font, panel.position + Vector2(14, 52), "Score " + str(score) + "   Ball " + str(ball_stock) + "   " + str(multiplier) + "X   Jackpot " + str(jackpot), HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 15, Color.html("#cbd5e1"))
 	draw_string(font, panel.position + Vector2(14, 75), mode + " | " + str(LESSONS[lesson_index]) + " | Richtig " + str(learn_correct) + "/" + str(MAX_LEARN), HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 13, Color.html("#fef3c7"))
+	var mission: Dictionary = current_mission()
+	draw_string(font, panel.position + Vector2(14, 98), "Mission " + str(mission.label) + " " + str(mission_progress) + "/" + str(mission.goal) + "  " + str(int(mission_timer)) + "s", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 13, Color.html("#ddd6fe"))
+	var state := "Combo " + str(combo) + "  Max " + str(max_combo)
+	if skill_shot_timer > 0.0:
+		state += "  Skill-Shot " + str(int(skill_shot_timer)) + "s"
+	if ball_save_timer > 0.0:
+		state += "  Save " + str(int(ball_save_timer)) + "s"
+	if super_jackpot_lit:
+		state += "  SUPER"
+	if tilt_lock_timer > 0.0:
+		state += "  TILT LOCK"
+	elif tilt_meter > 0.0:
+		state += "  Tilt " + str(int(tilt_meter)) + "/" + str(int(TILT_LIMIT))
+	draw_string(font, panel.position + Vector2(14, 121), state, HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 12, Color.html("#bfdbfe"))
 	if mode == "Lernen" and active_task.size() > 0:
-		var qrect := Rect2(size.x * 0.5 - minf(430.0, size.x - 24.0) * 0.5, 104.0, minf(430.0, size.x - 24.0), 54.0)
+		var qrect := Rect2(size.x * 0.5 - minf(430.0, size.x - 24.0) * 0.5, 156.0 if not compact else 150.0, minf(430.0, size.x - 24.0), 54.0)
 		draw_rect(qrect, Color(0.92, 0.96, 1.0, 0.92), true)
 		draw_rect(qrect, Color(0.38, 0.67, 1.0, 0.72), false, 2.0)
 		draw_string(font, qrect.position + Vector2(12, 23), str(active_task.prompt), HORIZONTAL_ALIGNMENT_LEFT, qrect.size.x - 24.0, 17, Color.html("#0f172a"))

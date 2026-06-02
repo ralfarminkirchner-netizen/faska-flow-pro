@@ -71,6 +71,20 @@ const NIGHT_HUNT_GOALS = [
   { id: 'rally-120', label: '120 Rally-Heilung', stat: 'rallyHeal', target: 120, reward: 800, mode: 'both' },
 ];
 
+const NIGHT_HUNT_CONTRACTS = [
+  { id: 'kill-4', label: '4 Gegner in der Nacht jagen', stat: 'kills', target: 4, duration: 42, reward: { score: 430, focus: 16, bullets: 2 } },
+  { id: 'wave-1', label: '1 Welle reinigen', stat: 'wavesCleared', target: 1, duration: 52, reward: { score: 520, focus: 22, vials: 1 } },
+  { id: 'perfect-2', label: '2 Perfect-Dodges setzen', stat: 'perfectDodges', target: 2, duration: 36, reward: { score: 460, stamina: 28, focus: 18 } },
+  { id: 'parry-1', label: '1 Pistolen-Parry treffen', stat: 'pistolParries', target: 1, duration: 46, reward: { score: 500, bullets: 3, focus: 16 } },
+  { id: 'visceral-1', label: '1 Visceral-Angriff landen', stat: 'viscerals', target: 1, duration: 50, reward: { score: 560, hp: 16, bullets: 2, fever: 10 } },
+  { id: 'trick-3', label: '3 Trickwaffen-Treffer', stat: 'trickHits', target: 3, duration: 40, reward: { score: 430, stamina: 18, fever: 8 } },
+  { id: 'fever-1', label: '1 Blutfieber ausloesen', stat: 'bloodSurges', target: 1, duration: 60, reward: { score: 540, hp: 10, focus: 22 } },
+  { id: 'focus-2', label: '2 Fokus-Zauber wirken', stat: 'focusCasts', target: 2, duration: 44, reward: { score: 470, focus: 24, stamina: 16 } },
+  { id: 'rally-35', label: '35 Rally-Heilung holen', stat: 'rallyHeal', target: 35, duration: 48, reward: { score: 440, hp: 12, vials: 1 } },
+  { id: 'learn-1', label: '1 Lernrune richtig loesen', stat: 'learnCorrect', target: 1, duration: 42, reward: { score: 520, focus: 28, bullets: 3, hp: 8 }, learnOnly: true },
+  { id: 'boss-1', label: 'Nachtboss bezwingen', stat: 'bosses', target: 1, duration: 90, reward: { score: 900, hp: 22, vials: 1, bullets: 4 }, requiresBoss: true },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const lerp = (a, b, t) => a + (b - a) * t;
 const len = (x, y) => Math.hypot(x, y) || 1;
@@ -230,6 +244,96 @@ function recordStat(game, stat, amount = 1) {
   });
 }
 
+function availableHuntContracts(game) {
+  return NIGHT_HUNT_CONTRACTS.filter((contract) => {
+    if (contract.learnOnly && game.mode !== 'learn') return false;
+    if (contract.requiresBoss && !game.enemies.some((enemy) => enemy.type === 'boss' && enemy.hp > 0)) return false;
+    return true;
+  });
+}
+
+function huntContractProgress(game) {
+  if (!game.activeContract) return 0;
+  const current = game.stats[game.activeContract.stat] || 0;
+  return clamp(Math.floor(current - game.activeContract.startValue), 0, game.activeContract.target);
+}
+
+function applyHuntReward(game, reward = {}) {
+  const player = game.player;
+  if (reward.score) game.score += reward.score;
+  if (reward.hp) player.hp = clamp(player.hp + reward.hp, 0, player.maxHp);
+  if (reward.stamina) player.stamina = clamp(player.stamina + reward.stamina, 0, player.maxStamina);
+  if (reward.focus) player.focus = clamp(player.focus + reward.focus, 0, 100);
+  if (reward.bullets) player.bullets = Math.min(20, player.bullets + reward.bullets);
+  if (reward.vials) player.vials = Math.min(6, player.vials + reward.vials);
+  if (reward.fever) addBloodFever(game, reward.fever);
+}
+
+function startHuntContract(game) {
+  const contracts = availableHuntContracts(game);
+  if (!contracts.length) {
+    game.contractCooldown = 2.8;
+    return;
+  }
+  const template = contracts[game.contractIndex % contracts.length];
+  game.contractIndex += 1;
+  game.activeContract = {
+    ...template,
+    startValue: game.stats[template.stat] || 0,
+  };
+  game.contractTimer = template.duration;
+  game.message = `Jagdvertrag: ${template.label}`;
+  game.messageTimer = 1.1;
+  addText(game, game.player.x, game.player.y - 54, 'JAGDVERTRAG', '#c4b5fd');
+}
+
+function completeHuntContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  applyHuntReward(game, contract.reward);
+  game.contractWins += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 2.6;
+  game.missionNotice = `Jagdvertrag +${contract.reward.score || 0}`;
+  game.missionNoticeTimer = 2;
+  game.message = `Vertrag erfuellt: ${contract.label}`;
+  game.messageTimer = 1.15;
+  addText(game, game.player.x, game.player.y - 54, 'VERTRAG ERFUELLT', '#facc15');
+  spawnParticles(game, game.player.x, game.player.y, '#facc15', 24, 300);
+}
+
+function failHuntContract(game) {
+  const contract = game.activeContract;
+  if (!contract) return;
+  game.contractFails += 1;
+  game.activeContract = null;
+  game.contractTimer = 0;
+  game.contractCooldown = 3.4;
+  game.combo = Math.max(0, game.combo - 2);
+  game.player.bloodFever = Math.max(0, game.player.bloodFever - 10);
+  game.message = `Vertrag verpasst: ${contract.label}`;
+  game.messageTimer = 1;
+  addText(game, game.player.x, game.player.y - 54, 'Vertrag verpasst', '#fb7185');
+}
+
+function updateHuntContract(game, dt) {
+  if (game.phase !== 'play') return;
+
+  if (!game.activeContract) {
+    game.contractCooldown = Math.max(0, game.contractCooldown - dt);
+    if (game.contractCooldown <= 0) startHuntContract(game);
+    return;
+  }
+
+  game.contractTimer = Math.max(0, game.contractTimer - dt);
+  if (huntContractProgress(game) >= game.activeContract.target) {
+    completeHuntContract(game);
+  } else if (game.contractTimer <= 0) {
+    failHuntContract(game);
+  }
+}
+
 function addBloodFever(game, amount) {
   const player = game.player;
   const before = player.bloodFever || 0;
@@ -330,6 +434,12 @@ function makeInitialGame(mode = 'arcade') {
     missionNoticeTimer: 0,
     stats: createStats(),
     goals: createGoals(mode),
+    activeContract: null,
+    contractIndex: 0,
+    contractTimer: 0,
+    contractCooldown: 1.2,
+    contractWins: 0,
+    contractFails: 0,
     message: mode === 'learn' ? 'Beruehre die richtige Lernrune fuer Kampfboni.' : 'Ueberlebe Wellen, dashen, schlagen und zaubern.',
     messageTimer: 2,
     player: {
@@ -990,6 +1100,7 @@ function updateGame(game, dt, onFinish) {
   game.enemies.forEach((enemy) => updateEnemy(game, enemy, dt));
   game.enemies = game.enemies.filter((enemy) => enemy.hp > 0);
   updateRunes(game, dt);
+  updateHuntContract(game, dt);
 
   if (game.enemies.length === 0) {
     if (!game.waveClearRecorded) {
@@ -1026,7 +1137,7 @@ function updateGame(game, dt, onFinish) {
   if (game.player.hp <= 0) {
     game.player.hp = 0;
     game.phase = 'result';
-    game.result = { title: 'Jagd beendet', score: game.score, wave: game.wave };
+    game.result = { title: 'Jagd beendet', score: game.score, wave: game.wave, contracts: game.contractWins, contractFails: game.contractFails };
     onFinish(game.result);
   }
   updateCamera(game);
@@ -1284,6 +1395,8 @@ function drawHudBar(ctx, x, y, w, h, pct, color, label) {
 
 function drawHud(ctx, game) {
   const player = game.player;
+  const contract = game.activeContract;
+  const contractProgress = huntContractProgress(game);
   ctx.save();
   ctx.fillStyle = 'rgba(2,6,23,.8)';
   drawRoundedRect(ctx, 28, 24, 412, 204, 20);
@@ -1324,6 +1437,36 @@ function drawHud(ctx, game) {
     ctx.font = '800 11px Outfit, sans-serif';
     ctx.fillText(`${goal.done ? 'OK' : `${goal.progress}/${goal.target}`} ${goal.label}`, WIDTH - 342, y);
   });
+
+  ctx.fillStyle = 'rgba(2,6,23,.78)';
+  drawRoundedRect(ctx, WIDTH - 386, 264, 358, 118, 20);
+  ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '900 13px Outfit, sans-serif';
+  ctx.fillText(`Jagdvertrag · ${game.contractWins} OK · ${game.contractFails} FAIL`, WIDTH - 342, 292);
+  if (contract) {
+    const progress = clamp(contractProgress / contract.target, 0, 1);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(contract.label, WIDTH - 342, 316);
+    ctx.fillStyle = 'rgba(51,65,85,.92)';
+    drawRoundedRect(ctx, WIDTH - 342, 330, 286, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = progress >= 1 ? '#22c55e' : '#c084fc';
+    drawRoundedRect(ctx, WIDTH - 342, 330, 286 * progress, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText(`${contractProgress}/${contract.target}`, WIDTH - 342, 362);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.ceil(game.contractTimer)}s`, WIDTH - 56, 362);
+    ctx.textAlign = 'left';
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '900 12px Outfit, sans-serif';
+    ctx.fillText('Naechster Vertrag wird vorbereitet', WIDTH - 342, 318);
+    ctx.fillText(`${Math.ceil(game.contractCooldown)}s`, WIDTH - 342, 344);
+  }
 
   if (game.mode === 'learn') {
     const task = LEARN_TASKS[game.taskIndex % LEARN_TASKS.length];
@@ -1627,6 +1770,7 @@ export default function FaskaNightHuntSwarm() {
         }}>
           <div style={{ fontSize: 56, fontWeight: 900 }}>{result.title}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#facc15' }}>Welle {result.wave} · Score {result.score}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#cbd5e1' }}>Jagdvertraege {result.contracts}/{result.contracts + result.contractFails}</div>
           <button className="btn-primary" onClick={restart}>Neue Jagd</button>
         </div>
       )}

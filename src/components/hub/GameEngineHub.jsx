@@ -177,12 +177,12 @@ const GAMES = [
   {
     id: 'night-hunt',
     name: 'Faska Night Hunt Pro',
-    description: 'Godot-4-Nachtjagd nach Bloodborne-Prinzip mit Jagdvertraegen, Roll-Iframes, Perfect-Dodges, Rally-Heal, Insight-verstaerktem Fokus, Blutfieber, Trickwaffe, Pistolen-Parry, Visceral-Fenstern, knappen Blood Vials, Kugel-Pickups, Bell-/Gunner-/Beast-Gegnern, Boss jede 4. Welle, Touchsteuerung und Learncade-Runen mit Fehler-Wiederholung!',
+    description: 'FASKA-FLOW-Canvas-Nachtjagd nach Bloodborne-Prinzip mit Wellenarena, Boss jede 4. Welle, Dash-Iframes, Perfect-Dodges, Rally-Heal, Blutfieber, Trickwaffe, Pistolen-Parry, Visceral-Fenstern, Fokus-Zaubern, rotierenden Jagdvertraegen, knappen Blood Vials, Touchsteuerung und Learncade-Runen fuer Deutsch, Mathe, Englisch und Sachkunde!',
     emoji: '🌙',
     category: 'Soulslike',
     gradient: 'linear-gradient(135deg, #0f172a, #7c3aed)',
     path: '/game/night-hunt',
-    engine: 'Godot 4',
+    engine: 'Canvas',
   },
   {
     id: 'mansion',

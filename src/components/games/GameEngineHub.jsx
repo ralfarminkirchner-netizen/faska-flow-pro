@@ -261,6 +261,30 @@ export default function GameEngineHub({ onExit }) {
     setActiveGame(null);
   };
 
+  // --- Schnellwechsler: blättert ◀ ▶ durch die aktuell gefilterte Liste.
+  // Fallback auf ALLE Spiele, falls das aktive Spiel (z.B. per Deep-Link)
+  // nicht in der aktuellen Kategorie liegt.
+  const navList = filteredGames.some((g) => activeGame && g.id === activeGame.id)
+    ? filteredGames
+    : GAMES;
+  const activeIndex = activeGame ? navList.findIndex((g) => g.id === activeGame.id) : -1;
+  const switchBy = (delta) => {
+    if (activeIndex < 0 || navList.length < 2) return;
+    openGame(navList[(activeIndex + delta + navList.length) % navList.length]);
+  };
+
+  // Desktop-Komfort: [ / ] blättern (Pfeiltasten bleiben fürs Spiel frei).
+  useEffect(() => {
+    if (!activeGame) return undefined;
+    const onKey = (e) => {
+      if (e.key === ']') { e.preventDefault(); switchBy(1); }
+      else if (e.key === '[') { e.preventDefault(); switchBy(-1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGame, appMode]);
+
   if (activeGame) {
     const GameComponent = activeGame.component;
     return (
@@ -270,6 +294,31 @@ export default function GameEngineHub({ onExit }) {
             <GameComponent onExit={closeGame} isLearncade={isLearncade} />
           </Suspense>
         </ErrorBoundary>
+
+        {navList.length > 1 && (
+          <>
+            <button
+              onClick={() => switchBy(-1)}
+              aria-label="Vorheriges Spiel"
+              className="absolute left-1.5 top-1/2 z-[60] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/45 text-xl text-white/85 shadow-xl backdrop-blur-md transition-all hover:bg-black/70 active:scale-90"
+            >
+              ◀
+            </button>
+            <button
+              onClick={() => switchBy(1)}
+              aria-label="Nächstes Spiel"
+              className="absolute right-1.5 top-1/2 z-[60] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/45 text-xl text-white/85 shadow-xl backdrop-blur-md transition-all hover:bg-black/70 active:scale-90"
+            >
+              ▶
+            </button>
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[60] flex justify-center">
+              <span className="rounded-full bg-black/45 px-3 py-1 text-xs font-bold text-white/70 backdrop-blur-md">
+                {activeGame.title}
+                {activeIndex >= 0 ? ` · ${activeIndex + 1}/${navList.length}` : ''}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     );
   }

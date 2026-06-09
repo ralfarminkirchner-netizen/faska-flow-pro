@@ -125,7 +125,10 @@ function SkyStage({ round, friend, friendX, friendDirection, friendHop, children
               draggable="false"
               decoding="async"
               className="relative h-44 w-44 object-contain md:h-56 md:w-56"
-              style={{ filter: "drop-shadow(0 18px 20px rgba(15, 23, 42, 0.22)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.45))" }}
+              style={{
+                filter: "drop-shadow(0 18px 20px rgba(15, 23, 42, 0.22)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.45))",
+                transform: `scaleX(${friendDirection})`,
+              }}
             />
           </motion.div>
         </motion.div>

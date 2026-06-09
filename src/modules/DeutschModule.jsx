@@ -459,6 +459,23 @@ function ArtikelSeeGame({ onCorrect, onWrong }) {
 }
 
 // --- Game 6: Die Reim-Maschine ---
+// Deterministischer, stabiler Shuffle: gleiche Frage (index) -> gleiche
+// Options-Reihenfolge. Verhindert das Neu-Wuerfeln bei jedem Re-Render
+// (Port aus Alt-Variante "Montessori Flow").
+const stableChoiceScore = (text, seed) =>
+  String(text)
+    .split("")
+    .reduce((score, char, index) => score + char.charCodeAt(0) * (index + 7 + seed), seed * 31);
+
+const buildStableOptions = (pairs, index) => {
+  const pair = pairs[index];
+  const options = [pair.b, ...pairs.filter((entry) => entry.b !== pair.b).map((entry) => entry.b)]
+    .sort((a, b) => stableChoiceScore(a, index) - stableChoiceScore(b, index))
+    .slice(0, 3);
+  if (!options.includes(pair.b)) options[0] = pair.b;
+  return options.sort((a, b) => stableChoiceScore(a, index + 17) - stableChoiceScore(b, index + 17));
+};
+
 const REIM_PAARE = DEUTSCH_CONTENT.rhymePairs;
 
 function ReimMaschineGame({ onCorrect, onWrong }) {
@@ -468,11 +485,8 @@ function ReimMaschineGame({ onCorrect, onWrong }) {
   
   const pair = REIM_PAARE[idx];
   
-  // Mixed options for the right side
-  const options = [pair.b, ...REIM_PAARE.filter(p => p.b !== pair.b).map(p => p.b)].sort(() => 0.5 - Math.random()).slice(0, 3);
-  // Ensure correct option is always there
-  if (!options.includes(pair.b)) options[0] = pair.b;
-  options.sort(() => 0.5 - Math.random());
+  // Stabile, deterministische Options (kein Neu-Wuerfeln pro Render)
+  const options = buildStableOptions(REIM_PAARE, idx);
 
   const handleSelect = (word) => {
     if (word === pair.b) {
@@ -536,9 +550,7 @@ function GegenteileGame({ onCorrect, onWrong }) {
   const [snapped, setSnapped] = useState(false);
   const pair = GEGENTEIL_PAARE[idx];
 
-  const options = [pair.b, ...GEGENTEIL_PAARE.filter(p => p.b !== pair.b).map(p => p.b)].sort(() => 0.5 - Math.random()).slice(0, 3);
-  if (!options.includes(pair.b)) options[0] = pair.b;
-  options.sort(() => 0.5 - Math.random());
+  const options = buildStableOptions(GEGENTEIL_PAARE, idx);
 
   const handleSelect = (word) => {
     if (word === pair.b) {

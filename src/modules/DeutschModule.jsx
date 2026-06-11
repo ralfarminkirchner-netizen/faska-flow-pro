@@ -9,6 +9,7 @@ import VariantStudio from "../components/games/VariantStudio";
 import ActionArena from "../components/games/ActionArena";
 import GameWorld from "../components/games/GameWorld";
 import QuestMixer from "../components/games/QuestMixer";
+import RapStudio from "../components/games/RapStudio";
 import {
   DEUTSCH_CONTENT,
   LAB_DICTIONARY as WORD_LAB_DICTIONARY,
@@ -622,6 +623,7 @@ export default function DeutschModule({ onCorrect = () => {}, onWrong = () => {}
     { id: "geschichten", label: "Geschichten", color: "bg-orange-400" },
     { id: "artikel", label: "Artikel-See", color: "bg-emerald-400" },
     { id: "reime", label: "Reim-Maschine", color: "bg-rose-400" },
+    { id: "rap", label: "🎤 Rap-Studio", color: "bg-purple-600" },
     { id: "gegenteile", label: "Gegenteile", color: "bg-violet-400" },
     { id: "spielwelt", label: "Spielwelt", color: "bg-fuchsia-500" },
     { id: "quest", label: "Quest-Mixer", color: "bg-emerald-500" },
@@ -666,6 +668,7 @@ export default function DeutschModule({ onCorrect = () => {}, onWrong = () => {}
               {activeTab === "geschichten" && <GeschichtenGarten onCorrect={onCorrect} onWrong={onWrong} />}
               {activeTab === "artikel" && <ArtikelSeeGame onCorrect={onCorrect} onWrong={onWrong} />}
               {activeTab === "reime" && <ReimMaschineGame onCorrect={onCorrect} onWrong={onWrong} />}
+              {activeTab === "rap" && <RapStudio onCorrect={onCorrect} onWrong={onWrong} />}
               {activeTab === "gegenteile" && <GegenteileGame onCorrect={onCorrect} onWrong={onWrong} />}
               {activeTab === "spielwelt" && (
                 <GameWorld

@@ -1,0 +1,415 @@
+# Kinder-Reimvokabular fuer den FASKA Rap-Writer
+# Kuratiert + altersgerecht. Dient REIMWERKER gleichzeitig als Such- UND
+# Kandidaten-Korpus -> alle gefundenen Reime sind automatisch kindersicher.
+# Eine Zeile = ein Wort. # = Kommentar. Gross-/Kleinschreibung wie im Deutschen.
+# Gruppiert nach Reimfamilien fuer gute Reimdichte (Reihenfolge egal).
+
+# -und
+Hund
+bunt
+rund
+Mund
+gesund
+Grund
+
+# -atze / -atz
+Katze
+Platz
+Schatz
+Satz
+Tatze
+Matratze
+
+# -aus
+Haus
+Maus
+raus
+Klaus
+Strauss
+Applaus
+
+# -aum
+Baum
+Traum
+Raum
+Schaum
+Zaum
+
+# -achen
+lachen
+machen
+Sachen
+wachen
+Drachen
+Rachen
+
+# -onne / -onne
+Sonne
+Wonne
+Tonne
+
+# -ern
+Stern
+gern
+fern
+Kern
+
+# -erz
+Herz
+Schmerz
+Scherz
+
+# -ind
+Kind
+Wind
+Rind
+blind
+geschwind
+
+# -inder
+Kinder
+Rinder
+Finder
+
+# -isch
+Fisch
+Tisch
+frisch
+Wisch
+
+# -ase
+Hase
+Nase
+Vase
+blase
+rase
+
+# -ier
+Tier
+hier
+vier
+Papier
+Klavier
+Stier
+
+# -ein
+klein
+Stein
+mein
+dein
+allein
+Bein
+Schwein
+fein
+rein
+Schein
+
+# -ee / -eh
+See
+Schnee
+Klee
+Tee
+Fee
+Reh
+Weh
+
+# -all
+Ball
+Knall
+Stall
+Fall
+Wall
+Kristall
+
+# -oll
+toll
+voll
+soll
+Troll
+
+# -icht
+Licht
+Gesicht
+Gedicht
+dicht
+nicht
+Pflicht
+
+# -eich
+Teich
+weich
+reich
+gleich
+Reich
+bleich
+
+# -elle
+Welle
+Quelle
+helle
+Stelle
+schnelle
+
+# -eller
+Teller
+heller
+schneller
+Keller
+
+# -ange
+Schlange
+lange
+Stange
+Zange
+bange
+
+# -anne
+Tanne
+Kanne
+Wanne
+Panne
+
+# -ann
+Mann
+Kann
+Bann
+dann
+Tann
+
+# -ame / -ahme
+Name
+lahme
+Rahmen
+Samen
+
+# -agen
+Wagen
+sagen
+fragen
+jagen
+tragen
+Magen
+
+# -ogen
+Bogen
+flogen
+zogen
+Wogen
+
+# -uchen
+Kuchen
+suchen
+Buchen
+tauchen
+
+# -uss
+Fluss
+Kuss
+Nuss
+muss
+Schluss
+Gruss
+
+# -urm
+Wurm
+Sturm
+Turm
+
+# -arm
+Arm
+warm
+Schwarm
+
+# -aut
+Haut
+laut
+Kraut
+Maut
+
+# -eule
+Eule
+heule
+Beule
+Säule
+
+# -ecke
+Ecke
+decke
+Schnecke
+Hecke
+wecke
+
+# -uppe
+Suppe
+Puppe
+Gruppe
+Truppe
+
+# -orn
+Korn
+Horn
+Dorn
+vorn
+Zorn
+
+# -ank
+Bank
+krank
+Dank
+schlank
+Tank
+
+# -anze
+Pflanze
+ganze
+Schwanze
+Tanze
+
+# -immer
+immer
+Zimmer
+Schimmer
+Flimmer
+
+# -inge
+singe
+Klinge
+springe
+bringe
+
+# -ette
+Kette
+nette
+fette
+rette
+
+# -uehle / -ule
+Schule
+Stühle
+kühle
+Mühle
+
+# -ohne
+Bohne
+ohne
+wohne
+Sahne
+
+# -immel
+Himmel
+Schimmel
+
+# -onde / -ond
+Mond
+blond
+
+# -eer / -ehr
+Meer
+mehr
+sehr
+Verkehr
+Speer
+
+# -aller / -elle schon; -ahl
+Wahl
+Mahl
+Strahl
+Zahl
+Stahl
+
+# -ame schon; -auch
+Bauch
+Rauch
+Hauch
+auch
+Strauch
+
+# -inken / -ringen
+trinken
+winken
+sinken
+blinken
+
+# -ingt / -ing
+Ring
+Ding
+Sing
+springt
+King
+
+# Tiere (zusaetzlich, mit Reimpartnern oben)
+Bär
+Igel
+Vogel
+Ente
+Kuh
+Schaf
+Pferd
+Ziege
+
+# -ente
+Ente
+Rente
+Wende
+Ende
+
+# -uh
+Kuh
+Schuh
+Ruh
+froh
+
+# Gefuehle / Miteinander
+froh
+Mut
+gut
+Blut
+Flut
+Glut
+Wut
+
+# -reude / -eude
+Freude
+Leute
+heute
+Beute
+
+# Farben (mit Reimen)
+rot
+Brot
+Not
+tot
+Boot
+
+# blau-Familie
+blau
+grau
+Frau
+genau
+schlau
+
+# gruen
+gruen
+kuehn
+
+# Jahreszeiten / Wetter
+Regen
+Segen
+legen
+Wege
+Schnee
+
+# Schule / Lernen
+lesen
+Wesen
+Besen
+gewesen
+
+# zaehlen / -ehlen
+zählen
+Quellen
+fällt
+Welt
+Held
+Geld
+Feld

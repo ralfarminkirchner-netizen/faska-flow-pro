@@ -8,6 +8,7 @@ import { loadProgress, saveProgress } from "./utils/storage";
 import DailyJourney from "./components/DailyJourney";
 import AdventureHud, { AchievementToast, BADGES } from "./components/AdventureHud";
 import FastFlowGameStudio from "./components/games/FastFlowGameStudio";
+import KlebensfreiAtelier from "./components/KlebensfreiAtelier";
 
 const Motion = motion;
 
@@ -295,6 +296,8 @@ export default function FaskaFlowApp({ onOpenArcade, onExitToHome }) {
             </motion.button>
           </div>
         </motion.header>
+
+        <KlebensfreiAtelier onOpenDeutsch={() => { playPop(); setActiveSubject("deutsch"); }} />
 
         {/* ── SUBJECT NAVIGATION ── */}
         <motion.nav variants={navVariants} initial="hidden" animate="show"

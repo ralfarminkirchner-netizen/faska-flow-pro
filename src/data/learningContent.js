@@ -1,3 +1,5 @@
+import { KLEBENSFREI_IMAGES } from "./klebensfreiAssets";
+
 const cls = {
   artikel: "Artikel",
   nomen: "Nomen",
@@ -448,6 +450,48 @@ export const DEUTSCH_CONTENT = {
     { a: "Mutig", b: "Ängstlich" }, { a: "Rund", b: "Eckig" }, { a: "Warm", b: "Kühl" }, { a: "Lang", b: "Kurz" },
   ],
   stories: [
+    {
+      title: "Zora zählt Streifen",
+      cards: [
+        { image: KLEBENSFREI_IMAGES.zora, alt: "Zora, das Zebra", text: "Zora steht vor einem langen Zaun." },
+        { icon: "◼️", text: "Das Muster geht: hell, dunkel, hell." },
+      ],
+      answer: "pattern",
+      options: [
+        { id: "pattern", icon: "◼️", text: "Der nächste dunkle Streifen passt." },
+        { id: "banana", icon: "🍌", text: "Eine Banane springt auf den Zaun." },
+        { id: "sleep", icon: "💤", text: "Alle Streifen schlafen ein." },
+      ],
+      ending: "Muster helfen beim genauen Lesen und Vergleichen.",
+    },
+    {
+      title: "Nubas leiser Satz",
+      cards: [
+        { image: KLEBENSFREI_IMAGES.nuba, alt: "Nuba, die Wolke", text: "Nuba schwebt über den Garten." },
+        { icon: "💬", text: "Ein Kind sagt: Die Wolke ist weich." },
+      ],
+      answer: "adjective",
+      options: [
+        { id: "adjective", icon: "✨", text: "Weich beschreibt die Wolke." },
+        { id: "number", icon: "7️⃣", text: "Sie zählt sieben Schuhe." },
+        { id: "door", icon: "🚪", text: "Die Wolke geht durch eine Tür." },
+      ],
+      ending: "Beschreibwörter machen einen Satz genauer.",
+    },
+    {
+      title: "Miras Kartenreise",
+      cards: [
+        { image: KLEBENSFREI_IMAGES.mira, alt: "Mira mit Lernblatt", text: "Mira hat ein Blatt voller Zeichen." },
+        { image: KLEBENSFREI_IMAGES.suedamerika, alt: "Südamerika-Karte", text: "Darauf steht ein langes Reisewort." },
+      ],
+      answer: "read",
+      options: [
+        { id: "read", icon: "🗺️", text: "Sie liest langsam: Südamerika." },
+        { id: "hide", icon: "🙈", text: "Sie dreht das Blatt weg." },
+        { id: "mix", icon: "🔀", text: "Sie mischt alle Buchstaben wild." },
+      ],
+      ending: "Lange Wörter werden leichter, wenn man sie Stück für Stück liest.",
+    },
     {
       title: "Der kleine Samen",
       cards: [{ icon: "🌰", text: "Ein Samen liegt weich in der Erde." }, { icon: "💧", text: "Regen klopft leise auf den Garten." }],

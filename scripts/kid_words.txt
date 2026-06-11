@@ -413,3 +413,227 @@ Welt
 Held
 Geld
 Feld
+
+# ========== ERWEITERUNG: mehr Reimfamilien + Themen ==========
+
+# -acht
+Nacht
+lacht
+macht
+Macht
+sacht
+Pracht
+acht
+gedacht
+
+# -eben
+leben
+geben
+heben
+neben
+Reben
+schweben
+
+# -aden
+laden
+baden
+Faden
+Schaden
+Waden
+
+# -iel
+Spiel
+viel
+Ziel
+Stiel
+fiel
+Kiel
+
+# -uehl
+kühl
+fühl
+Gefühl
+wühl
+
+# -eis
+Eis
+leis
+Reis
+Preis
+Kreis
+Gleis
+
+# -anz
+Tanz
+Glanz
+Kranz
+ganz
+Schwanz
+
+# -acke
+Backe
+Hacke
+Jacke
+packe
+Schnake
+
+# -itz
+Sitz
+Witz
+Blitz
+Spitz
+Schlitz
+
+# -uetze / -itze
+Mütze
+Pfütze
+Spitze
+Hitze
+schütze
+
+# -ick
+dick
+Blick
+Strick
+Trick
+schick
+
+# -uecke
+Brücke
+Mücke
+Lücke
+drücke
+pflücke
+
+# -ueck
+Glück
+Stück
+zurück
+Druck
+
+# -umpf
+Strumpf
+Sumpf
+dumpf
+Trumpf
+
+# -ampf
+Dampf
+Kampf
+Krampf
+stampf
+
+# -oenig / -onig
+König
+Honig
+wenig
+
+# -uegel
+Hügel
+Flügel
+Vögel
+Bügel
+Zügel
+
+# -iegel
+Spiegel
+Riegel
+Ziegel
+
+# -itter
+Gitter
+Ritter
+bitter
+Splitter
+zittert
+
+# -enne
+Henne
+brenne
+kenne
+renne
+Tenne
+
+# -appe
+Kappe
+Klappe
+Mappe
+schnappe
+Lappen
+
+# -etter
+Wetter
+Retter
+Blätter
+Vetter
+
+# -uete
+Tüte
+Hüte
+Güte
+Blüte
+
+# -eile
+Eile
+Meile
+Pfeile
+Teile
+heile
+weile
+
+# -att
+Blatt
+glatt
+satt
+platt
+matt
+
+# -elt (zusaetzlich zu Welt/Geld)
+Zelt
+bellt
+stellt
+Feld
+
+# -iege (rettet Ziege)
+Ziege
+Fliege
+Wiege
+biege
+Stiege
+
+# -ert (rettet Pferd)
+Pferd
+Wert
+Schwert
+
+# -af (rettet Schaf)
+Schaf
+brav
+Graf
+
+# -aft
+Saft
+Kraft
+Haft
+
+# -immel (zusaetzlich)
+Himmel
+Schimmel
+Bimmel
+
+# -ogen / -ogel (rettet Vogel-Naehe)
+Vogel
+Bogen
+flogen
+zogen
+
+# Gefuehle / Themen mit Reim
+Glück
+Mut
+froh
+Lachen
+Kuss
+Herz
+Traum
+Stern
+

@@ -608,8 +608,20 @@ function GegenteileGame({ onCorrect, onWrong }) {
 }
 
 // --- Deutsch Module Main Wrapper ---
+// Deep-Link: ?tab=<id> öffnet direkt den Tab (z.B. ?tab=rap fürs Handy-Lesezeichen).
+const DEUTSCH_TAB_IDS = new Set([
+  "himmelwelt", "arcade", "sinn", "wortlabor", "buchstaben", "memory",
+  "wortarten", "silben", "satzbau", "geschichten", "artikel", "reime",
+  "rap", "gegenteile", "spielwelt", "quest", "premium", "action", "varianten",
+]);
+const getInitialDeutschTab = () => {
+  if (typeof window === "undefined") return "himmelwelt";
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return tab && DEUTSCH_TAB_IDS.has(tab) ? tab : "himmelwelt";
+};
+
 export default function DeutschModule({ onCorrect = () => {}, onWrong = () => {} }) {
-  const [activeTab, setActiveTab] = useState("himmelwelt");
+  const [activeTab, setActiveTab] = useState(getInitialDeutschTab);
   const tabs = [
     { id: "himmelwelt", label: "Himmelswelt", color: "bg-sky-500" },
     { id: "arcade", label: "Arcade-Welt", color: "bg-orange-500" },

@@ -1,0 +1,3389 @@
+{
+"_meta": {
+"source": "REIMWERKER (rhyme-engine) - phonetische Engine",
+"mode": "balanced",
+"minScore": 0.55,
+"wordCount": 402
+},
+"rhymes": {
+"Hund": [
+"bunt",
+"rund",
+"Mund",
+"Grund",
+"Mut",
+"gut",
+"Blut",
+"Flut"
+],
+"bunt": [
+"Hund",
+"rund",
+"Mund",
+"Grund",
+"Mut",
+"gut",
+"Blut",
+"Flut"
+],
+"rund": [
+"Hund",
+"bunt",
+"Mund",
+"Grund",
+"Mut",
+"gut",
+"Blut",
+"Flut"
+],
+"Mund": [
+"Hund",
+"bunt",
+"rund",
+"Grund",
+"Mut",
+"gut",
+"Blut",
+"Flut"
+],
+"Grund": [
+"Hund",
+"bunt",
+"rund",
+"Mund",
+"Mut",
+"gut",
+"Blut",
+"Flut"
+],
+"Katze": [
+"Tatze",
+"Backe",
+"Hacke",
+"Jacke",
+"packe",
+"Schnake",
+"Hase",
+"Nase"
+],
+"Platz": [
+"Schatz",
+"Satz",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz",
+"Schwanz"
+],
+"Schatz": [
+"Platz",
+"Satz",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz",
+"Schwanz"
+],
+"Satz": [
+"Platz",
+"Schatz",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz",
+"Schwanz"
+],
+"Tatze": [
+"Katze",
+"Backe",
+"Hacke",
+"Jacke",
+"packe",
+"Schnake",
+"Hase",
+"Nase"
+],
+"Haus": [
+"Maus",
+"raus",
+"Klaus"
+],
+"Maus": [
+"Haus",
+"raus",
+"Klaus"
+],
+"raus": [
+"Haus",
+"Maus",
+"Klaus"
+],
+"Klaus": [
+"Haus",
+"Maus",
+"raus"
+],
+"Baum": [
+"Traum",
+"Raum",
+"Schaum",
+"Zaum"
+],
+"Traum": [
+"Baum",
+"Raum",
+"Schaum",
+"Zaum"
+],
+"Raum": [
+"Baum",
+"Traum",
+"Schaum",
+"Zaum"
+],
+"Schaum": [
+"Baum",
+"Traum",
+"Raum",
+"Zaum"
+],
+"Zaum": [
+"Baum",
+"Traum",
+"Raum",
+"Schaum"
+],
+"lachen": [
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"machen": [
+"lachen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"Sachen": [
+"lachen",
+"machen",
+"wachen",
+"Drachen",
+"Rachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"wachen": [
+"lachen",
+"machen",
+"Sachen",
+"Drachen",
+"Rachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"Drachen": [
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Rachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"Rachen": [
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Samen",
+"Wagen",
+"sagen"
+],
+"Sonne": [
+"Wonne",
+"Tonne",
+"Tanne",
+"Kanne",
+"Wanne",
+"Panne",
+"Henne",
+"brenne"
+],
+"Wonne": [
+"Sonne",
+"Tonne",
+"Tanne",
+"Kanne",
+"Wanne",
+"Panne",
+"Henne",
+"brenne"
+],
+"Tonne": [
+"Sonne",
+"Wonne",
+"Tanne",
+"Kanne",
+"Wanne",
+"Panne",
+"Henne",
+"brenne"
+],
+"Stern": [
+"fern",
+"Kern",
+"Bär",
+"Korn",
+"Horn",
+"Dorn",
+"vorn",
+"Zorn"
+],
+"fern": [
+"Stern",
+"Kern",
+"Bär",
+"Korn",
+"Horn",
+"Dorn",
+"vorn",
+"Zorn"
+],
+"Kern": [
+"Stern",
+"fern",
+"Bär",
+"Korn",
+"Horn",
+"Dorn",
+"vorn",
+"Zorn"
+],
+"Herz": [
+"Schmerz",
+"Scherz",
+"Pferd",
+"Wert",
+"Schwert"
+],
+"Schmerz": [
+"Herz",
+"Scherz",
+"Pferd",
+"Wert",
+"Schwert"
+],
+"Scherz": [
+"Herz",
+"Schmerz",
+"Pferd",
+"Wert",
+"Schwert"
+],
+"Kind": [
+"Wind",
+"Rind",
+"blind",
+"springt"
+],
+"Wind": [
+"Kind",
+"Rind",
+"blind",
+"springt"
+],
+"Rind": [
+"Kind",
+"Wind",
+"blind",
+"springt"
+],
+"blind": [
+"Kind",
+"Wind",
+"Rind",
+"springt"
+],
+"Kinder": [
+"Rinder",
+"Finder",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"Wetter",
+"Retter"
+],
+"Rinder": [
+"Kinder",
+"Finder",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"Wetter",
+"Retter"
+],
+"Finder": [
+"Kinder",
+"Rinder",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"Wetter",
+"Retter"
+],
+"Fisch": [
+"Tisch",
+"frisch",
+"Wisch"
+],
+"Tisch": [
+"Fisch",
+"frisch",
+"Wisch"
+],
+"frisch": [
+"Fisch",
+"Tisch",
+"Wisch"
+],
+"Wisch": [
+"Fisch",
+"Tisch",
+"frisch"
+],
+"Hase": [
+"Nase",
+"Vase",
+"blase",
+"rase",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze"
+],
+"Nase": [
+"Hase",
+"Vase",
+"blase",
+"rase",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze"
+],
+"Vase": [
+"Hase",
+"Nase",
+"blase",
+"rase",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze"
+],
+"blase": [
+"Hase",
+"Nase",
+"Vase",
+"rase",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze"
+],
+"rase": [
+"Hase",
+"Nase",
+"Vase",
+"blase",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze"
+],
+"Tier": [
+"hier",
+"vier",
+"Stier",
+"Meer",
+"mehr",
+"sehr",
+"Speer",
+"Bär"
+],
+"hier": [
+"Tier",
+"vier",
+"Stier",
+"Meer",
+"mehr",
+"sehr",
+"Speer",
+"Bär"
+],
+"vier": [
+"Tier",
+"hier",
+"Stier",
+"Meer",
+"mehr",
+"sehr",
+"Speer",
+"Bär"
+],
+"Papier": [
+"Klavier"
+],
+"Klavier": [
+"Papier"
+],
+"Stier": [
+"Tier",
+"hier",
+"vier",
+"Meer",
+"mehr",
+"sehr",
+"Speer",
+"Bär"
+],
+"klein": [
+"Stein",
+"mein",
+"dein",
+"Bein",
+"Schwein",
+"fein",
+"rein",
+"Schein"
+],
+"Stein": [
+"klein",
+"mein",
+"dein",
+"Bein",
+"Schwein",
+"fein",
+"rein",
+"Schein"
+],
+"mein": [
+"klein",
+"Stein",
+"dein",
+"Bein",
+"Schwein",
+"fein",
+"rein",
+"Schein"
+],
+"dein": [
+"klein",
+"Stein",
+"mein",
+"Bein",
+"Schwein",
+"fein",
+"rein",
+"Schein"
+],
+"Bein": [
+"klein",
+"Stein",
+"mein",
+"dein",
+"Schwein",
+"fein",
+"rein",
+"Schein"
+],
+"Schwein": [
+"klein",
+"Stein",
+"mein",
+"dein",
+"Bein",
+"fein",
+"rein",
+"Schein"
+],
+"fein": [
+"klein",
+"Stein",
+"mein",
+"dein",
+"Bein",
+"Schwein",
+"rein",
+"Schein"
+],
+"rein": [
+"klein",
+"Stein",
+"mein",
+"dein",
+"Bein",
+"Schwein",
+"fein",
+"Schein"
+],
+"Schein": [
+"klein",
+"Stein",
+"mein",
+"dein",
+"Bein",
+"Schwein",
+"fein",
+"rein"
+],
+"See": [
+"Schnee",
+"Klee",
+"Tee",
+"Fee",
+"Reh",
+"Weh"
+],
+"Schnee": [
+"See",
+"Klee",
+"Tee",
+"Fee",
+"Reh",
+"Weh"
+],
+"Klee": [
+"See",
+"Schnee",
+"Tee",
+"Fee",
+"Reh",
+"Weh"
+],
+"Tee": [
+"See",
+"Schnee",
+"Klee",
+"Fee",
+"Reh",
+"Weh"
+],
+"Fee": [
+"See",
+"Schnee",
+"Klee",
+"Tee",
+"Reh",
+"Weh"
+],
+"Reh": [
+"See",
+"Schnee",
+"Klee",
+"Tee",
+"Fee",
+"Weh"
+],
+"Weh": [
+"See",
+"Schnee",
+"Klee",
+"Tee",
+"Fee",
+"Reh"
+],
+"Ball": [
+"Knall",
+"Stall",
+"Fall",
+"Wall"
+],
+"Knall": [
+"Ball",
+"Stall",
+"Fall",
+"Wall"
+],
+"Stall": [
+"Ball",
+"Knall",
+"Fall",
+"Wall"
+],
+"Fall": [
+"Ball",
+"Knall",
+"Stall",
+"Wall"
+],
+"Wall": [
+"Ball",
+"Knall",
+"Stall",
+"Fall"
+],
+"toll": [
+"voll",
+"soll",
+"Troll"
+],
+"voll": [
+"toll",
+"soll",
+"Troll"
+],
+"soll": [
+"toll",
+"voll",
+"Troll"
+],
+"Troll": [
+"toll",
+"voll",
+"soll"
+],
+"Licht": [
+"dicht",
+"nicht",
+"Pflicht"
+],
+"Gesicht": [
+"Gedicht"
+],
+"Gedicht": [
+"Gesicht"
+],
+"dicht": [
+"Licht",
+"nicht",
+"Pflicht"
+],
+"nicht": [
+"Licht",
+"dicht",
+"Pflicht"
+],
+"Pflicht": [
+"Licht",
+"dicht",
+"nicht"
+],
+"Teich": [
+"weich",
+"reich",
+"gleich",
+"bleich"
+],
+"weich": [
+"Teich",
+"reich",
+"gleich",
+"bleich"
+],
+"reich": [
+"Teich",
+"weich",
+"gleich",
+"bleich"
+],
+"gleich": [
+"Teich",
+"weich",
+"reich",
+"bleich"
+],
+"bleich": [
+"Teich",
+"weich",
+"reich",
+"gleich"
+],
+"Welle": [
+"Quelle",
+"helle",
+"Stelle",
+"schnelle",
+"Quellen",
+"zählen",
+"Henne",
+"brenne"
+],
+"Quelle": [
+"Welle",
+"helle",
+"Stelle",
+"schnelle",
+"Quellen",
+"zählen",
+"Henne",
+"brenne"
+],
+"helle": [
+"Welle",
+"Quelle",
+"Stelle",
+"schnelle",
+"Quellen",
+"zählen",
+"Henne",
+"brenne"
+],
+"Stelle": [
+"Welle",
+"Quelle",
+"helle",
+"schnelle",
+"Quellen",
+"zählen",
+"Henne",
+"brenne"
+],
+"schnelle": [
+"Welle",
+"Quelle",
+"helle",
+"Stelle",
+"Quellen",
+"zählen",
+"Henne",
+"brenne"
+],
+"Teller": [
+"heller",
+"schneller",
+"Keller",
+"immer",
+"Zimmer",
+"Schimmer",
+"Flimmer"
+],
+"heller": [
+"Teller",
+"schneller",
+"Keller",
+"immer",
+"Zimmer",
+"Schimmer",
+"Flimmer"
+],
+"schneller": [
+"Teller",
+"heller",
+"Keller",
+"immer",
+"Zimmer",
+"Schimmer",
+"Flimmer"
+],
+"Keller": [
+"Teller",
+"heller",
+"schneller",
+"immer",
+"Zimmer",
+"Schimmer",
+"Flimmer"
+],
+"Schlange": [
+"lange",
+"Stange",
+"Zange",
+"bange",
+"Name",
+"singe",
+"Klinge",
+"springe"
+],
+"lange": [
+"Schlange",
+"Stange",
+"Zange",
+"bange",
+"Name",
+"singe",
+"Klinge",
+"springe"
+],
+"Stange": [
+"Schlange",
+"lange",
+"Zange",
+"bange",
+"Name",
+"singe",
+"Klinge",
+"springe"
+],
+"Zange": [
+"Schlange",
+"lange",
+"Stange",
+"bange",
+"Name",
+"singe",
+"Klinge",
+"springe"
+],
+"bange": [
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"Name",
+"singe",
+"Klinge",
+"springe"
+],
+"Tanne": [
+"Kanne",
+"Wanne",
+"Panne",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze",
+"Sonne"
+],
+"Kanne": [
+"Tanne",
+"Wanne",
+"Panne",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze",
+"Sonne"
+],
+"Wanne": [
+"Tanne",
+"Kanne",
+"Panne",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze",
+"Sonne"
+],
+"Panne": [
+"Tanne",
+"Kanne",
+"Wanne",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze",
+"Sonne"
+],
+"Mann": [
+"Kann",
+"Bann",
+"dann",
+"Tann"
+],
+"Kann": [
+"Mann",
+"Bann",
+"dann",
+"Tann"
+],
+"Bann": [
+"Mann",
+"Kann",
+"dann",
+"Tann"
+],
+"dann": [
+"Mann",
+"Kann",
+"Bann",
+"Tann"
+],
+"Tann": [
+"Mann",
+"Kann",
+"Bann",
+"dann"
+],
+"Name": [
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange",
+"Samen",
+"lahme",
+"singe"
+],
+"lahme": [
+"Sahne",
+"Rahmen",
+"Name",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"Rahmen": [
+"lahme",
+"Samen",
+"zählen",
+"Name",
+"lachen",
+"machen",
+"Sachen",
+"wachen"
+],
+"Samen": [
+"Name",
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen",
+"Wagen"
+],
+"Wagen": [
+"sagen",
+"fragen",
+"jagen",
+"tragen",
+"Magen",
+"laden",
+"baden",
+"Faden"
+],
+"sagen": [
+"Wagen",
+"fragen",
+"jagen",
+"tragen",
+"Magen",
+"laden",
+"baden",
+"Faden"
+],
+"fragen": [
+"Wagen",
+"sagen",
+"jagen",
+"tragen",
+"Magen",
+"laden",
+"baden",
+"Faden"
+],
+"jagen": [
+"Wagen",
+"sagen",
+"fragen",
+"tragen",
+"Magen",
+"laden",
+"baden",
+"Faden"
+],
+"tragen": [
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"Magen",
+"laden",
+"baden",
+"Faden"
+],
+"Magen": [
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen",
+"laden",
+"baden",
+"Faden"
+],
+"Bogen": [
+"flogen",
+"zogen",
+"Wogen",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"flogen": [
+"Bogen",
+"zogen",
+"Wogen",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"zogen": [
+"Bogen",
+"flogen",
+"Wogen",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"Wogen": [
+"Bogen",
+"flogen",
+"zogen",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"Kuchen": [
+"suchen",
+"Buchen",
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen"
+],
+"suchen": [
+"Kuchen",
+"Buchen",
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen"
+],
+"Buchen": [
+"Kuchen",
+"suchen",
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen"
+],
+"tauchen": [
+"lachen",
+"machen",
+"Sachen",
+"wachen",
+"Drachen",
+"Rachen",
+"Kuchen",
+"suchen"
+],
+"Fluss": [
+"Kuss",
+"Nuss",
+"muss",
+"Schluss",
+"Gruss"
+],
+"Kuss": [
+"Fluss",
+"Nuss",
+"muss",
+"Schluss",
+"Gruss"
+],
+"Nuss": [
+"Fluss",
+"Kuss",
+"muss",
+"Schluss",
+"Gruss"
+],
+"muss": [
+"Fluss",
+"Kuss",
+"Nuss",
+"Schluss",
+"Gruss"
+],
+"Schluss": [
+"Fluss",
+"Kuss",
+"Nuss",
+"muss",
+"Gruss"
+],
+"Gruss": [
+"Fluss",
+"Kuss",
+"Nuss",
+"muss",
+"Schluss"
+],
+"Wurm": [
+"Sturm",
+"Turm",
+"Arm",
+"warm",
+"Schwarm",
+"Stern",
+"fern",
+"Kern"
+],
+"Sturm": [
+"Wurm",
+"Turm",
+"Arm",
+"warm",
+"Schwarm",
+"Stern",
+"fern",
+"Kern"
+],
+"Turm": [
+"Wurm",
+"Sturm",
+"Arm",
+"warm",
+"Schwarm",
+"Stern",
+"fern",
+"Kern"
+],
+"Arm": [
+"warm",
+"Schwarm",
+"Wurm",
+"Sturm",
+"Turm",
+"Stern",
+"fern",
+"Kern"
+],
+"warm": [
+"Arm",
+"Schwarm",
+"Wurm",
+"Sturm",
+"Turm",
+"Stern",
+"fern",
+"Kern"
+],
+"Schwarm": [
+"Arm",
+"warm",
+"Wurm",
+"Sturm",
+"Turm",
+"Stern",
+"fern",
+"Kern"
+],
+"Haut": [
+"laut",
+"Kraut",
+"Maut"
+],
+"laut": [
+"Haut",
+"Kraut",
+"Maut"
+],
+"Kraut": [
+"Haut",
+"laut",
+"Maut"
+],
+"Maut": [
+"Haut",
+"laut",
+"Kraut"
+],
+"Eule": [
+"heule",
+"Säule",
+"Schule",
+"Stühle",
+"kühle",
+"Mühle",
+"Eile",
+"Meile"
+],
+"heule": [
+"Eule",
+"Säule",
+"Schule",
+"Stühle",
+"kühle",
+"Mühle",
+"Eile",
+"Meile"
+],
+"Beule": [
+"Ente",
+"Beute"
+],
+"Säule": [
+"Eule",
+"heule",
+"Schule",
+"Stühle",
+"kühle",
+"Mühle",
+"Eile",
+"Meile"
+],
+"Ecke": [
+"decke",
+"Schnecke",
+"Hecke",
+"wecke",
+"Wege",
+"Regen",
+"Segen",
+"legen"
+],
+"decke": [
+"Ecke",
+"Schnecke",
+"Hecke",
+"wecke",
+"Wege",
+"Regen",
+"Segen",
+"legen"
+],
+"Schnecke": [
+"Ecke",
+"decke",
+"Hecke",
+"wecke",
+"Wege",
+"Regen",
+"Segen",
+"legen"
+],
+"Hecke": [
+"Ecke",
+"decke",
+"Schnecke",
+"wecke",
+"Wege",
+"Regen",
+"Segen",
+"legen"
+],
+"wecke": [
+"Ecke",
+"decke",
+"Schnecke",
+"Hecke",
+"Wege",
+"Regen",
+"Segen",
+"legen"
+],
+"Suppe": [
+"Puppe",
+"Gruppe",
+"Truppe",
+"Kappe",
+"Klappe",
+"Mappe",
+"schnappe",
+"Lappen"
+],
+"Puppe": [
+"Suppe",
+"Gruppe",
+"Truppe",
+"Kappe",
+"Klappe",
+"Mappe",
+"schnappe",
+"Lappen"
+],
+"Gruppe": [
+"Suppe",
+"Puppe",
+"Truppe",
+"Kappe",
+"Klappe",
+"Mappe",
+"schnappe",
+"Lappen"
+],
+"Truppe": [
+"Suppe",
+"Puppe",
+"Gruppe",
+"Kappe",
+"Klappe",
+"Mappe",
+"schnappe",
+"Lappen"
+],
+"Korn": [
+"Horn",
+"Dorn",
+"vorn",
+"Zorn",
+"Stern",
+"fern",
+"Kern",
+"Wurm"
+],
+"Horn": [
+"Korn",
+"Dorn",
+"vorn",
+"Zorn",
+"Stern",
+"fern",
+"Kern",
+"Wurm"
+],
+"Dorn": [
+"Korn",
+"Horn",
+"vorn",
+"Zorn",
+"Stern",
+"fern",
+"Kern",
+"Wurm"
+],
+"vorn": [
+"Korn",
+"Horn",
+"Dorn",
+"Zorn",
+"Stern",
+"fern",
+"Kern",
+"Wurm"
+],
+"Zorn": [
+"Korn",
+"Horn",
+"Dorn",
+"vorn",
+"Stern",
+"fern",
+"Kern",
+"Wurm"
+],
+"Bank": [
+"krank",
+"Dank",
+"schlank",
+"Tank",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz"
+],
+"krank": [
+"Bank",
+"Dank",
+"schlank",
+"Tank",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz"
+],
+"Dank": [
+"Bank",
+"krank",
+"schlank",
+"Tank",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz"
+],
+"schlank": [
+"Bank",
+"krank",
+"Dank",
+"Tank",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz"
+],
+"Tank": [
+"Bank",
+"krank",
+"Dank",
+"schlank",
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz"
+],
+"Pflanze": [
+"ganze",
+"Schwanze",
+"Tanze",
+"Katze",
+"Tatze",
+"Tanne",
+"Kanne",
+"Wanne"
+],
+"ganze": [
+"Pflanze",
+"Schwanze",
+"Tanze",
+"Katze",
+"Tatze",
+"Tanne",
+"Kanne",
+"Wanne"
+],
+"Schwanze": [
+"Pflanze",
+"ganze",
+"Tanze",
+"Katze",
+"Tatze",
+"Tanne",
+"Kanne",
+"Wanne"
+],
+"Tanze": [
+"Pflanze",
+"ganze",
+"Schwanze",
+"Katze",
+"Tatze",
+"Tanne",
+"Kanne",
+"Wanne"
+],
+"immer": [
+"Zimmer",
+"Schimmer",
+"Flimmer",
+"Wurm",
+"Sturm",
+"Turm",
+"Arm",
+"warm"
+],
+"Zimmer": [
+"immer",
+"Schimmer",
+"Flimmer",
+"Wurm",
+"Sturm",
+"Turm",
+"Arm",
+"warm"
+],
+"Schimmer": [
+"immer",
+"Zimmer",
+"Flimmer",
+"Wurm",
+"Sturm",
+"Turm",
+"Arm",
+"warm"
+],
+"Flimmer": [
+"immer",
+"Zimmer",
+"Schimmer",
+"Wurm",
+"Sturm",
+"Turm",
+"Arm",
+"warm"
+],
+"singe": [
+"Klinge",
+"springe",
+"bringe",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"Klinge": [
+"singe",
+"springe",
+"bringe",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"springe": [
+"singe",
+"Klinge",
+"bringe",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"bringe": [
+"singe",
+"Klinge",
+"springe",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"Kette": [
+"nette",
+"fette",
+"rette",
+"Rente",
+"Wende",
+"Ende",
+"Leute",
+"heute"
+],
+"nette": [
+"Kette",
+"fette",
+"rette",
+"Rente",
+"Wende",
+"Ende",
+"Leute",
+"heute"
+],
+"fette": [
+"Kette",
+"nette",
+"rette",
+"Rente",
+"Wende",
+"Ende",
+"Leute",
+"heute"
+],
+"rette": [
+"Kette",
+"nette",
+"fette",
+"Rente",
+"Wende",
+"Ende",
+"Leute",
+"heute"
+],
+"Schule": [
+"Eule",
+"heule",
+"Säule",
+"Stühle",
+"kühle",
+"Mühle",
+"Eile",
+"Meile"
+],
+"Stühle": [
+"kühle",
+"Mühle",
+"Eule",
+"heule",
+"Säule",
+"Schule",
+"Eile",
+"Meile"
+],
+"kühle": [
+"Stühle",
+"Mühle",
+"Eule",
+"heule",
+"Säule",
+"Schule",
+"Eile",
+"Meile"
+],
+"Mühle": [
+"Stühle",
+"kühle",
+"Eule",
+"heule",
+"Säule",
+"Schule",
+"Eile",
+"Meile"
+],
+"Bohne": [
+"ohne",
+"wohne",
+"Sahne",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"ohne": [
+"Bohne",
+"wohne",
+"Sahne",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"wohne": [
+"Bohne",
+"ohne",
+"Sahne",
+"Schlange",
+"lange",
+"Stange",
+"Zange",
+"bange"
+],
+"Sahne": [
+"lahme",
+"Bohne",
+"ohne",
+"wohne",
+"Schlange",
+"lange",
+"Stange",
+"Zange"
+],
+"Himmel": [
+"Schimmel",
+"Bimmel"
+],
+"Schimmel": [
+"Himmel",
+"Bimmel"
+],
+"Mond": [
+"blond",
+"rot",
+"Brot",
+"Not",
+"tot"
+],
+"blond": [
+"Mond",
+"rot",
+"Brot",
+"Not",
+"tot"
+],
+"Meer": [
+"mehr",
+"sehr",
+"Speer",
+"Tier",
+"hier",
+"vier",
+"Stier",
+"Bär"
+],
+"mehr": [
+"Meer",
+"sehr",
+"Speer",
+"Tier",
+"hier",
+"vier",
+"Stier",
+"Bär"
+],
+"sehr": [
+"Meer",
+"mehr",
+"Speer",
+"Tier",
+"hier",
+"vier",
+"Stier",
+"Bär"
+],
+"Speer": [
+"Meer",
+"mehr",
+"sehr",
+"Tier",
+"hier",
+"vier",
+"Stier",
+"Bär"
+],
+"Wahl": [
+"Mahl",
+"Strahl",
+"Zahl",
+"Stahl"
+],
+"Mahl": [
+"Wahl",
+"Strahl",
+"Zahl",
+"Stahl"
+],
+"Strahl": [
+"Wahl",
+"Mahl",
+"Zahl",
+"Stahl"
+],
+"Zahl": [
+"Wahl",
+"Mahl",
+"Strahl",
+"Stahl"
+],
+"Stahl": [
+"Wahl",
+"Mahl",
+"Strahl",
+"Zahl"
+],
+"Bauch": [
+"Rauch",
+"Hauch",
+"auch",
+"Strauch"
+],
+"Rauch": [
+"Bauch",
+"Hauch",
+"auch",
+"Strauch"
+],
+"Hauch": [
+"Bauch",
+"Rauch",
+"auch",
+"Strauch"
+],
+"auch": [
+"Bauch",
+"Rauch",
+"Hauch",
+"Strauch"
+],
+"Strauch": [
+"Bauch",
+"Rauch",
+"Hauch",
+"auch"
+],
+"trinken": [
+"winken",
+"sinken",
+"blinken",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"winken": [
+"trinken",
+"sinken",
+"blinken",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"sinken": [
+"trinken",
+"winken",
+"blinken",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"blinken": [
+"trinken",
+"winken",
+"sinken",
+"Wagen",
+"sagen",
+"fragen",
+"jagen",
+"tragen"
+],
+"Ring": [
+"Ding",
+"Sing",
+"King"
+],
+"Ding": [
+"Ring",
+"Sing",
+"King"
+],
+"Sing": [
+"Ring",
+"Ding",
+"King"
+],
+"springt": [
+"Kind",
+"Wind",
+"Rind",
+"blind"
+],
+"King": [
+"Ring",
+"Ding",
+"Sing"
+],
+"Bär": [
+"Stern",
+"fern",
+"Kern",
+"Tier",
+"hier",
+"vier",
+"Stier",
+"Meer"
+],
+"Igel": [
+"Vogel",
+"Hügel",
+"Flügel",
+"Vögel",
+"Bügel",
+"Zügel",
+"Spiegel",
+"Riegel"
+],
+"Vogel": [
+"Igel",
+"Hügel",
+"Flügel",
+"Vögel",
+"Bügel",
+"Zügel",
+"Spiegel",
+"Riegel"
+],
+"Ente": [
+"Beule",
+"Beute"
+],
+"Kuh": [
+"Schuh",
+"Ruh"
+],
+"Schaf": [
+"brav",
+"Graf"
+],
+"Pferd": [
+"Wert",
+"Schwert",
+"Herz",
+"Schmerz",
+"Scherz"
+],
+"Ziege": [
+"Fliege",
+"Wiege",
+"biege",
+"Stiege",
+"Wege",
+"Ecke",
+"decke",
+"Schnecke"
+],
+"Rente": [
+"Wende",
+"Ende",
+"Kette",
+"nette",
+"fette",
+"rette",
+"Henne",
+"brenne"
+],
+"Wende": [
+"Ende",
+"Rente",
+"Henne",
+"brenne",
+"kenne",
+"renne",
+"Tenne",
+"Kette"
+],
+"Ende": [
+"Wende",
+"Rente",
+"Henne",
+"brenne",
+"kenne",
+"renne",
+"Tenne",
+"Kette"
+],
+"Schuh": [
+"Kuh",
+"Ruh"
+],
+"Ruh": [
+"Kuh",
+"Schuh"
+],
+"Mut": [
+"gut",
+"Blut",
+"Flut",
+"Glut",
+"Wut",
+"Hund",
+"bunt",
+"rund"
+],
+"gut": [
+"Mut",
+"Blut",
+"Flut",
+"Glut",
+"Wut",
+"Hund",
+"bunt",
+"rund"
+],
+"Blut": [
+"Mut",
+"gut",
+"Flut",
+"Glut",
+"Wut",
+"Hund",
+"bunt",
+"rund"
+],
+"Flut": [
+"Mut",
+"gut",
+"Blut",
+"Glut",
+"Wut",
+"Hund",
+"bunt",
+"rund"
+],
+"Glut": [
+"Mut",
+"gut",
+"Blut",
+"Flut",
+"Wut",
+"Hund",
+"bunt",
+"rund"
+],
+"Wut": [
+"Mut",
+"gut",
+"Blut",
+"Flut",
+"Glut",
+"Hund",
+"bunt",
+"rund"
+],
+"Freude": [
+"Leute",
+"heute",
+"Tüte",
+"Hüte",
+"Güte",
+"Blüte",
+"Katze",
+"Tatze"
+],
+"Leute": [
+"heute",
+"Freude",
+"Tüte",
+"Hüte",
+"Güte",
+"Blüte",
+"Katze",
+"Tatze"
+],
+"heute": [
+"Leute",
+"Freude",
+"Tüte",
+"Hüte",
+"Güte",
+"Blüte",
+"Katze",
+"Tatze"
+],
+"Beute": [
+"Beule",
+"Ente"
+],
+"rot": [
+"Brot",
+"Not",
+"tot",
+"Mond",
+"blond"
+],
+"Brot": [
+"rot",
+"Not",
+"tot",
+"Mond",
+"blond"
+],
+"Not": [
+"rot",
+"Brot",
+"tot",
+"Mond",
+"blond"
+],
+"tot": [
+"rot",
+"Brot",
+"Not",
+"Mond",
+"blond"
+],
+"blau": [
+"grau",
+"Frau",
+"schlau"
+],
+"grau": [
+"blau",
+"Frau",
+"schlau"
+],
+"Frau": [
+"blau",
+"grau",
+"schlau"
+],
+"schlau": [
+"blau",
+"grau",
+"Frau"
+],
+"gruen": [
+"kuehn"
+],
+"kuehn": [
+"gruen"
+],
+"Regen": [
+"Segen",
+"legen",
+"leben",
+"heben",
+"neben",
+"Reben",
+"schweben",
+"Wege"
+],
+"Segen": [
+"Regen",
+"legen",
+"leben",
+"heben",
+"neben",
+"Reben",
+"schweben",
+"Wege"
+],
+"legen": [
+"Regen",
+"Segen",
+"leben",
+"heben",
+"neben",
+"Reben",
+"schweben",
+"Wege"
+],
+"Wege": [
+"Ecke",
+"decke",
+"Schnecke",
+"Hecke",
+"wecke",
+"Regen",
+"Segen",
+"legen"
+],
+"lesen": [
+"Wesen",
+"Regen",
+"Segen",
+"legen",
+"zählen",
+"leben",
+"heben",
+"neben"
+],
+"Wesen": [
+"lesen",
+"Regen",
+"Segen",
+"legen",
+"zählen",
+"leben",
+"heben",
+"neben"
+],
+"Besen": [
+"geben"
+],
+"zählen": [
+"Quellen",
+"Regen",
+"Segen",
+"legen",
+"lesen",
+"Wesen",
+"leben",
+"heben"
+],
+"Quellen": [
+"Welle",
+"Quelle",
+"helle",
+"Stelle",
+"schnelle",
+"zählen",
+"Rahmen",
+"Samen"
+],
+"fällt": [
+"bellt",
+"stellt",
+"Welt",
+"Held",
+"Geld",
+"Feld",
+"Zelt"
+],
+"Welt": [
+"Held",
+"Geld",
+"Feld",
+"Zelt",
+"fällt",
+"bellt",
+"stellt"
+],
+"Held": [
+"Welt",
+"Geld",
+"Feld",
+"Zelt",
+"fällt",
+"bellt",
+"stellt"
+],
+"Geld": [
+"Welt",
+"Held",
+"Feld",
+"Zelt",
+"fällt",
+"bellt",
+"stellt"
+],
+"Feld": [
+"Welt",
+"Held",
+"Geld",
+"Zelt",
+"fällt",
+"bellt",
+"stellt"
+],
+"Nacht": [
+"lacht",
+"macht",
+"sacht",
+"Pracht",
+"acht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"lacht": [
+"Nacht",
+"macht",
+"sacht",
+"Pracht",
+"acht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"macht": [
+"Nacht",
+"lacht",
+"sacht",
+"Pracht",
+"acht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"sacht": [
+"Nacht",
+"lacht",
+"macht",
+"Pracht",
+"acht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"Pracht": [
+"Nacht",
+"lacht",
+"macht",
+"sacht",
+"acht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"acht": [
+"Nacht",
+"lacht",
+"macht",
+"sacht",
+"Pracht",
+"Saft",
+"Kraft",
+"Haft"
+],
+"leben": [
+"heben",
+"neben",
+"Reben",
+"schweben",
+"Regen",
+"Segen",
+"legen",
+"lesen"
+],
+"geben": [
+"Besen"
+],
+"heben": [
+"leben",
+"neben",
+"Reben",
+"schweben",
+"Regen",
+"Segen",
+"legen",
+"lesen"
+],
+"neben": [
+"leben",
+"heben",
+"Reben",
+"schweben",
+"Regen",
+"Segen",
+"legen",
+"lesen"
+],
+"Reben": [
+"leben",
+"heben",
+"neben",
+"schweben",
+"Regen",
+"Segen",
+"legen",
+"lesen"
+],
+"schweben": [
+"leben",
+"heben",
+"neben",
+"Reben",
+"Regen",
+"Segen",
+"legen",
+"lesen"
+],
+"laden": [
+"baden",
+"Faden",
+"Schaden",
+"Waden",
+"Wagen",
+"sagen",
+"fragen",
+"jagen"
+],
+"baden": [
+"laden",
+"Faden",
+"Schaden",
+"Waden",
+"Wagen",
+"sagen",
+"fragen",
+"jagen"
+],
+"Faden": [
+"laden",
+"baden",
+"Schaden",
+"Waden",
+"Wagen",
+"sagen",
+"fragen",
+"jagen"
+],
+"Schaden": [
+"laden",
+"baden",
+"Faden",
+"Waden",
+"Wagen",
+"sagen",
+"fragen",
+"jagen"
+],
+"Waden": [
+"laden",
+"baden",
+"Faden",
+"Schaden",
+"Wagen",
+"sagen",
+"fragen",
+"jagen"
+],
+"Spiel": [
+"viel",
+"Ziel",
+"Stiel",
+"fiel",
+"Kiel"
+],
+"viel": [
+"Spiel",
+"Ziel",
+"Stiel",
+"fiel",
+"Kiel"
+],
+"Ziel": [
+"Spiel",
+"viel",
+"Stiel",
+"fiel",
+"Kiel"
+],
+"Stiel": [
+"Spiel",
+"viel",
+"Ziel",
+"fiel",
+"Kiel"
+],
+"fiel": [
+"Spiel",
+"viel",
+"Ziel",
+"Stiel",
+"Kiel"
+],
+"Kiel": [
+"Spiel",
+"viel",
+"Ziel",
+"Stiel",
+"fiel"
+],
+"kühl": [
+"fühl",
+"wühl"
+],
+"fühl": [
+"kühl",
+"wühl"
+],
+"wühl": [
+"kühl",
+"fühl"
+],
+"Eis": [
+"leis",
+"Reis",
+"Preis",
+"Kreis",
+"Gleis"
+],
+"leis": [
+"Eis",
+"Reis",
+"Preis",
+"Kreis",
+"Gleis"
+],
+"Reis": [
+"Eis",
+"leis",
+"Preis",
+"Kreis",
+"Gleis"
+],
+"Preis": [
+"Eis",
+"leis",
+"Reis",
+"Kreis",
+"Gleis"
+],
+"Kreis": [
+"Eis",
+"leis",
+"Reis",
+"Preis",
+"Gleis"
+],
+"Gleis": [
+"Eis",
+"leis",
+"Reis",
+"Preis",
+"Kreis"
+],
+"Tanz": [
+"Glanz",
+"Kranz",
+"ganz",
+"Schwanz",
+"Bank",
+"krank",
+"Dank",
+"schlank"
+],
+"Glanz": [
+"Tanz",
+"Kranz",
+"ganz",
+"Schwanz",
+"Bank",
+"krank",
+"Dank",
+"schlank"
+],
+"Kranz": [
+"Tanz",
+"Glanz",
+"ganz",
+"Schwanz",
+"Bank",
+"krank",
+"Dank",
+"schlank"
+],
+"ganz": [
+"Tanz",
+"Glanz",
+"Kranz",
+"Schwanz",
+"Bank",
+"krank",
+"Dank",
+"schlank"
+],
+"Schwanz": [
+"Tanz",
+"Glanz",
+"Kranz",
+"ganz",
+"Bank",
+"krank",
+"Dank",
+"schlank"
+],
+"Backe": [
+"Hacke",
+"Jacke",
+"packe",
+"Schnake",
+"Katze",
+"Tatze",
+"Wagen",
+"sagen"
+],
+"Hacke": [
+"Backe",
+"Jacke",
+"packe",
+"Schnake",
+"Katze",
+"Tatze",
+"Wagen",
+"sagen"
+],
+"Jacke": [
+"Backe",
+"Hacke",
+"packe",
+"Schnake",
+"Katze",
+"Tatze",
+"Wagen",
+"sagen"
+],
+"packe": [
+"Backe",
+"Hacke",
+"Jacke",
+"Schnake",
+"Katze",
+"Tatze",
+"Wagen",
+"sagen"
+],
+"Schnake": [
+"Backe",
+"Hacke",
+"Jacke",
+"packe",
+"Katze",
+"Tatze",
+"Wagen",
+"sagen"
+],
+"Sitz": [
+"Witz",
+"Blitz",
+"Spitz",
+"Schlitz",
+"dick",
+"Blick",
+"Strick",
+"Trick"
+],
+"Witz": [
+"Sitz",
+"Blitz",
+"Spitz",
+"Schlitz",
+"dick",
+"Blick",
+"Strick",
+"Trick"
+],
+"Blitz": [
+"Sitz",
+"Witz",
+"Spitz",
+"Schlitz",
+"dick",
+"Blick",
+"Strick",
+"Trick"
+],
+"Spitz": [
+"Sitz",
+"Witz",
+"Blitz",
+"Schlitz",
+"dick",
+"Blick",
+"Strick",
+"Trick"
+],
+"Schlitz": [
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz",
+"dick",
+"Blick",
+"Strick",
+"Trick"
+],
+"Mütze": [
+"Pfütze",
+"schütze",
+"Brücke",
+"Mücke",
+"Lücke",
+"drücke",
+"pflücke",
+"Tüte"
+],
+"Pfütze": [
+"Mütze",
+"schütze",
+"Brücke",
+"Mücke",
+"Lücke",
+"drücke",
+"pflücke",
+"Tüte"
+],
+"Spitze": [
+"Hitze",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze",
+"schütze",
+"Ecke",
+"decke"
+],
+"Hitze": [
+"Spitze",
+"Katze",
+"Tatze",
+"Mütze",
+"Pfütze",
+"schütze",
+"Ecke",
+"decke"
+],
+"schütze": [
+"Mütze",
+"Pfütze",
+"Brücke",
+"Mücke",
+"Lücke",
+"drücke",
+"pflücke",
+"Tüte"
+],
+"dick": [
+"Blick",
+"Strick",
+"Trick",
+"schick",
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz"
+],
+"Blick": [
+"dick",
+"Strick",
+"Trick",
+"schick",
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz"
+],
+"Strick": [
+"dick",
+"Blick",
+"Trick",
+"schick",
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz"
+],
+"Trick": [
+"dick",
+"Blick",
+"Strick",
+"schick",
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz"
+],
+"schick": [
+"dick",
+"Blick",
+"Strick",
+"Trick",
+"Sitz",
+"Witz",
+"Blitz",
+"Spitz"
+],
+"Brücke": [
+"Mücke",
+"Lücke",
+"drücke",
+"pflücke",
+"Mütze",
+"Pfütze",
+"schütze",
+"Tüte"
+],
+"Mücke": [
+"Brücke",
+"Lücke",
+"drücke",
+"pflücke",
+"Mütze",
+"Pfütze",
+"schütze",
+"Tüte"
+],
+"Lücke": [
+"Brücke",
+"Mücke",
+"drücke",
+"pflücke",
+"Mütze",
+"Pfütze",
+"schütze",
+"Tüte"
+],
+"drücke": [
+"Brücke",
+"Mücke",
+"Lücke",
+"pflücke",
+"Mütze",
+"Pfütze",
+"schütze",
+"Tüte"
+],
+"pflücke": [
+"Brücke",
+"Mücke",
+"Lücke",
+"drücke",
+"Mütze",
+"Pfütze",
+"schütze",
+"Tüte"
+],
+"Glück": [
+"Stück"
+],
+"Stück": [
+"Glück"
+],
+"Strumpf": [
+"Sumpf",
+"dumpf",
+"Trumpf"
+],
+"Sumpf": [
+"Strumpf",
+"dumpf",
+"Trumpf"
+],
+"dumpf": [
+"Strumpf",
+"Sumpf",
+"Trumpf"
+],
+"Trumpf": [
+"Strumpf",
+"Sumpf",
+"dumpf"
+],
+"Dampf": [
+"Kampf",
+"Krampf",
+"stampf"
+],
+"Kampf": [
+"Dampf",
+"Krampf",
+"stampf"
+],
+"Krampf": [
+"Dampf",
+"Kampf",
+"stampf"
+],
+"stampf": [
+"Dampf",
+"Kampf",
+"Krampf"
+],
+"König": [
+"Honig",
+"wenig"
+],
+"Honig": [
+"König",
+"wenig"
+],
+"wenig": [
+"König",
+"Honig"
+],
+"Hügel": [
+"Flügel",
+"Bügel",
+"Zügel",
+"Igel",
+"Vogel",
+"Vögel",
+"Spiegel",
+"Riegel"
+],
+"Flügel": [
+"Hügel",
+"Bügel",
+"Zügel",
+"Igel",
+"Vogel",
+"Vögel",
+"Spiegel",
+"Riegel"
+],
+"Vögel": [
+"Igel",
+"Vogel",
+"Hügel",
+"Flügel",
+"Bügel",
+"Zügel",
+"Spiegel",
+"Riegel"
+],
+"Bügel": [
+"Hügel",
+"Flügel",
+"Zügel",
+"Igel",
+"Vogel",
+"Vögel",
+"Spiegel",
+"Riegel"
+],
+"Zügel": [
+"Hügel",
+"Flügel",
+"Bügel",
+"Igel",
+"Vogel",
+"Vögel",
+"Spiegel",
+"Riegel"
+],
+"Spiegel": [
+"Riegel",
+"Ziegel",
+"Igel",
+"Vogel",
+"Hügel",
+"Flügel",
+"Vögel",
+"Bügel"
+],
+"Riegel": [
+"Spiegel",
+"Ziegel",
+"Igel",
+"Vogel",
+"Hügel",
+"Flügel",
+"Vögel",
+"Bügel"
+],
+"Ziegel": [
+"Spiegel",
+"Riegel",
+"Igel",
+"Vogel",
+"Hügel",
+"Flügel",
+"Vögel",
+"Bügel"
+],
+"Gitter": [
+"Ritter",
+"bitter",
+"Splitter",
+"Kinder",
+"Rinder",
+"Finder",
+"Wetter",
+"Retter"
+],
+"Ritter": [
+"Gitter",
+"bitter",
+"Splitter",
+"Kinder",
+"Rinder",
+"Finder",
+"Wetter",
+"Retter"
+],
+"bitter": [
+"Gitter",
+"Ritter",
+"Splitter",
+"Kinder",
+"Rinder",
+"Finder",
+"Wetter",
+"Retter"
+],
+"Splitter": [
+"Gitter",
+"Ritter",
+"bitter",
+"Kinder",
+"Rinder",
+"Finder",
+"Wetter",
+"Retter"
+],
+"zittert": [
+"Wetter",
+"Retter",
+"Blätter",
+"Vetter"
+],
+"Henne": [
+"brenne",
+"kenne",
+"renne",
+"Tenne",
+"Rente",
+"Wende",
+"Ende",
+"Welle"
+],
+"brenne": [
+"Henne",
+"kenne",
+"renne",
+"Tenne",
+"Rente",
+"Wende",
+"Ende",
+"Welle"
+],
+"kenne": [
+"Henne",
+"brenne",
+"renne",
+"Tenne",
+"Rente",
+"Wende",
+"Ende",
+"Welle"
+],
+"renne": [
+"Henne",
+"brenne",
+"kenne",
+"Tenne",
+"Rente",
+"Wende",
+"Ende",
+"Welle"
+],
+"Tenne": [
+"Henne",
+"brenne",
+"kenne",
+"renne",
+"Rente",
+"Wende",
+"Ende",
+"Welle"
+],
+"Kappe": [
+"Klappe",
+"Mappe",
+"schnappe",
+"Lappen",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze"
+],
+"Klappe": [
+"Kappe",
+"Mappe",
+"schnappe",
+"Lappen",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze"
+],
+"Mappe": [
+"Kappe",
+"Klappe",
+"schnappe",
+"Lappen",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze"
+],
+"schnappe": [
+"Kappe",
+"Klappe",
+"Mappe",
+"Lappen",
+"Pflanze",
+"ganze",
+"Schwanze",
+"Tanze"
+],
+"Lappen": [
+"Kappe",
+"Klappe",
+"Mappe",
+"schnappe",
+"Suppe",
+"Puppe",
+"Gruppe",
+"Truppe"
+],
+"Wetter": [
+"Retter",
+"Blätter",
+"Vetter",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"zittert"
+],
+"Retter": [
+"Wetter",
+"Blätter",
+"Vetter",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"zittert"
+],
+"Blätter": [
+"Wetter",
+"Retter",
+"Vetter",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"zittert"
+],
+"Vetter": [
+"Wetter",
+"Retter",
+"Blätter",
+"Gitter",
+"Ritter",
+"bitter",
+"Splitter",
+"zittert"
+],
+"Tüte": [
+"Hüte",
+"Güte",
+"Blüte",
+"Mütze",
+"Pfütze",
+"schütze",
+"Brücke",
+"Mücke"
+],
+"Hüte": [
+"Tüte",
+"Güte",
+"Blüte",
+"Mütze",
+"Pfütze",
+"schütze",
+"Brücke",
+"Mücke"
+],
+"Güte": [
+"Tüte",
+"Hüte",
+"Blüte",
+"Mütze",
+"Pfütze",
+"schütze",
+"Brücke",
+"Mücke"
+],
+"Blüte": [
+"Tüte",
+"Hüte",
+"Güte",
+"Mütze",
+"Pfütze",
+"schütze",
+"Brücke",
+"Mücke"
+],
+"Eile": [
+"Meile",
+"Pfeile",
+"Teile",
+"heile",
+"weile",
+"Eule",
+"heule",
+"Säule"
+],
+"Meile": [
+"Eile",
+"Pfeile",
+"Teile",
+"heile",
+"weile",
+"Eule",
+"heule",
+"Säule"
+],
+"Pfeile": [
+"Eile",
+"Meile",
+"Teile",
+"heile",
+"weile",
+"Eule",
+"heule",
+"Säule"
+],
+"Teile": [
+"Eile",
+"Meile",
+"Pfeile",
+"heile",
+"weile",
+"Eule",
+"heule",
+"Säule"
+],
+"heile": [
+"Eile",
+"Meile",
+"Pfeile",
+"Teile",
+"weile",
+"Eule",
+"heule",
+"Säule"
+],
+"weile": [
+"Eile",
+"Meile",
+"Pfeile",
+"Teile",
+"heile",
+"Eule",
+"heule",
+"Säule"
+],
+"Blatt": [
+"glatt",
+"satt",
+"platt",
+"matt"
+],
+"glatt": [
+"Blatt",
+"satt",
+"platt",
+"matt"
+],
+"satt": [
+"Blatt",
+"glatt",
+"platt",
+"matt"
+],
+"platt": [
+"Blatt",
+"glatt",
+"satt",
+"matt"
+],
+"matt": [
+"Blatt",
+"glatt",
+"satt",
+"platt"
+],
+"Zelt": [
+"Welt",
+"Held",
+"Geld",
+"Feld",
+"fällt",
+"bellt",
+"stellt"
+],
+"bellt": [
+"fällt",
+"stellt",
+"Welt",
+"Held",
+"Geld",
+"Feld",
+"Zelt"
+],
+"stellt": [
+"fällt",
+"bellt",
+"Welt",
+"Held",
+"Geld",
+"Feld",
+"Zelt"
+],
+"Fliege": [
+"Ziege",
+"Wiege",
+"biege",
+"Stiege",
+"Wege",
+"Ecke",
+"decke",
+"Schnecke"
+],
+"Wiege": [
+"Ziege",
+"Fliege",
+"biege",
+"Stiege",
+"Wege",
+"Ecke",
+"decke",
+"Schnecke"
+],
+"biege": [
+"Ziege",
+"Fliege",
+"Wiege",
+"Stiege",
+"Wege",
+"Ecke",
+"decke",
+"Schnecke"
+],
+"Stiege": [
+"Ziege",
+"Fliege",
+"Wiege",
+"biege",
+"Wege",
+"Ecke",
+"decke",
+"Schnecke"
+],
+"Wert": [
+"Pferd",
+"Schwert",
+"Herz",
+"Schmerz",
+"Scherz"
+],
+"Schwert": [
+"Pferd",
+"Wert",
+"Herz",
+"Schmerz",
+"Scherz"
+],
+"brav": [
+"Schaf",
+"Graf"
+],
+"Graf": [
+"Schaf",
+"brav"
+],
+"Saft": [
+"Kraft",
+"Haft",
+"Nacht",
+"lacht",
+"macht",
+"sacht",
+"Pracht",
+"acht"
+],
+"Kraft": [
+"Saft",
+"Haft",
+"Nacht",
+"lacht",
+"macht",
+"sacht",
+"Pracht",
+"acht"
+],
+"Haft": [
+"Saft",
+"Kraft",
+"Nacht",
+"lacht",
+"macht",
+"sacht",
+"Pracht",
+"acht"
+],
+"Bimmel": [
+"Himmel",
+"Schimmel"
+]
+}
+}

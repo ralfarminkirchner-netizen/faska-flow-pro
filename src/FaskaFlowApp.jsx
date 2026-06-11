@@ -105,7 +105,11 @@ function ModuleFallback({ fach }) {
 
 export default function FaskaFlowApp({ onOpenArcade, onExitToHome }) {
   const initialProgress = loadProgress() || {};
-  const [activeSubject, setActiveSubject] = useState("deutsch");
+  const [activeSubject, setActiveSubject] = useState(() => {
+    if (typeof window === "undefined") return "deutsch";
+    const s = new URLSearchParams(window.location.search).get("subject");
+    return ["deutsch", "mathe", "sachunterricht", "ethik", "musik"].includes(s) ? s : "deutsch";
+  });
   const [globalPoints, setGlobalPoints] = useState(initialProgress.points || 0);
   const [streak, setStreak] = useState(initialProgress.streak || 0);
   const [floatingStars, setFloatingStars] = useState([]);

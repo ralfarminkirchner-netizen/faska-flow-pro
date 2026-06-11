@@ -47,6 +47,36 @@ def load_words(path: pathlib.Path) -> list[str]:
     return out
 
 
+def _build_set(engine, ok, mode, mode_label, out_name, min_score):
+    rhymes: dict[str, list[str]] = {}
+    for w in ok:
+        try:
+            resp = engine.search(parse_german_word(w), mode=mode, limit=MAX_PER_WORD * 2)
+        except Exception as e:
+            print(f"  search-fail: {w}: {e}", file=sys.stderr)
+            continue
+        cands = [c.text for c in resp.results if c.score >= min_score][:MAX_PER_WORD]
+        if cands:
+            rhymes[w] = cands
+
+    out_dir = ROOT / "public" / "rap"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / out_name
+    payload = {
+        "_meta": {
+            "source": "REIMWERKER (rhyme-engine) - phonetische Engine",
+            "mode": mode_label,
+            "minScore": min_score,
+            "wordCount": len(rhymes),
+        },
+        "rhymes": rhymes,
+    }
+    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=0), encoding="utf-8")
+    covered = len(rhymes)
+    avg = sum(len(v) for v in rhymes.values()) / covered if covered else 0
+    print(f"-> {out_name}: {covered}/{len(ok)} Woerter, oe {avg:.1f} Reime/Wort, {out_path.stat().st_size} Bytes")
+
+
 def main() -> None:
     words = load_words(HERE / "kid_words.txt")
     parsed, ok = [], []
@@ -60,38 +90,9 @@ def main() -> None:
     engine = RhymeEngine(parsed)
     print(f"Vokabular: {len(ok)} Woerter geparst")
 
-    rhymes: dict[str, list[str]] = {}
-    for w in ok:
-        try:
-            resp = engine.search(parse_german_word(w), mode=Mode.STRICT, limit=MAX_PER_WORD * 2)
-        except Exception as e:
-            print(f"  search-fail: {w}: {e}", file=sys.stderr)
-            continue
-        cands = [c.text for c in resp.results if c.score >= MIN_SCORE][:MAX_PER_WORD]
-        if cands:
-            rhymes[w] = cands
-
-    out_dir = ROOT / "public" / "rap"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "kid-rhymes.json"
-    payload = {
-        "_meta": {
-            "source": "REIMWERKER (rhyme-engine) - phonetische Engine",
-            "mode": "strict",
-            "minScore": MIN_SCORE,
-            "wordCount": len(rhymes),
-        },
-        "rhymes": rhymes,
-    }
-    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=0), encoding="utf-8")
-
-    covered = len(rhymes)
-    avg = sum(len(v) for v in rhymes.values()) / covered if covered else 0
-    orphans = [w for w in ok if w not in rhymes]
-    print(f"-> {out_path}")
-    print(f"   {covered}/{len(ok)} Woerter mit Reimen, oe {avg:.1f} Reime/Wort, {out_path.stat().st_size} Bytes")
-    if orphans:
-        print(f"   ohne Reim ({len(orphans)}): {', '.join(orphans)}")
+    # Zwei Sets: "sauber" (strict, Kinder-Standard) + "profi" (balanced, lockerer/mehr Slang)
+    _build_set(engine, ok, Mode.STRICT, "strict", "kid-rhymes.json", 0.60)
+    _build_set(engine, ok, Mode.BALANCED, "balanced", "kid-rhymes-pro.json", 0.55)
 
 
 if __name__ == "__main__":

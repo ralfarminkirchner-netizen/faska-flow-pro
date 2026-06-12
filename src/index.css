@@ -7,6 +7,10 @@
 }
 
 @layer base {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   body {
     font-family: 'Nunito', sans-serif;
     color: #3e3c38;

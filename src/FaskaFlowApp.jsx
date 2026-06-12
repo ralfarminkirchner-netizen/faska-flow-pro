@@ -8,7 +8,6 @@ import { loadProgress, saveProgress } from "./utils/storage";
 import DailyJourney from "./components/DailyJourney";
 import AdventureHud, { AchievementToast, BADGES } from "./components/AdventureHud";
 import FastFlowGameStudio from "./components/games/FastFlowGameStudio";
-import KlebensfreiAtelier from "./components/KlebensfreiAtelier";
 
 const Motion = motion;
 
@@ -111,6 +110,7 @@ export default function FaskaFlowApp({ onOpenArcade, onExitToHome }) {
     const s = new URLSearchParams(window.location.search).get("subject");
     return ["deutsch", "mathe", "sachunterricht", "ethik", "musik"].includes(s) ? s : "deutsch";
   });
+  const [lumiOpen, setLumiOpen] = useState(false);
   const [globalPoints, setGlobalPoints] = useState(initialProgress.points || 0);
   const [streak, setStreak] = useState(initialProgress.streak || 0);
   const [floatingStars, setFloatingStars] = useState([]);
@@ -188,10 +188,10 @@ export default function FaskaFlowApp({ onOpenArcade, onExitToHome }) {
       </div>
 
       {/* Mascot Integration */}
-      <Mascot mood={mascotMood} />
+      <Mascot mood={mascotMood} onTap={() => setLumiOpen(true)} />
       
       {/* Interactive Chat Companion */}
-      <LumiChat setMood={setMascotMood} />
+      <LumiChat open={lumiOpen} onClose={() => setLumiOpen(false)} setMood={setMascotMood} />
 
       <div
         className="absolute inset-0 overflow-hidden pointer-events-none opacity-70"
@@ -296,8 +296,6 @@ export default function FaskaFlowApp({ onOpenArcade, onExitToHome }) {
             </motion.button>
           </div>
         </motion.header>
-
-        <KlebensfreiAtelier onOpenDeutsch={() => { playPop(); setActiveSubject("deutsch"); }} />
 
         {/* ── SUBJECT NAVIGATION ── */}
         <motion.nav variants={navVariants} initial="hidden" animate="show"

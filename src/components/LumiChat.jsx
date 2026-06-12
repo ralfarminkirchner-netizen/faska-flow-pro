@@ -239,17 +239,11 @@ function getLumiResponse(input) {
   ]);
 }
 
-export default function LumiChat({ setMood = () => {} }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function LumiChat({ open = false, onClose = () => {}, setMood = () => {} }) {
   const [messages, setMessages] = useState([{ text: START_MESSAGE, sender: "lumi" }]);
   const [inputVal, setInputVal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-
-  const toggleChat = () => {
-    playPop();
-    setIsOpen(!isOpen);
-  };
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -283,14 +277,14 @@ export default function LumiChat({ setMood = () => {} }) {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isOpen]);
+  }, [messages, open]);
 
   return (
     <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end">
       
       {/* THE CHAT WINDOW */}
       <AnimatePresence>
-        {isOpen && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 50, originX: 1, originY: 1 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -310,7 +304,7 @@ export default function LumiChat({ setMood = () => {} }) {
                   <span className="text-xs text-amber-600 font-bold tracking-wide uppercase">Dein Begleiter</span>
                 </div>
               </div>
-              <button onClick={toggleChat} className="w-8 h-8 rounded-full bg-white/50 hover:bg-white text-slate-500 flex items-center justify-center transition-colors">✕</button>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/50 hover:bg-white text-slate-500 flex items-center justify-center transition-colors">✕</button>
             </div>
 
             {/* Messages Area */}
@@ -373,23 +367,6 @@ export default function LumiChat({ setMood = () => {} }) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* THE FLOATING BUBBLE */}
-      <motion.button
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={toggleChat}
-        className="relative w-20 h-20 bg-amber-400 rounded-full shadow-2xl border-4 border-white flex items-center justify-center z-50 overflow-visible"
-      >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-90 pointer-events-none">
-          <LumiSvg mood="idle" />
-        </div>
-        
-        {/* Unread dot indicator (mock logic) */}
-        {!isOpen && messages.length > 1 && (
-          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
-        )}
-      </motion.button>
     </div>
   )
 }

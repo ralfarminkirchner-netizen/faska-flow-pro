@@ -1,5 +1,3 @@
-import { KLEBENSFREI_COMPANIONS } from "./klebensfreiAssets";
-
 export const ANIMAL_FRIENDS = [
   { id: "ella-elefant", name: "Ella", species: "Elefant", image: "/animal-friends/cutouts/ella-elefant.png?v=20260519", accent: "bg-sky-400", gift: "Ruhe" },
   { id: "pino-pinguin", name: "Pino", species: "Pinguin", image: "/animal-friends/cutouts/pino-pinguin.png?v=20260519", accent: "bg-slate-700", gift: "Mut" },
@@ -12,5 +10,4 @@ export const ANIMAL_FRIENDS = [
   { id: "roni-waschbaer", name: "Roni", species: "Waschbaer", image: "/animal-friends/cutouts/roni-waschbaer.png?v=20260519", accent: "bg-zinc-500", gift: "Fund" },
   { id: "dari-reh", name: "Dari", species: "Reh", image: "/animal-friends/cutouts/dari-reh.png?v=20260519", accent: "bg-lime-500", gift: "Sanft" },
   { id: "nuri-fledermaus", name: "Nuri", species: "Fledermaus", image: "/animal-friends/cutouts/nuri-fledermaus.png?v=20260519", accent: "bg-violet-500", gift: "Nacht" },
-  ...KLEBENSFREI_COMPANIONS,
 ];

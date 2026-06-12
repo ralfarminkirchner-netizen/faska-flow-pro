@@ -129,7 +129,7 @@ export const LumiSvg = ({ mood = "idle" }) => {
   );
 };
 
-export default function Mascot({ mood = "idle", visible = true }) {
+export default function Mascot({ mood = "idle", visible = true, onTap }) {
   const [msg, setMsg] = useState(MESSAGES.idle[0]);
   const [clickMood, setClickMood] = useState(null);
 
@@ -143,16 +143,17 @@ export default function Mascot({ mood = "idle", visible = true }) {
   const handleLumiClick = () => {
     setClickMood("correct");
     setTimeout(() => setClickMood(null), 3000); // Back to normal after 3s
+    onTap?.(); // Tippen oeffnet den Lumi-Chat
   };
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ x: 100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 100, opacity: 0 }}
-          className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0, opacity: 0 }}
+          className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 pointer-events-none"
         >
           {/* Speech bubble */}
           <motion.div
@@ -178,7 +179,7 @@ export default function Mascot({ mood = "idle", visible = true }) {
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
-            className="cursor-pointer select-none relative wiggle"
+            className="cursor-pointer select-none relative wiggle pointer-events-auto"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >

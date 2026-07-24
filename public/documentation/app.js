@@ -133,7 +133,11 @@ function setCurriculumState(id, next) {
   const item = CURRICULUM.find((candidate) => candidate.id === id);
   if (!item) return;
   state.curriculum[id] = next;
-  if (state.episode.status === "reviewed") state.episode.status = "draft";
+  if (state.episode.status === "reviewed") {
+    state.episode.status = "draft";
+    state.episode.authorizedCurriculum = [];
+    delete state.episode.reviewedAt;
+  }
   persist();
   record("CurriculumCandidateReviewed", `${item.subject} ${item.code}: ${next}.`, "human", { candidateId: id, state: next });
   renderEpisode();
@@ -207,12 +211,14 @@ function renderTrace(nodeId = "revision") {
   const node = TRACE_NODES[nodeId] || TRACE_NODES.revision;
   $("#traceInspector").innerHTML = traceInspectorHTML(node);
   $$("#trace > button[data-node]").forEach((button) => button.classList.toggle("selected", button.dataset.node === nodeId));
-  const usable = assets.find((asset) => state.assetReviews[asset.id] === "accepted" && state.assetRights[asset.id]);
+  const usable = assets.find((asset) => state.assetReviews[asset.id] === "accepted"
+    && state.assetRights[asset.id]
+    && state.assetAudits[asset.id]?.recommendation === "candidate");
   const animal = $("#traceAnimal");
   const animalTheme = $("#theme").value === "animal";
   animal.hidden = !(animalTheme && usable);
   animal.innerHTML = animalTheme && usable ? `<img src="${usable.path}" alt="${usable.name}">` : "";
-  if (animalTheme && !usable) $("#traceCaption").textContent = "Tierwelt gewählt: Erst ein Motiv visuell freigeben und die Rechte bestätigen.";
+  if (animalTheme && !usable) $("#traceCaption").textContent = "Tierwelt gewählt: Erst ein technisch unauffälliges Motiv visuell freigeben und die Rechte bestätigen.";
   else $("#traceCaption").textContent = "Spurzusammenhang: Konstruktion → Überarbeitung → Erklärung → Umgebungsanpassung.";
 }
 
@@ -224,6 +230,14 @@ async function loadCatalogs() {
   try {
     const response = await fetch("/catalog/visual-assets/animal-friends.json");
     if (response.ok) assets = (await response.json()).assets;
+  } catch { /* Offline-Fallback */ }
+  try {
+    const response = await fetch("/catalog/visual-assets/animal-friends-audit.json");
+    if (response.ok) {
+      const report = await response.json();
+      state.assetAudits = { ...(report.audits || {}), ...state.assetAudits };
+      persist();
+    }
   } catch { /* Offline-Fallback */ }
   renderActivities();
   renderAssets();
@@ -248,6 +262,7 @@ async function auditAllAssets() {
   state.assetAudits = { ...state.assetAudits, ...Object.fromEntries(results) };
   persist();
   renderAssets();
+  renderTrace();
   record("AssetAuditCompleted", "Lokale Qualitätsindikatoren berechnet; menschliche Entscheidungen unverändert.", "system-alpha");
   button.disabled = false;
   button.textContent = "Vorprüfung erneut starten";
@@ -257,10 +272,15 @@ async function auditAllAssets() {
 function reviewAsset(id, decision) {
   const asset = assets.find((item) => item.id === id);
   if (!asset) return;
+  const audit = state.assetAudits[id];
+  if (decision === "accepted" && !audit) return toast("Zuerst die technische Vorprüfung laden oder starten.");
+  if (decision === "accepted" && audit.recommendation !== "candidate") {
+    return toast(`${asset.name} ist technisch noch nicht freigabefähig. Bitte eine nachbearbeitete Variante erzeugen und erneut prüfen.`);
+  }
   state.assetReviews[id] = decision;
   if (decision !== "accepted") state.assetRights[id] = false;
   persist();
-  record("AssetReviewRecorded", `${asset.name}: ${decision}.`, "human", { assetId: id });
+  record("AssetReviewRecorded", `${asset.name}: ${decision}.`, "human", { assetId: id, technicalRecommendation: audit?.recommendation || "missing" });
   renderAssets();
   renderTrace();
 }
@@ -285,6 +305,7 @@ function resetDemo() {
   $("#observation").value = "N. hat aus Karton eine Murmelbahn gebaut. Die Kugel ist in der Kurve wiederholt herausgefallen. N. hat die Seitenwand dreimal verändert und einem anderen Kind erklärt, dass die Kugel nach außen drückt. Als mehrere Kinder kamen, wechselte N. den Tisch und baute dort weiter.";
   $("#observedAt").value = today();
   renderAll();
+  void loadCatalogs();
   showView("capture");
   toast("Lokale Demo zurückgesetzt.");
 }

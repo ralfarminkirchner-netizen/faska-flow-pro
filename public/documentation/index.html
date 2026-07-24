@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4efe4">
+  <meta name="description" content="FASKA Lernspuren: lokaler Prototyp für Episoden, Spuren und vorbereitete Lernmöglichkeiten.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>FASKA Lernspuren</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+  <header class="topbar">
+    <a class="brand" href="/">Lernspuren <small>FASKA Dokumentation</small></a>
+    <nav aria-label="Hauptnavigation">
+      <button class="nav active" data-view="capture">Ankommen</button>
+      <button class="nav" data-view="episode">Episode</button>
+      <button class="nav" data-view="traces">Spuren</button>
+      <button class="nav" data-view="offers">Möglichkeiten</button>
+      <button class="nav" data-view="materials">Material</button>
+      <button class="nav" data-view="assets">Tieratelier</button>
+      <button class="nav" data-view="protection">Schutz</button>
+    </nav>
+    <button class="primary small" id="newObservation">Beobachtung hinzufügen</button>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="view active" data-panel="capture">
+      <div class="hero">
+        <div><p class="eyebrow">Dokumentation als Aufmerksamkeit</p><h1>Erst das Geschehen.<br>Dann die Deutung.</h1><p class="lead">Eine kurze Beobachtung wird zur prüfbaren Episode. Das System ordnet und erinnert, aber es diagnostiziert, bewertet und ratifiziert nicht.</p></div>
+        <aside class="principle"><strong>Grundsatz</strong><blockquote>„Nicht das Kind ist die Datenstruktur. Sein Weg ist die Datenstruktur.“</blockquote><p>Diese Alpha nutzt ausschließlich einen fiktiven Demo-Fall und lokale Browserdaten.</p></aside>
+      </div>
+      <div class="two-col">
+        <article class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Originalspur</p><h2>Was wurde wahrnehmbar?</h2></div><span class="pill observed">direkt eingegeben</span></div>
+          <label for="observation">Beobachtung oder Diktat</label>
+          <textarea id="observation" rows="8">N. hat aus Karton eine Murmelbahn gebaut. Die Kugel ist in der Kurve wiederholt herausgefallen. N. hat die Seitenwand dreimal verändert und einem anderen Kind erklärt, dass die Kugel nach außen drückt. Als mehrere Kinder kamen, wechselte N. den Tisch und baute dort weiter.</textarea>
+          <div class="field-grid"><label>Datum<input type="date" id="observedAt"></label><label>Ort<input type="text" id="place" value="Werkraum / ruhiger Tisch"></label><label>Beteiligte<input type="text" id="people" value="N. und weitere Kinder"></label><label>Rolle<select id="role"><option>Lernbegleitung</option><option>Kind – Selbstbericht</option><option>Projektbegleitung</option></select></label></div>
+          <div class="actions"><button class="secondary" id="speak">Vorlesen</button><button class="primary" id="structure">Episode strukturieren</button></div>
+        </article>
+        <aside class="panel ladder"><p class="eyebrow">Erkenntnisleiter</p><h2>Keine Abkürzung zur Zuschreibung</h2><ol><li>Direkte Beobachtung</li><li>Wiederkehrendes Muster</li><li>Mögliche funktionale Deutung</li><li>Alternative Erklärungen</li><li>Erprobbares Angebot</li><li>Beobachtete Wirkung</li></ol><div class="warning"><strong>Blockierende Gleichsetzungen</strong><p>Muster ≠ Ursache · Lehrplanbezug ≠ Kompetenznachweis · Angebot ≠ Auftrag.</p></div></aside>
+      </div>
+    </section>
+
+    <section class="view" data-panel="episode">
+      <div class="section-head"><div><p class="eyebrow">Episode</p><h1>Aus einer Minute wird eine prüfbare Spur.</h1><p class="lead">Jede maschinelle Zuordnung bleibt Entwurf, bis eine verantwortliche Person sie prüft.</p></div><div class="actions"><button class="secondary" id="exportEpisode">JSON exportieren</button><button class="primary" id="reviewEpisode">Episode prüfen</button></div></div>
+      <div id="episodeEmpty" class="empty">Noch keine Episode strukturiert.</div>
+      <div id="episodeContent" hidden><div class="two-col"><article class="panel" id="statementCards"></article><aside class="panel"><div class="panel-head"><div><p class="eyebrow">Bildungsplan als Karte</p><h2>Bezugskandidaten</h2></div><span class="pill proposal">Vorschläge</span></div><p class="muted">Jeder Bezug benötigt eine sichtbare Evidenz und eine einzelne menschliche Entscheidung.</p><div id="curriculum"></div></aside></div><article class="panel ledger-wrap"><div class="panel-head"><div><p class="eyebrow">Werkspur</p><h2>Status- und Änderungsverlauf</h2></div><span class="pill draft" id="episodeStatus">Entwurf</span></div><div id="episodeLedger" class="ledger"></div></article></div>
+    </section>
+
+    <section class="view" data-panel="traces">
+      <div class="section-head"><div><p class="eyebrow">Spuren · nicht Profile</p><h1>Hinein- und herauszoomen, ohne festzuschreiben.</h1></div><div class="actions"><select id="zoom"><option value="episode">Episode</option><option value="trace" selected>Spur</option><option value="landscape">Landschaft</option></select><select id="theme"><option value="workshop">Werkstatt</option><option value="animal">Tierwelt</option><option value="constellation">Sternbild</option><option value="map">Landkarte</option></select></div></div>
+      <div class="trace-grid"><article class="panel trace" id="trace" data-theme="workshop" data-zoom="trace"><svg viewBox="0 0 900 520" aria-hidden="true"><path d="M110 385C245 250 260 330 380 250S585 370 690 235S790 140 840 205"/><path class="dashed" d="M380 250C430 120 585 105 690 235"/></svg><button style="--x:12%;--y:72%" data-node="source">Bauen<small>Episode</small></button><button style="--x:42%;--y:49%" data-node="revision">Verändern<small>Überarbeitung</small></button><button style="--x:70%;--y:45%" data-node="explain">Erklären<small>Sprache</small></button><button style="--x:86%;--y:31%" data-node="context">Ort wechseln<small>Bedingung</small></button><button style="--x:52%;--y:18%" data-node="question">Offene Frage<small>Anschluss</small></button><div id="traceAnimal" class="trace-animal" hidden></div><p id="traceCaption" class="trace-caption">Spurzusammenhang: Konstruktion → Überarbeitung → Erklärung → Umgebungsanpassung.</p></article><aside class="panel" id="traceInspector"></aside></div>
+    </section>
+
+    <section class="view" data-panel="offers">
+      <div class="section-head"><div><p class="eyebrow">Sechs Richtungen</p><h1>Ein Möglichkeitsraum statt eines automatischen nächsten Schritts.</h1></div><button class="primary" id="shuffleOffers">Neu anordnen</button></div><div id="offerGrid" class="offer-grid"></div><article class="panel" id="selectedOffer" hidden></article>
+    </section>
+
+    <section class="view" data-panel="materials">
+      <div class="section-head"><div><p class="eyebrow">Kuratierter Materialgarten</p><h1>Bestehende Spiele bleiben eigenständig.</h1><p class="lead">Gute Mechaniken werden über Manifeste angeschlossen, nicht in den Dokumentationskern kopiert.</p></div><button class="secondary" id="print">Druckansicht</button></div><div class="two-col"><article class="panel"><p class="eyebrow">Aktivitätskatalog</p><h2>Angeschlossene Quellen</h2><div id="activities"></div></article><article class="panel"><p class="eyebrow">Druckbare Lernkarte</p><div id="worksheet" class="worksheet"><h2>Welche Wand hält die Kugel in der Kurve?</h2><p>Baue zwei kurze Kurven. Verändere eine Sache und beobachte, was geschieht.</p><div class="worksheet-grid"><div>Kurve A<br>Wandhöhe: ______<br>Ergebnis: □ □ □</div><div>Kurve B<br>Wandhöhe: ______<br>Ergebnis: □ □ □</div></div><p><strong>Meine Vermutung:</strong> __________________________</p><p class="muted">Die Karte ist ein Angebot und darf verändert oder abgelehnt werden.</p></div></article></div>
+    </section>
+
+    <section class="view" data-panel="assets">
+      <div class="section-head"><div><p class="eyebrow">Tieratelier</p><h1>Nur saubere und menschlich freigegebene Motive.</h1><p class="lead">Automatische Vorprüfung und menschliche Freigabe bleiben getrennte Schritte.</p></div><button class="primary" id="auditAssets">Vorprüfung starten</button></div><div id="assetSummary" class="summary"></div><div id="assetGrid" class="asset-grid"></div>
+    </section>
+
+    <section class="view" data-panel="protection">
+      <div class="section-head"><div><p class="eyebrow">Schutz · Rechenschaft · Revision</p><h1>Die KI unterstützt Prüfung; sie ratifiziert nicht.</h1></div><button class="danger" id="reset">Lokale Demo zurücksetzen</button></div><div class="two-col"><article class="panel"><h2>Nicht-Gleichsetzungen</h2><ul class="rules"><li>Episode ≠ Ereignis</li><li>Spur ≠ Eigenschaft</li><li>Hypothese ≠ Diagnose</li><li>Lehrplanbezug ≠ Kompetenznachweis</li><li>Angebot ≠ Auftrag</li><li>Nutzung ≠ Erfolg</li></ul></article><article class="panel"><h2>Was diese Alpha nicht tut</h2><ul><li>keine Cloud-Synchronisation</li><li>keine realen Schülerprofile</li><li>keine Diagnosewahrscheinlichkeiten</li><li>keine automatische Bewertung</li><li>keine unsichtbare Personalisierung</li></ul></article></div><article class="panel ledger-wrap"><div class="panel-head"><h2>Lokales Ereignisprotokoll</h2><button class="secondary small" id="downloadLedger">Ledger laden</button></div><div id="globalLedger" class="ledger"></div></article>
+    </section>
+  </main>
+
+  <dialog id="reviewDialog"><form method="dialog"><h2>Episode prüfen</h2><p>Bestätige nur Aussagen, die durch die Originalspur getragen werden.</p><label><input type="checkbox" class="reviewCheck"> Quelle gelesen</label><label><input type="checkbox" class="reviewCheck"> Beobachtung und Deutung getrennt</label><label><input type="checkbox" class="reviewCheck"> Lehrplanbezüge einzeln geprüft</label><label><input type="checkbox" class="reviewCheck"> Grenze und Schutz geprüft</label><div class="actions"><button class="secondary" value="cancel">Abbrechen</button><button class="primary" id="confirmReview" type="button" disabled>Geprüft markieren</button></div></form></dialog>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

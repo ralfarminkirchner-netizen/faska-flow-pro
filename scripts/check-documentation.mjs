@@ -20,6 +20,7 @@ const requiredFiles = [
   "public/documentation/manifest.webmanifest",
   "public/catalog/learning-activities/deutsch-party-brett.json",
   "public/catalog/visual-assets/animal-friends.json",
+  "public/catalog/visual-assets/animal-friends-audit.json",
   "scripts/audit-animal-friends.py",
   "supabase/migrations/202607240001_faska_documentation_v0.sql"
 ];
@@ -33,6 +34,7 @@ const data = read("public/documentation/data.js");
 const migration = read("supabase/migrations/202607240001_faska_documentation_v0.sql");
 const activity = json("public/catalog/learning-activities/deutsch-party-brett.json");
 const animals = json("public/catalog/visual-assets/animal-friends.json");
+const animalAudit = json("public/catalog/visual-assets/animal-friends-audit.json");
 const manifest = json("public/documentation/manifest.webmanifest");
 
 check(manifest.start_url === "/documentation/", "PWA start_url muss /documentation/ sein.");
@@ -42,14 +44,27 @@ check(activity.activity.evidence.runtime !== "confirmed", "Runtime darf ohne Lau
 check(Array.isArray(activity.activity.prohibitedIntegration) && activity.activity.prohibitedIntegration.length >= 3, "Legacy-Manifest benötigt explizite Integrationsverbote.");
 check(animals.collection.automaticAcceptance === false, "Animal Friends dürfen niemals automatisch akzeptiert werden.");
 check(Array.isArray(animals.assets) && animals.assets.length === 11, "Animal-Friends-Katalog soll 11 bekannte Motive enthalten.");
+check(animalAudit.automaticAcceptance === false, "Der technische Audit darf keine automatische Freigabe behaupten.");
+check(animalAudit.summary?.total === 11, "Der technische Audit muss alle 11 Motive abdecken.");
+check(animalAudit.summary?.candidate === 9 && animalAudit.summary?.rework === 2 && animalAudit.summary?.unavailable === 0, "Audit-Summary muss 9 technische Kandidaten, 2 Nachbearbeitungen und 0 fehlende Dateien ausweisen.");
 
 const animalIds = animals.assets.map((asset) => asset.id);
+const auditedAnimalIds = Object.keys(animalAudit.audits || {});
 check(new Set(animalIds).size === animalIds.length, "Animal-Friends-IDs müssen eindeutig sein.");
+check(auditedAnimalIds.length === animalIds.length && animalIds.every((id) => auditedAnimalIds.includes(id)), "Audit und Asset-Katalog müssen dieselben 11 Motive enthalten.");
 for (const asset of animals.assets) {
   check(asset.reviewStatus === "review_required", `${asset.id}: initialer reviewStatus muss review_required sein.`);
   check(asset.rightsStatus === "creator_confirmation_required", `${asset.id}: Rechtebestätigung muss anfangs offen sein.`);
   check(asset.path.startsWith("/animal-friends/"), `${asset.id}: Pfad muss im getrennten Animal-Friends-Bereich liegen.`);
+  check(animalAudit.audits?.[asset.id]?.humanDecisionRequired === true, `${asset.id}: technische Vorprüfung muss menschliche Entscheidung verlangen.`);
 }
+check(animalAudit.audits?.["ella-elefant"]?.recommendation === "rework", "Ella Elefant muss wegen des Saumindikators als Nachbearbeitung markiert bleiben.");
+check(animalAudit.audits?.["balu-hund"]?.recommendation === "rework", "Balu Hund muss wegen des Saumindikators als Nachbearbeitung markiert bleiben.");
+for (const id of animalIds.filter((item) => !["ella-elefant", "balu-hund"].includes(item))) {
+  check(animalAudit.audits?.[id]?.recommendation === "candidate", `${id}: erwarteter technischer Kandidatenstatus fehlt.`);
+}
+check(app.includes('/catalog/visual-assets/animal-friends-audit.json'), "Die Alpha muss den versionierten technischen Audit laden.");
+check(app.includes('audit.recommendation !== "candidate"'), "Die Alpha muss technisch auffällige Cutouts vor menschlicher Freigabe blockieren.");
 
 const officialCurriculumUrls = [...data.matchAll(/url:\s*"([^"]+)"/g)].map((match) => match[1]);
 check(officialCurriculumUrls.length >= 5, "Demo benötigt mindestens fünf begründete Curriculumkandidaten.");
@@ -69,7 +84,7 @@ const forbiddenPatterns = [
   /Wahrscheinlichkeit\s+für\s+ADHS/i,
   /global(?:er|e)?\s+(?:Lern|Kompetenz|Entwicklungs)score/i
 ];
-const scanned = [index, app, ui, data, migration, JSON.stringify(activity), JSON.stringify(animals)].join("\n");
+const scanned = [index, app, ui, data, migration, JSON.stringify(activity), JSON.stringify(animals), JSON.stringify(animalAudit)].join("\n");
 for (const pattern of forbiddenPatterns) check(!pattern.test(scanned), `Verbotenes Muster gefunden: ${pattern}`);
 
 const tables = [...migration.matchAll(/create table public\.([a-z0-9_]+)/g)].map((match) => match[1]);
@@ -86,4 +101,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Dokumentationsprüfung bestanden: ${requiredFiles.length} Dateien, ${animals.assets.length} Tiermotive, ${tables.length} RLS-Tabellen.`);
+console.log(`Dokumentationsprüfung bestanden: ${requiredFiles.length} Dateien, ${animals.assets.length} Tiermotive (${animalAudit.summary.candidate} technische Kandidaten, ${animalAudit.summary.rework} Nachbearbeitungen), ${tables.length} RLS-Tabellen.`);

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "0.1",
+  "generatedAt": "2026-07-24T06:50:52Z",
+  "generatedBy": "scripts/audit-animal-friends.py",
+  "automaticAcceptance": false,
+  "summary": {
+    "total": 11,
+    "candidate": 9,
+    "rework": 2,
+    "unavailable": 0
+  },
+  "audits": {
+    "ella-elefant": { "recommendation": "rework", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.45181, "edgeRatio": 0, "haloRatio": 0.29431, "margin": 30, "notes": ["Möglicher heller Saum an halbtransparenten Kanten."], "labels": { "transparency": "vorhanden", "visible": "45%", "edge": "0%", "halo": "29%" } },
+    "pino-pinguin": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.41289, "edgeRatio": 0, "haloRatio": 0.08468, "margin": 29, "notes": [], "labels": { "transparency": "vorhanden", "visible": "41%", "edge": "0%", "halo": "8%" } },
+    "mika-katze": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.50428, "edgeRatio": 0, "haloRatio": 0.00702, "margin": 20, "notes": [], "labels": { "transparency": "vorhanden", "visible": "50%", "edge": "0%", "halo": "1%" } },
+    "balu-hund": { "recommendation": "rework", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.42517, "edgeRatio": 0, "haloRatio": 0.19808, "margin": 30, "notes": ["Möglicher heller Saum an halbtransparenten Kanten."], "labels": { "transparency": "vorhanden", "visible": "43%", "edge": "0%", "halo": "20%" } },
+    "kiki-kaenguru": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.3857, "edgeRatio": 0, "haloRatio": 0.05194, "margin": 15, "notes": [], "labels": { "transparency": "vorhanden", "visible": "39%", "edge": "0%", "halo": "5%" } },
+    "bruno-baer": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.50981, "edgeRatio": 0, "haloRatio": 0.02339, "margin": 30, "notes": [], "labels": { "transparency": "vorhanden", "visible": "51%", "edge": "0%", "halo": "2%" } },
+    "luna-hase": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.30735, "edgeRatio": 0, "haloRatio": 0.07439, "margin": 24, "notes": [], "labels": { "transparency": "vorhanden", "visible": "31%", "edge": "0%", "halo": "7%" } },
+    "fina-fuchs": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.51735, "edgeRatio": 0, "haloRatio": 0.00039, "margin": 15, "notes": [], "labels": { "transparency": "vorhanden", "visible": "52%", "edge": "0%", "halo": "0%" } },
+    "roni-waschbaer": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.53157, "edgeRatio": 0, "haloRatio": 0.00709, "margin": 28, "notes": [], "labels": { "transparency": "vorhanden", "visible": "53%", "edge": "0%", "halo": "1%" } },
+    "dari-reh": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.35995, "edgeRatio": 0, "haloRatio": 0, "margin": 17, "notes": [], "labels": { "transparency": "vorhanden", "visible": "36%", "edge": "0%", "halo": "0%" } },
+    "nuri-fledermaus": { "recommendation": "candidate", "humanDecisionRequired": true, "dimensions": "360 × 360", "hasTransparency": true, "visibleRatio": 0.40725, "edgeRatio": 0, "haloRatio": 0, "margin": 28, "notes": [], "labels": { "transparency": "vorhanden", "visible": "41%", "edge": "0%", "halo": "0%" } }
+  }
+}

@@ -7,6 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "lint": "eslint .",
+    "check:documentation": "node --check public/documentation/app.js && node --check public/documentation/data.js && node --check public/documentation/ui.js && node --check public/documentation/assets.js && node scripts/check-documentation.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}"
   },

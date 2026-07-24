@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "0.1",
+  "activity": {
+    "id": "deutsch-party-brett",
+    "title": "Deutsch Party Brett",
+    "version": "legacy-candidate-2026-07",
+    "sourceRepository": "ralfarminkirchner-netizen/deutsch-party-brett",
+    "sourceRef": "main",
+    "sourceOwnership": "user-owned repository",
+    "integrationMode": "external_adapter",
+    "auditStatus": "candidate_runtime_test_required",
+    "summary": "Älteres, eigenständiges Grundschul-Lernspiel mit Setup-, Brett-, Minigame- und Ergebnisfluss sowie einem zentralen Register vieler deutscher Sprach-Minispiele.",
+    "ageRange": { "from": 6, "to": 11 },
+    "learningDomains": [
+      "Deutsch",
+      "Sprechen und Zuhören",
+      "Lesen",
+      "Schreiben",
+      "Sprache und Sprachgebrauch untersuchen"
+    ],
+    "activityForms": ["board-game", "language-game", "digital-game", "group-activity"],
+    "groupSize": { "min": 1, "max": 8 },
+    "personalizationSlots": ["theme", "characters", "vocabulary", "task-selection", "difficulty", "duration"],
+    "reusableContracts": [
+      "standard minigame interface: id, name_de, topics, setup(container, task, onComplete)",
+      "task generator separated from minigame renderer",
+      "screen manager for start, setup, board, minigame and results",
+      "settings and profile snapshots"
+    ],
+    "representativeMechanics": [
+      "word type sorting",
+      "article choice",
+      "sentence ordering",
+      "fill in the blanks",
+      "spelling detective",
+      "noun hunting",
+      "rhyme matching",
+      "syllable activities",
+      "story building",
+      "crossword and maze formats",
+      "dialogue and presentation activities"
+    ],
+    "prohibitedIntegration": [
+      "directly importing the complete legacy application into the documentation core",
+      "treating points, accuracy or game completion as competency proof",
+      "copying learner profiles or progress scores into child documentation",
+      "automatically assigning a game from a presumed child trait"
+    ],
+    "requiredBeforeAcceptance": [
+      "browser runtime test on current target devices",
+      "touch and keyboard accessibility test",
+      "content and spelling review",
+      "rights review for all images, sounds and fonts",
+      "mapping of each mechanic to an explicit optional learning operation",
+      "adapter that emits bounded activity and effect events instead of scores as truth"
+    ],
+    "evidence": {
+      "staticArchitecture": "confirmed in repository inspection",
+      "runtime": "not yet verified",
+      "classroomUse": "not asserted in this manifest",
+      "curriculumMapping": "candidate only; must use versioned official source records"
+    }
+  }
+}

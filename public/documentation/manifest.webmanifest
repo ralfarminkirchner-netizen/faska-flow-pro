@@ -1,0 +1,12 @@
+{
+  "name": "FASKA Dokumentation · Lernspuren",
+  "short_name": "Lernspuren",
+  "description": "Lokaler vertikaler Prototyp für quellengebundene Episoden, Lernspuren und vorbereitete Lernmöglichkeiten.",
+  "start_url": "/documentation/",
+  "scope": "/documentation/",
+  "display": "standalone",
+  "background_color": "#f3eee3",
+  "theme_color": "#f4efe4",
+  "lang": "de",
+  "categories": ["education", "productivity"]
+}

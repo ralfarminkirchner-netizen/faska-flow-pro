@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "0.1",
+  "collection": {
+    "id": "animal-friends",
+    "title": "Animal Friends · handgezeichnete Tierfiguren",
+    "source": "family artwork imported through scripts/extract-animal-friends.py",
+    "creatorCredit": "Metadaten vor externer Veröffentlichung bestätigen",
+    "rightsStatus": "creator_confirmation_required",
+    "usageRule": "Kein Motiv darf in Materialien, Spielen oder Projektionen erscheinen, bevor automatische Vorprüfung und menschliche Freigabe getrennt dokumentiert wurden.",
+    "automaticAcceptance": false
+  },
+  "assets": [
+    { "id": "ella-elefant", "name": "Ella Elefant", "path": "/animal-friends/ella-elefant.webp", "cutoutPath": "/animal-friends/cutouts/ella-elefant.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Elefant"] },
+    { "id": "pino-pinguin", "name": "Pino Pinguin", "path": "/animal-friends/pino-pinguin.webp", "cutoutPath": "/animal-friends/cutouts/pino-pinguin.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Pinguin"] },
+    { "id": "mika-katze", "name": "Mika Katze", "path": "/animal-friends/mika-katze.webp", "cutoutPath": "/animal-friends/cutouts/mika-katze.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Katze"] },
+    { "id": "balu-hund", "name": "Balu Hund", "path": "/animal-friends/balu-hund.webp", "cutoutPath": "/animal-friends/cutouts/balu-hund.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Hund"] },
+    { "id": "kiki-kaenguru", "name": "Kiki Känguru", "path": "/animal-friends/kiki-kaenguru.webp", "cutoutPath": "/animal-friends/cutouts/kiki-kaenguru.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Känguru"] },
+    { "id": "bruno-baer", "name": "Bruno Bär", "path": "/animal-friends/bruno-baer.webp", "cutoutPath": "/animal-friends/cutouts/bruno-baer.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Bär"] },
+    { "id": "luna-hase", "name": "Luna Hase", "path": "/animal-friends/luna-hase.webp", "cutoutPath": "/animal-friends/cutouts/luna-hase.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Hase"] },
+    { "id": "fina-fuchs", "name": "Fina Fuchs", "path": "/animal-friends/fina-fuchs.webp", "cutoutPath": "/animal-friends/cutouts/fina-fuchs.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Fuchs"] },
+    { "id": "roni-waschbaer", "name": "Roni Waschbär", "path": "/animal-friends/roni-waschbaer.webp", "cutoutPath": "/animal-friends/cutouts/roni-waschbaer.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Waschbär"] },
+    { "id": "dari-reh", "name": "Dari Reh", "path": "/animal-friends/dari-reh.webp", "cutoutPath": "/animal-friends/cutouts/dari-reh.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Reh"] },
+    { "id": "nuri-fledermaus", "name": "Nuri Fledermaus", "path": "/animal-friends/nuri-fledermaus.webp", "cutoutPath": "/animal-friends/cutouts/nuri-fledermaus.png", "reviewStatus": "review_required", "rightsStatus": "creator_confirmation_required", "tags": ["Tier", "Fledermaus"] }
+  ]
+}

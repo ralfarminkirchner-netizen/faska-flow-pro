@@ -1,0 +1,417 @@
+import { n as require_react, s as __toESM, t as require_jsx_runtime } from "./jsx-runtime-Be5yPkiZ.js";
+//#region src/components/games/engines/FaskaFighter/FaskaFighter.jsx
+var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
+var import_jsx_runtime = require_jsx_runtime();
+var processSprite = (src) => {
+	return new Promise((resolve) => {
+		const img = new Image();
+		img.crossOrigin = "Anonymous";
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = img.width;
+			canvas.height = img.height;
+			const ctx = canvas.getContext("2d");
+			ctx.drawImage(img, 0, 0);
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			const data = imageData.data;
+			for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] < 50 && data[i + 2] > 200) data[i + 3] = 0;
+			ctx.putImageData(imageData, 0, 0);
+			resolve(canvas.toDataURL());
+		};
+		img.src = src;
+	});
+};
+var QUESTIONS = [
+	{
+		term: "const",
+		desc: "Declares a block-scoped, read-only named constant.",
+		attack: "HADOUKEN"
+	},
+	{
+		term: "let",
+		desc: "Declares a block-scoped, local variable.",
+		attack: "SHORYUKEN"
+	},
+	{
+		term: "function",
+		desc: "Declares a function.",
+		attack: "SPINNING BIRD KICK"
+	},
+	{
+		term: "return",
+		desc: "Specifies the value to be returned by a function.",
+		attack: "SONIC BOOM"
+	},
+	{
+		term: "if",
+		desc: "Executes a statement if a specified condition is truthy.",
+		attack: "TIGER KNEE"
+	}
+];
+function FaskaFighter({ onExit }) {
+	const [sprites, setSprites] = (0, import_react.useState)({
+		player: null,
+		enemy: null
+	});
+	const [gameState, setGameState] = (0, import_react.useState)({
+		playerHealth: 100,
+		enemyHealth: 100,
+		playerX: 20,
+		enemyX: 70,
+		playerState: "idle",
+		enemyState: "idle",
+		questionActive: false,
+		currentQuestion: null,
+		typedText: "",
+		message: "FIGHT!",
+		combo: 0
+	});
+	const stateRef = (0, import_react.useRef)(gameState);
+	stateRef.current = gameState;
+	(0, import_react.useEffect)(() => {
+		Promise.all([processSprite("/faska-flow-pro/textures/fighter_player.png"), processSprite("/faska-flow-pro/textures/fighter_enemy.png")]).then(([p, e]) => setSprites({
+			player: p,
+			enemy: e
+		}));
+		setTimeout(() => {
+			nextQuestion();
+		}, 2e3);
+	}, []);
+	const nextQuestion = () => {
+		const q = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+		setGameState((prev) => ({
+			...prev,
+			questionActive: true,
+			currentQuestion: q,
+			typedText: "",
+			message: ""
+		}));
+	};
+	(0, import_react.useEffect)(() => {
+		const handleKeyDown = (e) => {
+			const state = stateRef.current;
+			if (!state.questionActive || state.playerHealth <= 0 || state.enemyHealth <= 0) return;
+			if (e.key.length === 1) {
+				const targetWord = state.currentQuestion.term;
+				const nextChar = targetWord[state.typedText.length];
+				if (e.key.toLowerCase() === nextChar.toLowerCase()) {
+					const newTyped = state.typedText + e.key;
+					if (newTyped.length === targetWord.length) executeAttack(state.currentQuestion.attack);
+					else {
+						setGameState((prev) => ({
+							...prev,
+							typedText: newTyped
+						}));
+						setGameState((prev) => ({
+							...prev,
+							playerState: "mini-attack"
+						}));
+						setTimeout(() => setGameState((prev) => ({
+							...prev,
+							playerState: "idle"
+						})), 100);
+					}
+				} else enemyAttack();
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
+	const executeAttack = (attackName) => {
+		setGameState((prev) => ({
+			...prev,
+			questionActive: false,
+			playerState: "attack",
+			enemyState: "hit",
+			message: attackName + "!",
+			enemyHealth: Math.max(0, prev.enemyHealth - 20),
+			combo: prev.combo + 1
+		}));
+		setTimeout(() => {
+			if (stateRef.current.enemyHealth > 0) {
+				setGameState((prev) => ({
+					...prev,
+					playerState: "idle",
+					enemyState: "idle"
+				}));
+				nextQuestion();
+			} else setGameState((prev) => ({
+				...prev,
+				playerState: "win",
+				enemyState: "dead",
+				message: "K.O. - YOU WIN!"
+			}));
+		}, 1e3);
+	};
+	const enemyAttack = () => {
+		setGameState((prev) => ({
+			...prev,
+			typedText: "",
+			enemyState: "attack",
+			playerState: "hit",
+			playerHealth: Math.max(0, prev.playerHealth - 15),
+			combo: 0,
+			message: "COUNTER ATTACK!"
+		}));
+		setTimeout(() => {
+			if (stateRef.current.playerHealth > 0) setGameState((prev) => ({
+				...prev,
+				playerState: "idle",
+				enemyState: "idle",
+				message: ""
+			}));
+			else setGameState((prev) => ({
+				...prev,
+				playerState: "dead",
+				enemyState: "win",
+				questionActive: false,
+				message: "K.O. - YOU LOSE"
+			}));
+		}, 800);
+	};
+	const getTransform = (charType, animState) => {
+		if (charType === "player") {
+			if (animState === "attack") return "translateX(20vw) scale(1.1)";
+			if (animState === "mini-attack") return "translateX(5vw)";
+			if (animState === "hit") return "translateX(-5vw) rotate(-10deg)";
+			if (animState === "dead") return "translateY(10vw) rotate(-90deg)";
+		} else {
+			if (animState === "attack") return "translateX(-20vw) scaleX(-1.1) scaleY(1.1)";
+			if (animState === "hit") return "translateX(5vw) scaleX(-1) rotate(-10deg) brightness(2) hue-rotate(90deg)";
+			if (animState === "dead") return "translateY(10vw) scaleX(-1) rotate(90deg) grayscale(1)";
+		}
+		return charType === "enemy" ? "scaleX(-1)" : "none";
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		style: {
+			width: "100%",
+			height: "100%",
+			position: "absolute",
+			inset: 0,
+			backgroundImage: "url(/textures/fighter_bg.png)",
+			backgroundSize: "cover",
+			backgroundPosition: "center",
+			backgroundRepeat: "no-repeat",
+			fontFamily: "Impact, sans-serif",
+			overflow: "hidden",
+			boxShadow: "inset 0 0 100px rgba(0,0,0,0.8)"
+		},
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				style: {
+					position: "absolute",
+					top: 20,
+					left: 20,
+					right: 20,
+					display: "flex",
+					justifyContent: "space-between",
+					zIndex: 10
+				},
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						style: { width: "40%" },
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							style: {
+								color: "white",
+								fontSize: "32px",
+								textShadow: "2px 2px 0 black"
+							},
+							children: "FASKA-RYU"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							style: {
+								width: "100%",
+								height: "30px",
+								backgroundColor: "red",
+								border: "4px solid white",
+								borderRadius: "5px",
+								overflow: "hidden"
+							},
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+								width: `${gameState.playerHealth}%`,
+								height: "100%",
+								backgroundColor: "yellow",
+								transition: "width 0.2s"
+							} })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: {
+							color: "white",
+							fontSize: "64px",
+							textShadow: "0 0 10px red",
+							fontWeight: "bold"
+						},
+						children: "VS"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						style: {
+							width: "40%",
+							textAlign: "right"
+						},
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							style: {
+								color: "white",
+								fontSize: "32px",
+								textShadow: "2px 2px 0 black"
+							},
+							children: "AKUMA-BUG"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							style: {
+								width: "100%",
+								height: "30px",
+								backgroundColor: "red",
+								border: "4px solid white",
+								borderRadius: "5px",
+								overflow: "hidden",
+								display: "flex",
+								justifyContent: "flex-end"
+							},
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+								width: `${gameState.enemyHealth}%`,
+								height: "100%",
+								backgroundColor: "yellow",
+								transition: "width 0.2s"
+							} })
+						})]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				onClick: onExit,
+				style: {
+					position: "absolute",
+					top: 20,
+					left: "50%",
+					transform: "translateX(-50%)",
+					padding: "10px 20px",
+					fontSize: "20px",
+					backgroundColor: "#e74c3c",
+					color: "white",
+					border: "3px solid black",
+					borderRadius: "10px",
+					cursor: "pointer",
+					zIndex: 20
+				},
+				children: "BEENDEN"
+			}),
+			gameState.combo > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				style: {
+					position: "absolute",
+					top: "20%",
+					left: "10%",
+					color: "yellow",
+					fontSize: "48px",
+					textShadow: "4px 4px 0 red",
+					fontStyle: "italic",
+					zIndex: 5
+				},
+				children: [gameState.combo, " COMBO!"]
+			}),
+			gameState.message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					top: "40%",
+					left: "50%",
+					transform: "translate(-50%, -50%)",
+					color: "white",
+					fontSize: "80px",
+					textShadow: "5px 5px 0 red, -5px -5px 0 red, 5px -5px 0 red, -5px 5px 0 red",
+					zIndex: 10,
+					animation: "pulse 0.5s infinite alternate"
+				},
+				children: gameState.message
+			}),
+			gameState.questionActive && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				style: {
+					position: "absolute",
+					bottom: "50px",
+					left: "50%",
+					transform: "translateX(-50%)",
+					backgroundColor: "rgba(0,0,0,0.8)",
+					padding: "20px 40px",
+					borderRadius: "20px",
+					border: "5px solid #3498db",
+					textAlign: "center",
+					zIndex: 10,
+					minWidth: "60%"
+				},
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: {
+							color: "#ecf0f1",
+							fontSize: "24px",
+							marginBottom: "10px"
+						},
+						children: "Type the missing keyword:"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: {
+							color: "#f1c40f",
+							fontSize: "32px",
+							marginBottom: "20px"
+						},
+						children: gameState.currentQuestion.desc
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: {
+							fontSize: "64px",
+							letterSpacing: "10px",
+							fontFamily: "monospace",
+							fontWeight: "bold"
+						},
+						children: gameState.currentQuestion.term.split("").map((char, i) => {
+							const isTyped = i < gameState.typedText.length;
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								style: {
+									color: isTyped ? "#2ecc71" : "#555",
+									textShadow: isTyped ? "0 0 10px #2ecc71" : "none"
+								},
+								children: isTyped ? char : "_"
+							}, i);
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				style: {
+					position: "absolute",
+					bottom: "15%",
+					left: 0,
+					width: "100%",
+					height: "50vh",
+					pointerEvents: "none"
+				},
+				children: [sprites.player && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					src: sprites.player,
+					alt: "Player",
+					style: {
+						position: "absolute",
+						left: `${gameState.playerX}%`,
+						bottom: 0,
+						height: "100%",
+						transform: getTransform("player", gameState.playerState),
+						transformOrigin: "bottom center",
+						transition: "transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+						filter: `drop-shadow(10px 10px 0px rgba(0,0,0,0.5)) ${gameState.playerState === "hit" ? "sepia(1) hue-rotate(-50deg) saturate(5)" : ""}`
+					}
+				}), sprites.enemy && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					src: sprites.enemy,
+					alt: "Enemy",
+					style: {
+						position: "absolute",
+						left: `${gameState.enemyX}%`,
+						bottom: 0,
+						height: "100%",
+						transform: getTransform("enemy", gameState.enemyState),
+						transformOrigin: "bottom center",
+						transition: "transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+						filter: `drop-shadow(10px 10px 0px rgba(0,0,0,0.5)) ${gameState.enemyState === "hit" ? "brightness(10)" : ""}`
+					}
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: `@keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); } 100% { transform: translate(-50%, -50%) scale(1.1); } }` })
+		]
+	});
+}
+//#endregion
+export { FaskaFighter as default };

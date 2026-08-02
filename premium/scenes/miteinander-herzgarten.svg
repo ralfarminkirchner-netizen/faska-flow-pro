@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">Herzgarten</title>
+  <desc id="desc">Sanfte Miteinander-Szene mit zwei Kindern, Herzbaum und Gesprächskarten.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#fff5f9"/><stop offset=".52" stop-color="#fbd8e6"/><stop offset="1" stop-color="#ddb8dc"/></linearGradient>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".02" numOctaves="4" seed="41"/><feComponentTransfer><feFuncA type="table" tableValues="0 .14"/></feComponentTransfer></filter>
+    <style>.pulse{animation:pulse 3.6s ease-in-out infinite;transform-origin:center}.sway{animation:sway 5.8s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.055)}}@keyframes sway{50%{transform:translateY(-12px) rotate(2deg)}}</style>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/><rect width="1200" height="750" filter="url(#paper)" opacity=".74"/>
+  <path d="M0 590 C180 515 310 600 472 538 C660 466 806 580 980 520 C1075 488 1135 482 1200 455 L1200 750 L0 750 Z" fill="#91c783"/>
+  <path d="M0 660 C240 590 390 688 612 620 C810 560 940 650 1200 575 L1200 750 L0 750 Z" fill="#6fad75"/>
+  <g transform="translate(522 170)">
+    <path d="M88 420 C82 312 90 220 112 126" stroke="#7a5840" stroke-width="34" stroke-linecap="round"/>
+    <g class="pulse" fill="#f6a6bd" stroke="#9d4867" stroke-width="7">
+      <path d="M110 112 C55 52 113 -18 166 38 C215 -20 280 44 226 110 L168 172 Z"/>
+      <path d="M0 190 C-42 142 5 88 48 130 C88 84 140 135 98 188 L49 238 Z"/>
+      <path d="M210 220 C170 176 214 122 258 162 C296 116 352 168 310 218 L260 270 Z"/>
+    </g>
+  </g>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(282 432)"><circle cx="70" cy="48" r="46" fill="#fed7aa" stroke="#9b6233" stroke-width="6"/><path d="M28 44 C48 0 96 0 118 44" fill="#704b35"/><path d="M46 62 C61 78 82 78 96 62" fill="none" stroke="#704b35" stroke-width="6"/><path d="M20 122 C52 76 104 78 136 122 L160 248 L0 248 Z" fill="#8dc7d8" stroke="#2f80a0" stroke-width="7"/></g>
+    <g transform="translate(772 432)"><circle cx="70" cy="48" r="46" fill="#f7c4a3" stroke="#9b6233" stroke-width="6"/><path d="M24 50 C44 2 96 -6 123 42 C98 26 56 28 24 50Z" fill="#5b3b2b"/><path d="M46 62 C61 78 82 78 96 62" fill="none" stroke="#704b35" stroke-width="6"/><path d="M20 122 C52 76 104 78 136 122 L160 248 L0 248 Z" fill="#d9b2df" stroke="#8f62a5" stroke-width="7"/></g>
+    <path d="M420 578 C498 530 666 530 744 578" fill="none" stroke="#fffaf0" stroke-width="18" stroke-linecap="round"/><path d="M420 578 C498 530 666 530 744 578" fill="none" stroke="#ba5d7b" stroke-width="5" stroke-dasharray="18 20" stroke-linecap="round"/>
+  </g>
+  <g class="sway" font-family="Georgia, serif" font-weight="700" text-anchor="middle"><rect x="165" y="220" width="150" height="88" rx="24" fill="#fffaf0" stroke="#fff" stroke-width="7"/><text x="240" y="276" font-size="34" fill="#66364c">Danke</text><rect x="890" y="210" width="135" height="88" rx="24" fill="#fffaf0" stroke="#fff" stroke-width="7"/><text x="958" y="266" font-size="34" fill="#66364c">Mut</text></g>
+</svg>
